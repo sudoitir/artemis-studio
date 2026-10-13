@@ -50,6 +50,18 @@ CREATE TABLE api_token_usage (
 )
 WITH (fillfactor='80', autovacuum_vacuum_scale_factor='0.05', autovacuum_analyze_scale_factor='0.05');
 
+-- A token's requests being served now, counted for all replicas (ADR-0196). The count lapses at
+-- expires_at, so a crashed replica's requests do not hold the limit for ever.
+CREATE UNLOGGED TABLE request_in_flight (
+    expires_at timestamp with time zone NOT NULL,
+    count integer NOT NULL,
+    key uuid NOT NULL
+)
+WITH (fillfactor='50', autovacuum_vacuum_scale_factor='0.0', autovacuum_vacuum_threshold='50');
+
+ALTER TABLE ONLY request_in_flight
+    ADD CONSTRAINT pk_request_in_flight PRIMARY KEY (key);
+
 ALTER TABLE ONLY api_request_window
     ADD CONSTRAINT pk_api_request_window PRIMARY KEY (key, minute);
 
@@ -77,6 +89,7 @@ ALTER TABLE ONLY api_token_usage
 
 ALTER TABLE ONLY api_token
     ADD CONSTRAINT fk_api_token_user FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE;
+--rollback DROP TABLE IF EXISTS request_in_flight CASCADE;
 --rollback DROP TABLE IF EXISTS api_token_usage CASCADE;
 --rollback DROP TABLE IF EXISTS api_token_grant CASCADE;
 --rollback DROP TABLE IF EXISTS api_token CASCADE;
