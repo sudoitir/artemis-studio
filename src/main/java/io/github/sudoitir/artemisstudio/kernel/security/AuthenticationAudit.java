@@ -25,7 +25,8 @@ public interface AuthenticationAudit {
 
     /**
      * Record that a sign-in whose password was accepted was completed by its second factor: the login
-     * attempt {@link Attempt#awaitingSecondFactor} closed as not succeeded now succeeded.
+     * attempt {@link Attempt#awaitingSecondFactor} closed as not succeeded is followed by a new successful
+     * login event whose parent is that attempt; the attempt's own record is not changed.
      */
     void loginCompleted(long attemptId);
 
@@ -40,7 +41,8 @@ public interface AuthenticationAudit {
         /**
          * The password was accepted and a second factor is still owed. The attempt is closed as not
          * succeeded, with that reason, so a factor that is never given, is wrong or expires leaves it so;
-         * {@link #loginCompleted} turns it into a success once the factor is given.
+         * {@link #loginCompleted} records the success, as a new event whose parent is this attempt, once the factor
+         * is given.
          *
          * @return the attempt's id, to complete it with
          */
