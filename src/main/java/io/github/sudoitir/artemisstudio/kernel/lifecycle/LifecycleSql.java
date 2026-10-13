@@ -27,7 +27,8 @@ public final class LifecycleSql {
 
     /**
      * Deletes at most {@code limit} rows matching {@code predicate}. By {@code ctid}, so the
-     * batch is bounded without an ordering column and without holding a lock on the rest.
+     * batch is bounded without an ordering column and without holding a lock on the rest. Not for
+     * a partitioned table, where a {@code ctid} is only unique within one partition.
      */
     public static long deleteBatch(JdbcTemplate jdbc, String table, String predicate, Instant cutoff, int limit) {
         return jdbc.update(
@@ -35,6 +36,27 @@ public final class LifecycleSql {
                         + " LIMIT ?))",
                 Timestamp.from(cutoff),
                 limit);
+    }
+
+    /**
+     * Deletes the child rows of the parents {@code parentPredicate} selects, in batches of at most
+     * {@code limit}, until none are left. Run before deleting the parents, so that no single statement
+     * cascades through an unbounded number of children: {@code ON DELETE CASCADE} deletes them all inside
+     * the parent's one statement. {@code parentPredicate} has exactly one {@code ?}, as in {@link #deleteBatch}.
+     */
+    public static void deleteChildren(
+            JdbcTemplate jdbc,
+            String child,
+            String foreignKey,
+            String parent,
+            String parentPredicate,
+            Instant cutoff,
+            int limit) {
+        String sql = "DELETE FROM " + child + " WHERE ctid = ANY(ARRAY(SELECT ctid FROM " + child + " WHERE "
+                + foreignKey + " IN (SELECT id FROM " + parent + " WHERE " + parentPredicate + ") LIMIT ?))";
+        while (!Thread.currentThread().isInterrupted() && jdbc.update(sql, Timestamp.from(cutoff), limit) > 0) {
+            // each batch is its own transaction: the next one starts when the last has committed
+        }
     }
 
     /** Counts the rows {@link #deleteBatch} would remove, and prices them at the table's average row size. */
