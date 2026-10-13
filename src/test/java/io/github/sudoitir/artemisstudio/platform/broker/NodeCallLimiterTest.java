@@ -22,6 +22,28 @@ class NodeCallLimiterTest {
     }
 
     @Test
+    void replicasShareTheConfiguredRate() {
+        var ready = new java.util.concurrent.atomic.AtomicInteger(3);
+        NodeCallLimiter limiter = new NodeCallLimiter(new RateLimitProperties(10), meters, ready::get);
+
+        limiter.refill();
+
+        assertThat(limiter.share()).as("10 over 3 replicas, rounded up").isEqualTo(4);
+        assertThat(limiter.permitsPerSecond())
+                .as("the configured rate stays the node's total")
+                .isEqualTo(10);
+    }
+
+    @Test
+    void aRateBelowTheReplicaCountStillGivesEachReplicaOneCall() {
+        NodeCallLimiter limiter = new NodeCallLimiter(new RateLimitProperties(2), meters, () -> 5);
+
+        limiter.refill();
+
+        assertThat(limiter.share()).isEqualTo(1);
+    }
+
+    @Test
     void allowsUpToTheCeilingThenBlocksUntilTheNextRefill() throws Exception {
         NodeCallLimiter limiter = limiter(2);
 

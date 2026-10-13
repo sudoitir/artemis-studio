@@ -120,6 +120,16 @@ public class ReplicaRegistry implements SmartLifecycle {
                 """, (rs, i) -> replica(rs), seconds(ha.ttl()));
     }
 
+    /** How many replicas are ready and have a heartbeat younger than the ttl. */
+    public int readyCount() {
+        Integer ready = jdbc.queryForObject("""
+                SELECT count(*) FROM studio_replica
+                WHERE stopped_at IS NULL AND state = 'ready'
+                  AND heartbeat_at > now() - make_interval(secs => ?)
+                """, Integer.class, seconds(ha.ttl()));
+        return ready == null ? 0 : ready;
+    }
+
     /** Every replica whose last heartbeat is within {@code window}, including stopped and gone ones, oldest first. */
     public List<Seen> seen(Duration window) {
         return jdbc.query(
