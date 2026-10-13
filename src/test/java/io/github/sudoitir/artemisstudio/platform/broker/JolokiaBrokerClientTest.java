@@ -361,7 +361,8 @@ class JolokiaBrokerClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         server.expect(requestTo(URL)).andRespond(failsWith(new ConnectException("Connection refused")));
-        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper, names, null, null, null);
+        JolokiaBrokerClient client =
+                new JolokiaBrokerClient(builder.build(), URL, mapper, names, null, null, null, BrokerCallGuard.OFF);
 
         assertThatThrownBy(() -> client.readBrokerAttributes("Active")).isInstanceOf(BrokerConnectionException.class);
 
@@ -376,7 +377,8 @@ class JolokiaBrokerClientTest {
         server.expect(requestTo(URL))
                 .andRespond(withSuccess(body("ha-read-instance-not-found.json"), MediaType.APPLICATION_JSON));
         server.expect(requestTo(URL)).andRespond(withSuccess(body("search-broker.json"), MediaType.APPLICATION_JSON));
-        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper, names, null, null, null);
+        JolokiaBrokerClient client =
+                new JolokiaBrokerClient(builder.build(), URL, mapper, names, null, null, null, BrokerCallGuard.OFF);
 
         assertThat(client.readBrokerAttributes("Active").ok()).isFalse();
         assertThat(names).doesNotContainKey(URL);
@@ -393,7 +395,8 @@ class JolokiaBrokerClientTest {
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         server.expect(requestTo(URL))
                 .andRespond(withSuccess(body("ha-read-instance-not-found.json"), MediaType.APPLICATION_JSON));
-        JolokiaBrokerClient client = new JolokiaBrokerClient(builder.build(), URL, mapper, names, null, null, null);
+        JolokiaBrokerClient client =
+                new JolokiaBrokerClient(builder.build(), URL, mapper, names, null, null, null, BrokerCallGuard.OFF);
 
         client.single(JolokiaRequest.read("org.apache.activemq.artemis:queue=\"gone\"", "MessageCount"));
 

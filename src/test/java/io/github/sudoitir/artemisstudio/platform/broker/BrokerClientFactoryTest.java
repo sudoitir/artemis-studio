@@ -30,7 +30,8 @@ class BrokerClientFactoryTest {
             new NodeCallHealth(),
             new NodeCallLimiter(
                     new RateLimitProperties(1_000), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
-            io.micrometer.observation.ObservationRegistry.NOOP);
+            io.micrometer.observation.ObservationRegistry.NOOP,
+            BrokerCallGuard.OFF);
 
     @org.junit.jupiter.api.AfterEach
     void tearDown() {

@@ -64,11 +64,14 @@ public class JolokiaBrokerClient {
      */
     private final NodeCallLimiter limiter;
 
+    /** Refuses a request made inside a database transaction where the application switches that on. */
+    private final BrokerCallGuard guard;
+
     /** Operations one permit covers in a batch request, so batching cannot exceed the ceiling. */
     static final int OPERATIONS_PER_PERMIT = 50;
 
     public JolokiaBrokerClient(RestClient restClient, String jolokiaUrl, ObjectMapper mapper) {
-        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), null, null, null);
+        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), null, null, null, BrokerCallGuard.OFF);
     }
 
     public JolokiaBrokerClient(
@@ -78,8 +81,10 @@ public class JolokiaBrokerClient {
             Map<String, String> sharedBrokerObjectNames,
             ClockOffsetRegistry clockOffsets,
             NodeCallHealth callHealth,
-            NodeCallLimiter limiter) {
+            NodeCallLimiter limiter,
+            BrokerCallGuard guard) {
         this.restClient = restClient;
+        this.guard = guard;
         this.jolokiaUrl = jolokiaUrl;
         this.mapper = mapper;
         this.sharedBrokerObjectNames = sharedBrokerObjectNames;
@@ -220,7 +225,7 @@ public class JolokiaBrokerClient {
     }
 
     private <T> T post(Object payload, Class<T> responseType) {
-        BrokerCallGuard.check();
+        guard.check();
         try {
             T body = exchange(payload, responseType);
             if (callHealth != null) {

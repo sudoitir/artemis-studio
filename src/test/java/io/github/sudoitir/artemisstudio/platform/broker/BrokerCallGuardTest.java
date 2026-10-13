@@ -9,36 +9,32 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 class BrokerCallGuardTest {
 
-    private final boolean before = BrokerCallGuard.enabled();
-
     @AfterEach
     void reset() {
         TransactionSynchronizationManager.setActualTransactionActive(false);
-        new BrokerCallGuard(before);
     }
 
     @Test
     void refusesABrokerCallWhileATransactionIsActive() {
-        new BrokerCallGuard(true);
+        BrokerCallGuard guard = new BrokerCallGuard(true);
         TransactionSynchronizationManager.setActualTransactionActive(true);
 
-        assertThatThrownBy(BrokerCallGuard::check)
+        assertThatThrownBy(guard::check)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("broker call inside a database transaction");
     }
 
     @Test
     void allowsTheCallOutsideATransaction() {
-        new BrokerCallGuard(true);
+        BrokerCallGuard guard = new BrokerCallGuard(true);
 
-        assertThatCode(BrokerCallGuard::check).doesNotThrowAnyException();
+        assertThatCode(guard::check).doesNotThrowAnyException();
     }
 
     @Test
     void doesNothingWhenSwitchedOff() {
-        new BrokerCallGuard(false);
         TransactionSynchronizationManager.setActualTransactionActive(true);
 
-        assertThatCode(BrokerCallGuard::check).doesNotThrowAnyException();
+        assertThatCode(BrokerCallGuard.OFF::check).doesNotThrowAnyException();
     }
 }

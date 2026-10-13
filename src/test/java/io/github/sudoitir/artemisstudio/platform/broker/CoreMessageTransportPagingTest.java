@@ -49,7 +49,9 @@ class CoreMessageTransportPagingTest extends ArtemisIntegrationTest {
         MessageOperations messageOps = new MessageOperations();
         transport = new CoreMessageTransport(
                 connections,
-                new CorePool(new CoreConnectionFactory(props, mock(SslBundles.class)), CoreObservations.none()),
+                new CorePool(
+                        new CoreConnectionFactory(props, mock(SslBundles.class), BrokerCallGuard.OFF),
+                        CoreObservations.none()),
                 new JolokiaMessageTransport(connections, new MessageBrowser(), messageOps),
                 new NodeCallLimiter(
                         new RateLimitProperties(1_000), new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),

@@ -49,7 +49,8 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
         queueName = "core.tx.it." + System.nanoTime();
 
         BrokerProperties props = new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000);
-        CoreConnectionFactory connectionFactory = new CoreConnectionFactory(props, mock(SslBundles.class));
+        CoreConnectionFactory connectionFactory =
+                new CoreConnectionFactory(props, mock(SslBundles.class), BrokerCallGuard.OFF);
         CorePool corePool = new CorePool(connectionFactory, CoreObservations.none());
 
         BrokerConnections connections = mock(BrokerConnections.class);
