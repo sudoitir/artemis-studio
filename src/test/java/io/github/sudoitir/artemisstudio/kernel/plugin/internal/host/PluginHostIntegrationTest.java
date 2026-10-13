@@ -771,7 +771,7 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
         for (int i = 0; i < 3; i++) {
             jdbc.update("""
                     INSERT INTO studio_replica (started_at, heartbeat_at, host, version, state, id)
-                    VALUES (now() - interval '2 minutes', now() - interval '1 minute', 'crashed', 'test', 'ready', gen_random_uuid())
+                    VALUES (now() - interval '2 minutes', now() - interval '1 minute', 'crashed', 'test', 'ready', uuidv7())
                     """);
         }
 
