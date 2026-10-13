@@ -16,6 +16,10 @@
     "kind" : "KERNEL",
     "required" : true
   }, {
+    "id" : "auditfeed",
+    "kind" : "KERNEL",
+    "required" : true
+  }, {
     "id" : "broker",
     "kind" : "PLATFORM",
     "required" : true

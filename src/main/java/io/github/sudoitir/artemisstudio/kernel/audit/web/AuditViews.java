@@ -29,4 +29,8 @@ public final class AuditViews {
             @Schema(nullable = true) String error,
             @Schema(nullable = true) String clusterName,
             @Schema(nullable = true) UUID nodeId) {}
+
+    /** One exported row: the event as the exporter may see it, and the per-node detail of a fan-out. */
+    public record AuditExportRow(
+            AuditEventView event, @Schema(nullable = true) String outcomeDetail) {}
 }

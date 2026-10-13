@@ -40,7 +40,8 @@ public record PluginDescriptor(
         List<Metric> metrics,
         List<AlertRule> alertRules,
         List<IdentityProvider> identityProviders,
-        ApprovalProvider approvalProvider) {
+        ApprovalProvider approvalProvider,
+        AuditAccess audit) {
 
     public PluginDescriptor {
         requires = requires == null ? List.of() : List.copyOf(requires);
@@ -51,11 +52,26 @@ public record PluginDescriptor(
         metrics = metrics == null ? List.of() : List.copyOf(metrics);
         alertRules = alertRules == null ? List.of() : List.copyOf(alertRules);
         identityProviders = identityProviders == null ? List.of() : List.copyOf(identityProviders);
+        audit = audit == null ? new AuditAccess(false, false) : audit;
     }
 
     /** Whether the plugin needs a license file; a plugin that does not say needs none. */
     public boolean isRequiresLicense() {
         return Boolean.TRUE.equals(requiresLicense);
+    }
+
+    /**
+     * Access to the audit log beyond what any plugin may read.
+     *
+     * @param receive receives every audit event, unfiltered; absent means false
+     * @param retentionHold may hold audit records back from retention; absent means false
+     */
+    public record AuditAccess(Boolean receive, Boolean retentionHold) {
+
+        public AuditAccess {
+            receive = Boolean.TRUE.equals(receive);
+            retentionHold = Boolean.TRUE.equals(retentionHold);
+        }
     }
 
     public record Vendor(String name, String url, String email) {}

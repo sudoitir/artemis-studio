@@ -177,6 +177,11 @@
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
         <dependency>
+            <!-- CSV writer for the audit export, which streams rows without building the file in memory. -->
+            <groupId>tools.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-csv</artifactId>
+        </dependency>
+        <dependency>
             <!-- SMTP for email notification channels (ADR-0099). Studio builds one sender per
                  channel; the auto-configured global JavaMailSender is unused and backs off
                  without spring.mail.host. -->

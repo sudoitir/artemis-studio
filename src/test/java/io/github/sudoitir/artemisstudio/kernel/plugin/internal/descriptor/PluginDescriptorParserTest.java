@@ -42,4 +42,25 @@ class PluginDescriptorParserTest {
         assertThatThrownBy(() -> parser.parse(descriptor("requiresLicense", Map.of("until", "2030"))))
                 .isInstanceOf(PluginDescriptorException.class);
     }
+
+    @Test
+    void auditAccessDefaultsToNone() throws Exception {
+        assertThat(parser.parse(descriptor(null, null)).audit())
+                .isEqualTo(new PluginDescriptor.AuditAccess(false, false));
+        assertThat(parser.parse(descriptor("audit", Map.of("receive", true))).audit())
+                .isEqualTo(new PluginDescriptor.AuditAccess(true, false));
+    }
+
+    @Test
+    void auditAccessIsParsedPerFlag() throws Exception {
+        assertThat(parser.parse(descriptor("audit", Map.of("receive", true, "retentionHold", true)))
+                        .audit())
+                .isEqualTo(new PluginDescriptor.AuditAccess(true, true));
+    }
+
+    @Test
+    void anUnknownAuditKeyIsRefused() {
+        assertThatThrownBy(() -> parser.parse(descriptor("audit", Map.of("export", true))))
+                .isInstanceOf(PluginDescriptorException.class);
+    }
 }

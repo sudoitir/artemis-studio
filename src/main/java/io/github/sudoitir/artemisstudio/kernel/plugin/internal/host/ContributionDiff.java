@@ -17,4 +17,6 @@ public record ContributionDiff(
         Set<String> mcpToolsAdded,
         Set<String> mcpToolsRemoved,
         Set<String> identityProvidersAdded,
-        Set<String> identityProvidersRemoved) {}
+        Set<String> identityProvidersRemoved,
+        Set<String> auditAdded,
+        Set<String> auditRemoved) {}

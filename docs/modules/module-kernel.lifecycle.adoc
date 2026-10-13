@@ -21,6 +21,7 @@ _Others_
 * `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.ReplicaStore`)
 * `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.StorageSampleStore`)
 |Bean references
-|* `i.g.s.a.k.a.AuditService` (in Audit log)
+|* `i.g.s.a.k.a.AuditRetentionGuard` (in Audit delivery)
+* `i.g.s.a.k.a.AuditService` (in Audit log)
 * `i.g.s.a.k.s.SettingsService` (in Settings)
 |===

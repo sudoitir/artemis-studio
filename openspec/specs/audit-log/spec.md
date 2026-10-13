@@ -255,7 +255,11 @@ The audit screen SHALL open the details of the event named by an `event` search 
 ### Requirement: Audit events have a configurable retention, keeping everything by default
 Studio SHALL keep audit events forever unless an administrator sets a retention period for the audit
 store, which SHALL be at least 30 days. The purge of audit events SHALL itself be recorded as an audit
-event that the purge does not remove.
+event that the purge does not remove. Studio SHALL consult every plugin that declares an audit retention
+hold before purging, and SHALL leave every record a hold covers, whatever the retention. A hold
+provider that errors, does not answer in time or is unavailable SHALL cause that run to purge no audit
+event and to report the failure. The purge SHALL NOT remove events a registered receiver has not
+acknowledged, up to a configured maximum age.
 
 #### Scenario: Default
 - **WHEN** no audit retention is set
@@ -268,6 +272,14 @@ event that the purge does not remove.
 #### Scenario: The purge record survives
 - **WHEN** the audit store is purged
 - **THEN** the `PURGE_STORE` event of that purge is still present afterwards
+
+#### Scenario: Hold respected
+- **WHEN** a plugin holds records inside the purge window
+- **THEN** the purge leaves them and purges the rest
+
+#### Scenario: Hold provider failure
+- **WHEN** a plugin that declares a retention hold errors or does not answer in time
+- **THEN** no audit event is purged in that run and the failure is shown in the store's purge status
 
 ### Requirement: Refused requests are audited
 
@@ -296,3 +308,98 @@ grant) SHALL see only that cluster's audit events about resources they may read.
 
 - **WHEN** an Orders-only user reads prod's audit trail
 - **THEN** only events about Orders' resources are returned
+
+### Requirement: Users with permission SHALL be able to export filtered audit records
+
+Studio SHALL export the audit records matching the current filters as CSV, JSON or NDJSON. The export SHALL be limited to users with the right permission and SHALL be streamed so a large export does not exhaust memory.
+
+#### Scenario: Filtered NDJSON export
+
+- **WHEN** an auditor exports records filtered by actor and time range as NDJSON
+- **THEN** the file contains exactly the matching records
+
+#### Scenario: Not permitted
+
+- **WHEN** a user without the permission requests an export
+- **THEN** it is refused
+
+#### Scenario: Large export
+
+- **WHEN** an export matches millions of rows
+- **THEN** it streams with bounded memory and can be cancelled
+
+### Requirement: Every audit export SHALL itself be audited
+
+Studio SHALL record who exported audit data, with which filters and format.
+
+#### Scenario: Export audited
+
+- **WHEN** a user exports audit records
+- **THEN** a new audit row names the user, the filters and the format
+
+### Requirement: Audit exports SHALL not leak secrets or data the exporter cannot see
+
+Exported records SHALL contain exactly what the exporter could see in the audit view, with the same redaction and scope limits. A CSV export SHALL neutralise values a spreadsheet would run as a formula.
+
+#### Scenario: Redaction
+
+- **WHEN** a record contains a redacted field
+- **THEN** the export contains the redacted value
+
+#### Scenario: Scoped auditor
+
+- **WHEN** an exporter may see the audit of one environment only
+- **THEN** the export contains no record from another environment
+
+#### Scenario: Formula in a value
+
+- **WHEN** an audited value starts with `=`, `+`, `-` or `@` and is exported as CSV
+- **THEN** opening the file in a spreadsheet shows the value as text and runs nothing
+
+### Requirement: A plugin SHALL be able to receive audit events reliably and in order
+
+Studio SHALL deliver every audit event to registered plugin receivers at least once, in commit order, across all replicas. Each delivered record SHALL carry its position in that order; a record that changes (an outcome replacing `PENDING`, a recount) SHALL be delivered again at a new position, and `(id, position)` SHALL identify a delivery for de-duplication. Once an audit record has an outcome, Studio SHALL refuse any further change to it except the count of a refused request. A receiver that is slow or down SHALL NOT lose events or block the audited operation, and events SHALL be replayed from the last acknowledged position. The audit purge SHALL NOT remove events a registered receiver has not acknowledged, up to a configured maximum age; past it, Studio SHALL record the gap as an audit event and alert. Receiving audit events SHALL be a plugin capability shown to the admin when the plugin is installed.
+
+#### Scenario: Receiver down
+
+- **WHEN** a receiver is unavailable while events occur
+- **THEN** events are held and delivered in order when it returns
+
+#### Scenario: Duplicate delivery
+
+- **WHEN** Studio restarts before an acknowledgment is stored
+- **THEN** events after the last acknowledged position are delivered again, with a stable identifier for de-duplication
+
+#### Scenario: Operation not blocked
+
+- **WHEN** a receiver is slow
+- **THEN** audited operations complete without waiting for it
+
+#### Scenario: Purge would outrun a receiver
+
+- **WHEN** retention would purge events a receiver has not acknowledged
+- **THEN** they are kept until acknowledged or until the maximum age, and a gap past that age is audited and alerted, never silent
+
+#### Scenario: Two replicas
+
+- **WHEN** two replicas record events at the same time
+- **THEN** every receiver gets them in the same order, the order in which they were committed, with no event skipped
+
+#### Scenario: Outcome recorded later
+
+- **WHEN** an audited operation records its outcome after it started
+- **THEN** the receiver gets the pending record and then the record with its outcome, at a later position
+
+#### Scenario: Undeclared receiver
+
+- **WHEN** a plugin provides a receiver without declaring audit access in its manifest
+- **THEN** the plugin is not activated
+
+### Requirement: The audit SPI SHALL be generic
+
+The export and SPI SHALL NOT be tied to any named product or destination.
+
+#### Scenario: Third-party receiver
+
+- **WHEN** a third-party plugin implements a receiver
+- **THEN** it works with no Studio change

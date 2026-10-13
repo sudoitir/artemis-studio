@@ -698,6 +698,21 @@ instead of a failure. Queries under `heldOperationsKey` refresh by themselves: t
 user's own stream open on every page. `useUserStream()` shares that connection and returns its status,
 so a view can poll while it is not `live`.
 
+### Audit access
+
+A plugin that works with the audit log declares what it needs in `plugin.json`. Both flags default to
+`false`, and no other key is accepted:
+
+```json
+"audit": { "receive": true, "retentionHold": true }
+```
+
+- `receive`: the plugin is handed every audit event, unfiltered.
+- `retentionHold`: the plugin may hold audit records back from retention.
+
+The administrator sees each flag in the install review, and a plugin that newly declares one, on install
+or in an update, is activated only after they acknowledge `audit-access-added`.
+
 ### Reading metric history
 
 A plugin that wants the history of Studio's queue metrics, or of metrics plugins publish, injects

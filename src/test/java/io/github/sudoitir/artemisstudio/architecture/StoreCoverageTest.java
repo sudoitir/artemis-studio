@@ -52,6 +52,11 @@ class StoreCoverageTest extends PostgresIntegrationTest {
             Map.entry("plugin_upload", "trimmed to a day on every upload"),
             Map.entry("studio_config_property", "configuration"),
             Map.entry("studio_setting", "configuration: one row per overridden setting"),
+            Map.entry("audit_feed_state", "a single row: when the trail is complete from"),
+            Map.entry("audit_receiver", "one row per audit receiver plugin, removed when it is uninstalled"),
+            Map.entry(
+                    "audit_receiver_gap",
+                    "deleted once audited and delivered, so it holds only the gaps not yet told, and goes with its receiver"),
             Map.entry("shedlock", "one row per installation-wide job"),
             Map.entry("cluster_lease", "one row per cluster, removed with it"),
             Map.entry("broker_identity", "one row per broker of a registered cluster, removed with it"),

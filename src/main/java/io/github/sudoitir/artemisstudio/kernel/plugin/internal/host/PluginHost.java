@@ -1529,6 +1529,9 @@ public class PluginHost implements SmartLifecycle {
         if (!diff.identityProvidersAdded().isEmpty()) {
             acknowledgements.add("signin-added");
         }
+        if (!diff.auditAdded().isEmpty()) {
+            acknowledgements.add("audit-access-added");
+        }
         return new TrustPart(
                 new PlanTrust(
                         decision.status(),
@@ -1657,6 +1660,8 @@ public class PluginHost implements SmartLifecycle {
         Set<String> newProviders = newD.identityProviders().stream()
                 .map(PluginDescriptor.IdentityProvider::id)
                 .collect(java.util.stream.Collectors.toSet());
+        Set<String> oldAudit = oldD == null ? Set.of() : auditFlags(oldD);
+        Set<String> newAudit = auditFlags(newD);
         return new ContributionDiff(
                 added(newPerms, oldPerms),
                 added(oldPerms, newPerms),
@@ -1667,7 +1672,21 @@ public class PluginHost implements SmartLifecycle {
                 added(newTools, oldTools),
                 added(oldTools, newTools),
                 added(newProviders, oldProviders),
-                added(oldProviders, newProviders));
+                added(oldProviders, newProviders),
+                added(newAudit, oldAudit),
+                added(oldAudit, newAudit));
+    }
+
+    /** The audit access a descriptor declares, by manifest key. */
+    private static Set<String> auditFlags(PluginDescriptor d) {
+        Set<String> flags = new LinkedHashSet<>();
+        if (d.audit().receive()) {
+            flags.add("receive");
+        }
+        if (d.audit().retentionHold()) {
+            flags.add("retentionHold");
+        }
+        return flags;
     }
 
     private static Set<String> added(Set<String> a, Set<String> b) {

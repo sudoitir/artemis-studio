@@ -141,7 +141,9 @@ public final class PluginAdminViews {
             @Schema(requiredMode = REQUIRED) List<String> settingKeys,
             @Schema(requiredMode = REQUIRED) List<String> streamTopics,
             @Schema(requiredMode = REQUIRED) List<PluginMcpToolView> mcpTools,
-            @Schema(requiredMode = REQUIRED) List<PluginIdentityProviderView> identityProviders) {}
+            @Schema(requiredMode = REQUIRED) List<PluginIdentityProviderView> identityProviders,
+            @Schema(requiredMode = REQUIRED) boolean auditReceive,
+            @Schema(requiredMode = REQUIRED) boolean auditRetentionHold) {}
 
     /** A sign-in the plugin offers, which makes the plugin receive the passwords typed for it. */
     public record PluginIdentityProviderView(
@@ -271,7 +273,9 @@ public final class PluginAdminViews {
             @Schema(requiredMode = REQUIRED) List<String> mcpToolsAdded,
             @Schema(requiredMode = REQUIRED) List<String> mcpToolsRemoved,
             @Schema(requiredMode = REQUIRED) List<String> identityProvidersAdded,
-            @Schema(requiredMode = REQUIRED) List<String> identityProvidersRemoved) {}
+            @Schema(requiredMode = REQUIRED) List<String> identityProvidersRemoved,
+            @Schema(requiredMode = REQUIRED) List<String> auditAdded,
+            @Schema(requiredMode = REQUIRED) List<String> auditRemoved) {}
 
     /** @param fix what the plugin's author must change; empty when there is nothing to change */
     public record PluginViolationView(

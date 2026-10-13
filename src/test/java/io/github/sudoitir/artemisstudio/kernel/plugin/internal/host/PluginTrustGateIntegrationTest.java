@@ -353,6 +353,73 @@ class PluginTrustGateIntegrationTest extends PostgresIntegrationTest {
         assertThat(host.plan(shaV2).acknowledgements()).isEmpty();
     }
 
+    /** The beans a plugin that declares audit access must provide, or its activation is refused. */
+    private static PluginJarBuilder auditBeans(PluginJarBuilder jar, boolean receiver, boolean hold) {
+        String pkg = jar.basePackage();
+        jar.source(pkg + ".PluginConfig", """
+                package %s;
+                import org.springframework.context.annotation.ComponentScan;
+                import org.springframework.context.annotation.Configuration;
+                @Configuration
+                @ComponentScan(basePackages = "%s")
+                public class PluginConfig {}
+                """.formatted(pkg, pkg));
+        if (receiver) {
+            jar.source(pkg + ".Receiver", """
+                    package %s;
+                    import io.github.sudoitir.artemisstudio.kernel.audit.AuditDelivery;
+                    import io.github.sudoitir.artemisstudio.kernel.audit.AuditReceiver;
+                    import org.springframework.stereotype.Component;
+                    @Component
+                    public class Receiver implements AuditReceiver {
+                        public void receive(AuditDelivery delivery) {}
+                    }
+                    """.formatted(pkg));
+        }
+        if (hold) {
+            jar.source(pkg + ".Hold", """
+                    package %s;
+                    import io.github.sudoitir.artemisstudio.kernel.audit.AuditHold;
+                    import io.github.sudoitir.artemisstudio.kernel.audit.AuditRetentionHold;
+                    import java.util.List;
+                    import org.springframework.stereotype.Component;
+                    @Component
+                    public class Hold implements AuditRetentionHold {
+                        public List<AuditHold> holds() { return List.of(); }
+                    }
+                    """.formatted(pkg));
+        }
+        return jar;
+    }
+
+    @Test
+    void aPluginDeclaringAuditAccessNeedsConfirmationAndAnUpdateThatAddsAFlagDoesToo() throws Exception {
+        String id = uniqueId("gate-audit");
+        pluginIds.add(id);
+        String shaV1 = upload(auditBeans(new PluginJarBuilder(id), true, false)
+                .descriptorField("audit", java.util.Map.of("receive", true)));
+
+        ActivationPlan plan = host.plan(shaV1);
+        assertThat(plan.diff().auditAdded()).containsExactly("receive");
+        assertThat(plan.acknowledgements()).containsExactly("audit-access-added");
+        assertRefused(() -> host.activate(shaV1, "tester", false), "acknowledgement-required");
+
+        host.activate(shaV1, "tester", true);
+        awaitActive(id, shaV1);
+
+        String sameFlags = upload(auditBeans(new PluginJarBuilder(id), true, false)
+                .descriptorField("audit", java.util.Map.of("receive", true))
+                .descriptorField("version", "2.0.0"));
+        assertThat(host.plan(sameFlags).acknowledgements()).isEmpty();
+
+        String moreFlags = upload(auditBeans(new PluginJarBuilder(id), true, true)
+                .descriptorField("audit", java.util.Map.of("receive", true, "retentionHold", true))
+                .descriptorField("version", "3.0.0"));
+        ActivationPlan update = host.plan(moreFlags);
+        assertThat(update.diff().auditAdded()).containsExactly("retentionHold");
+        assertThat(update.acknowledgements()).containsExactly("audit-access-added");
+    }
+
     @Test
     void theStudioHealthGroupIncludesThePluginTrustContributor() {
         assertThat(studioGroup.split(",")).contains("pluginTrust");

@@ -72,8 +72,8 @@ export const SLOW_CONSUMER_TEMPLATE = {
   severity: 'WARNING',
 } as const;
 
-/** What an installation-scoped rule may watch (ADR-0135): Studio's own storage, not a cluster. */
-export const INSTALLATION_CONDITIONS = ['STORAGE_QUOTA', 'STORAGE_HEALTH'] as const;
+/** What an installation-scoped rule may watch (ADR-0135): Studio's own storage and audit delivery, not a cluster. */
+export const INSTALLATION_CONDITIONS = ['STORAGE_QUOTA', 'STORAGE_HEALTH', 'AUDIT_DELIVERY'] as const;
 
 export const STATE_CONDITIONS = [
   'SPLIT_BRAIN',
@@ -135,6 +135,7 @@ const STATE_LABELS: Record<string, string> = {
   SETUP_RISK: 'Setup risk',
   STORAGE_QUOTA: 'Storage quota',
   STORAGE_HEALTH: 'Storage health',
+  AUDIT_DELIVERY: 'Audit delivery',
 };
 
 export function stateConditionLabel(condition: string): string {

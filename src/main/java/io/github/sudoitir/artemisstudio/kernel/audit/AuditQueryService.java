@@ -2,29 +2,40 @@ package io.github.sudoitir.artemisstudio.kernel.audit;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditFilter;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
+import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditExportRow;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
+import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
+import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.core.exc.JacksonIOException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
-/** Read side of the audit trail — filtered, paged, newest first (non-negotiable #3). */
+/** Read side of the audit trail — filtered, paged, newest first, or exported oldest first (non-negotiable #3). */
 @Service
 @RequiredArgsConstructor
 public class AuditQueryService {
@@ -33,6 +44,11 @@ public class AuditQueryService {
     private final ClusterAccessGuard clusterAccess;
     private final PermissionResolver permissions;
     private final ObjectMapper mapper;
+    private final AuditService audit;
+    private final ActorResolver actors;
+    private final ScopeHierarchy clusters;
+    private final EntityManager entityManager;
+    private final TransactionTemplate transactions;
 
     /** The parameters that name a queue or address other than the one the event is about. */
     private static final Set<String> RESOURCE_PARAMS =
@@ -43,23 +59,136 @@ public class AuditQueryService {
     @Transactional(readOnly = true)
     public PagedView<AuditEventView> page(UUID clusterId, AuditQuery query) {
         clusterAccess.requireVisible(clusterId);
-        // A caller who reads the cluster reads its whole trail. Any other reads the events about the queues and
-        // addresses they may read, chosen in the query so a total never counts the rest.
-        boolean everything = clusterAccess.holds(clusterId, Permissions.CLUSTER_READ);
-        Page<AuditEventEntity> result = events.findPage(
+        Scope scope = scope(clusterId);
+        Page<AuditEventEntity> result =
+                events.findPage(filter(clusterId, scope, query), PageRequest.of(query.page() - 1, query.size()));
+        return PagedView.of(result, e -> toView(e, scope.redaction()));
+    }
+
+    /**
+     * An export that has been authorised and recorded, to run on any thread: everything the caller's rights decide
+     * is settled here, so the run needs no request or security context.
+     */
+    public static final class Export {
+
+        private final UUID clusterId;
+        private final String clusterName;
+        private final AuditEvent event;
+        private final Scope scope;
+        private final AuditQuery query;
+
+        private Export(UUID clusterId, String clusterName, AuditEvent event, Scope scope, AuditQuery query) {
+            this.clusterId = clusterId;
+            this.clusterName = clusterName;
+            this.event = event;
+            this.scope = scope;
+            this.query = query;
+        }
+
+        /** The cluster's name, for the file's name. */
+        public String clusterName() {
+            return clusterName;
+        }
+    }
+
+    /**
+     * Authorise an export of the cluster's trail under the filters of {@code query} (its page and size are not used)
+     * and record it as started. The caller needs {@link AuditPermissions#EXPORT} and sees what {@link #page} shows:
+     * the whole trail with {@code cluster:read}, otherwise the events about the queues and addresses they may read.
+     */
+    public Export prepareExport(UUID clusterId, AuditQuery query, String format) {
+        clusterAccess.requireVisible(clusterId);
+        clusterAccess.requireCluster(clusterId, AuditPermissions.EXPORT);
+        Scope scope = scope(clusterId);
+        Map<String, Object> filters = new LinkedHashMap<>();
+        filters.put("user", blankToNull(query.username()));
+        filters.put("action", blankToNull(query.action()));
+        filters.put("outcome", blankToNull(query.outcome()));
+        filters.put("parentId", query.parentId());
+        filters.put("from", query.from());
+        filters.put("to", query.to());
+        filters.values().removeIf(java.util.Objects::isNull);
+        String clusterName = clusters.clusterName(clusterId);
+        AuditEvent event = audit.begin(
+                actors.resolve(),
+                "EXPORT_AUDIT",
+                "AUDIT",
+                clusterName,
                 clusterId,
+                null,
+                Map.of("format", format, "filters", filters),
+                false);
+        return new Export(clusterId, clusterName, event, scope, query);
+    }
+
+    /**
+     * Write the export's rows, oldest first, to {@code sink} and record the outcome: the count on success, how far it
+     * got when the sink fails (the client went away) or the read does. {@code finish} flushes and closes the sink; it
+     * runs before the outcome, so a file cut short by a failing close is never recorded as complete. The export's own row is left out.
+     */
+    public void run(Export export, Consumer<AuditExportRow> sink, Runnable finish) {
+        long[] written = {0};
+        try {
+            transactions.executeWithoutResult(tx -> {
+                try (Stream<AuditEventEntity> rows =
+                        events.streamFiltered(filter(export.clusterId, export.scope, export.query))) {
+                    rows.forEach(e -> {
+                        if (!e.getId().equals(export.event.getId())) {
+                            sink.accept(new AuditExportRow(
+                                    toView(e, export.scope.redaction()),
+                                    export.scope.everything() ? e.getOutcomeDetail() : null));
+                            written[0]++;
+                        }
+                        entityManager.detach(e);
+                    });
+                }
+            });
+            finish.run();
+        } catch (RuntimeException ex) {
+            // A write that fails is the client going away; anything else is the read.
+            String how = ex instanceof JacksonIOException ? "cancelled" : "failed";
+            audit.failPartial(export.event, written[0], how + " after " + written[0] + " rows");
+            throw ex;
+        }
+        audit.succeed(export.event, written[0]);
+    }
+
+    /** What the caller reads of a cluster's trail, resolved once. */
+    private record Scope(boolean everything, List<String> queues, List<String> addresses, Redaction redaction) {}
+
+    /**
+     * A caller who reads the cluster reads its whole trail. Any other reads the events about the queues and
+     * addresses they may read, chosen in the query so a total never counts the rest.
+     */
+    private Scope scope(UUID clusterId) {
+        boolean everything = clusterAccess.holds(clusterId, Permissions.CLUSTER_READ);
+        return new Scope(
                 everything,
                 everything ? List.of("") : readable(clusterId, "QUEUE", ResourceKind.QUEUE),
                 everything ? List.of("") : readable(clusterId, "ADDRESS", ResourceKind.ADDRESS),
+                everything ? null : redaction(clusterId));
+    }
+
+    private static AuditFilter filter(UUID clusterId, Scope scope, AuditQuery query) {
+        return new AuditFilter(
+                clusterId,
+                scope.everything(),
+                scope.queues(),
+                scope.addresses(),
                 blankToNull(query.username()),
                 blankToNull(query.action()),
                 blankToNull(query.outcome()),
                 query.parentId(),
-                query.from() != null ? query.from() : Instant.EPOCH,
-                query.to() != null ? query.to() : Instant.parse("9999-12-31T23:59:59Z"),
-                PageRequest.of(query.page() - 1, query.size()));
-        Redaction redaction = everything ? null : redaction(clusterId);
-        return PagedView.of(result, e -> toView(e, redaction));
+                from(query),
+                to(query));
+    }
+
+    private static Instant from(AuditQuery query) {
+        return query.from() != null ? query.from() : Instant.EPOCH;
+    }
+
+    private static Instant to(AuditQuery query) {
+        return query.to() != null ? query.to() : Instant.parse("9999-12-31T23:59:59Z");
     }
 
     @Transactional(readOnly = true)

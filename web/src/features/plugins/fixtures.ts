@@ -24,6 +24,8 @@ export const INFO: PluginInfoView = {
     streamTopics: [],
     mcpTools: [{ name: 'acme_notes_search', posture: 'read', description: null }],
     identityProviders: [],
+    auditReceive: false,
+    auditRetentionHold: false,
   },
 };
 
@@ -51,6 +53,8 @@ export function plan(over: Partial<PluginPlanView> = {}): PluginPlanView {
       mcpToolsRemoved: [],
       identityProvidersAdded: [],
       identityProvidersRemoved: [],
+      auditAdded: [],
+      auditRemoved: [],
     },
     rolesLosingPermission: {},
     compatible: true,

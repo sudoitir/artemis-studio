@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
 import io.github.sudoitir.artemisstudio.kernel.core.RequestIds;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
@@ -92,7 +93,21 @@ class AuthenticationAuditRecorder implements AuthenticationAudit {
 
     @Override
     public void loginCompleted(long attemptId) {
-        audit.byId(attemptId).ifPresent(attempt -> audit.succeed(attempt, 1));
+        // The attempt keeps its outcome (a finished audit record is never rewritten); the completed sign-in is a
+        // new record that names the attempt as its parent.
+        audit.byId(attemptId)
+                .ifPresent(attempt -> ScopedValue.where(AuditScope.PARENT, attemptId)
+                        .run(() -> audit.succeed(
+                                audit.begin(
+                                        actors.resolve(),
+                                        "LOGIN",
+                                        "user",
+                                        attempt.getTargetName(),
+                                        null,
+                                        null,
+                                        Map.of("completes", attemptId),
+                                        false),
+                                1)));
     }
 
     @Override

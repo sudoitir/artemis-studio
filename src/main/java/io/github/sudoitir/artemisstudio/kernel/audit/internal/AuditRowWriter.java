@@ -2,7 +2,9 @@ package io.github.sudoitir.artemisstudio.kernel.audit.internal;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
  * the pending row must be durable before the broker call it describes, whatever transaction the
  * caller is in, and an outcome must not depend on the caller's transaction committing.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class AuditRowWriter {
@@ -25,12 +28,12 @@ public class AuditRowWriter {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void succeed(Long id, long affectedCount) {
-        events.findById(id).ifPresent(row -> row.markSuccess(affectedCount));
+        pending(id).ifPresent(row -> row.markSuccess(affectedCount));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void refuse(Long id, String reason, long count) {
-        events.findById(id).ifPresent(row -> row.markRefused(reason, count));
+        pending(id).ifPresent(row -> row.markRefused(reason, count));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -40,17 +43,17 @@ public class AuditRowWriter {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void fail(Long id, String error) {
-        events.findById(id).ifPresent(row -> row.markFailure(error));
+        pending(id).ifPresent(row -> row.markFailure(error));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failPartial(Long id, long affectedCount, String error) {
-        events.findById(id).ifPresent(row -> row.markFailure(error, affectedCount));
+        pending(id).ifPresent(row -> row.markFailure(error, affectedCount));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void finish(Long id, boolean anyFailed, long affectedCount, String error, String detail) {
-        events.findById(id).ifPresent(row -> {
+        pending(id).ifPresent(row -> {
             row.attachOutcomeDetail(detail);
             if (anyFailed) {
                 row.markFailure(error);
@@ -64,5 +67,21 @@ public class AuditRowWriter {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void failIfPending(Long id, String error) {
         events.findById(id).filter(row -> "PENDING".equals(row.getOutcome())).ifPresent(row -> row.markFailure(error));
+    }
+
+    /**
+     * The row, while it has no outcome yet. An outcome is recorded once: the database refuses rewriting a
+     * finished row, so a second outcome is logged and dropped instead of failing the caller.
+     */
+    private Optional<AuditEventEntity> pending(Long id) {
+        Optional<AuditEventEntity> row = events.findById(id);
+        if (row.isPresent() && !"PENDING".equals(row.get().getOutcome())) {
+            log.warn(
+                    "Audit event {} already has outcome {}; a second outcome is ignored",
+                    id,
+                    row.get().getOutcome());
+            return Optional.empty();
+        }
+        return row;
     }
 }
