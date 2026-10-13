@@ -448,6 +448,11 @@ function scrollStyle<T>(model: TableModel<T>, selectable: boolean, hasMenu: bool
   } as CSSProperties;
 }
 
+/** The data columns with the selection column in front and the row-menu column behind, when there are any. */
+function withEdgeColumns(ids: readonly string[], selectable: boolean, hasMenu: boolean): string[] {
+  return [...(selectable ? [SELECT_ID] : []), ...ids, ...(hasMenu ? [ACTIONS_ID] : [])];
+}
+
 /**
  * The interactive renderer of `DataTable`: one CSS grid track list, declared once and shared by the
  * header row and every body row, row-virtualised with `@tanstack/react-virtual` (ADR-0020).
@@ -486,13 +491,15 @@ export function GridTable<T>({
   const firstDataCol = selectable ? 1 : 0;
   const hasMenu = rowMenu !== undefined;
   const colIds = useMemo(
-    () => [...(selectable ? [SELECT_ID] : []), ...columns.map((c) => c.id), ...(hasMenu ? [ACTIONS_ID] : [])],
+    () =>
+      withEdgeColumns(
+        columns.map((c) => c.id),
+        selectable,
+        hasMenu,
+      ),
     [selectable, columns, hasMenu],
   );
-  const colOrder = useMemo(
-    () => [...(selectable ? [SELECT_ID] : []), ...model.order, ...(hasMenu ? [ACTIONS_ID] : [])],
-    [selectable, model.order, hasMenu],
-  );
+  const colOrder = useMemo(() => withEdgeColumns(model.order, selectable, hasMenu), [selectable, model.order, hasMenu]);
   const [active, setActive] = useState<{ key: string | null; col: string }>({ key: HEADER, col: '' });
   const touched = useRef(false);
   const lastIndex = useRef(1);
