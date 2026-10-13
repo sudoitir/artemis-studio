@@ -3,14 +3,14 @@ import { Button, Group, Stack, Text } from '@mantine/core';
 
 import { useLogout } from '../../kernel/auth/api.ts';
 import { useServerNow } from '../../kernel/time/time.ts';
-import { Ago } from '../../kernel/time/Ago.tsx';
 import { useEndOtherSessions, useEndSession, useSessions, type AccountSessionView } from './api.ts';
-import { describeClient } from '../../kernel/auth/clientLabel.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
-import { Row, Rows } from '../../ui/ListRows.tsx';
 import { LoadingState } from '../../ui/LoadingState.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
+import { DataTable } from '../../ui/table/index.ts';
+import classes from './Security.module.css';
+import { describeSession, sessionColumns } from './sessionColumns.tsx';
 
 interface Outcome {
   text: string;
@@ -21,17 +21,6 @@ interface Outcome {
 const LIST_BLOCK = '12rem';
 /** The list, the button under it (an `xs` button, 1.875rem) and the status line, with the two gaps between them. */
 const FRAME_BLOCK = `calc(${LIST_BLOCK} + 1.875rem + 2 * var(--mantine-spacing-md))`;
-
-const describeSession = (s: AccountSessionView) =>
-  `${describeClient(s.userAgent)} at ${s.clientAddress ?? 'an unknown address'}`;
-
-const endLabel = (s: AccountSessionView, admin: boolean) => {
-  if (s.current) {
-    return 'Sign out here, ending this session';
-  }
-  const verb = admin ? 'End' : 'Sign out';
-  return `${verb} ${describeSession(s)}`;
-};
 
 /** Ending sessions, one or every other, and saying how it went. */
 function useSessionEnding(userId: string | undefined) {
@@ -172,6 +161,8 @@ function SessionRows({
   ending,
 }: Readonly<{ list: AccountSessionView[]; admin: boolean; ending: ReturnType<typeof useSessionEnding> }>) {
   const now = useServerNow(30_000);
+  const { busy, isEnding, endOne } = ending;
+  const columns = sessionColumns({ admin, now, busy, isEnding, endOne });
   if (list.length === 0) {
     return (
       <EmptyState
@@ -186,46 +177,18 @@ function SessionRows({
     );
   }
   return (
-    <Rows label={admin ? 'Sessions of this user' : 'Your sessions'} bounded blockSize={LIST_BLOCK}>
-      {list.map((s) => (
-        <Row
-          key={s.handle}
-          title={
-            <Group gap="xs" wrap="wrap">
-              <Text size="sm" fw={500} title={s.userAgent ?? undefined}>
-                {describeClient(s.userAgent)}
-              </Text>
-              {s.current ? <StatusBadge>This session</StatusBadge> : null}
-            </Group>
-          }
-          facts={
-            <>
-              {s.clientAddress ?? 'Address unknown'} · signed in <Ago at={s.signedInAt} now={now} /> · last active{' '}
-              <Ago at={s.lastActivityAt} now={now} />
-            </>
-          }
-          action={
-            <Button
-              size="xs"
-              // Signing out where you are ends what you are doing, so it reads as a button, not a quiet link.
-              variant={s.current ? 'default' : 'subtle'}
-              aria-label={endLabel(s, admin)}
-              loading={ending.isEnding(s)}
-              disabled={ending.busy}
-              onClick={() => ending.endOne(s)}
-            >
-              {sessionAction(s, admin)}
-            </Button>
-          }
-        />
-      ))}
-    </Rows>
+    <div className={classes.sessionList} style={{ blockSize: LIST_BLOCK }}>
+      <DataTable
+        label={admin ? 'Sessions of this user' : 'Your sessions'}
+        height="fill"
+        storageKey="security.sessions"
+        columns={columns}
+        data={list}
+        rowKey={(s) => s.handle}
+        empty={null}
+      />
+    </div>
   );
-}
-
-function sessionAction(s: AccountSessionView, admin: boolean): string {
-  if (s.current) return 'Sign out here';
-  return admin ? 'End' : 'Sign out';
 }
 
 /** What went wrong and what to do about it, by cause. */

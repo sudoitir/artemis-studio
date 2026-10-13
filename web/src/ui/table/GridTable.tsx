@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useDeferredValue,
   useMemo,
   useRef,
   useState,
@@ -22,6 +23,8 @@ import { defaultRangeExtractor, useVirtualizer, type Range } from '@tanstack/rea
 import { AnchoredMenu } from '../AnchoredMenu.tsx';
 import type { Column } from './columns.ts';
 import type { TableModel } from './DataTable.tsx';
+import { findRows, stepMatch } from './gridFind.ts';
+import { GridFind } from './GridFind.tsx';
 import { HeaderCell } from './HeaderCell.tsx';
 import { nextSort, sortingOf } from './sort.ts';
 import { MiddleTruncate } from './MiddleTruncate.tsx';
@@ -134,6 +137,10 @@ function isCopyKey(e: KeyboardEvent): boolean {
 }
 
 /** Ctrl+Shift+Left/Right, which resizes the column of a header cell (ADR-0161). */
+function isFindKey(e: KeyboardEvent): boolean {
+  return (e.key === 'f' || e.key === 'F') && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+}
+
 function isResizeKey(e: KeyboardEvent): boolean {
   return e.ctrlKey && e.shiftKey && !e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight');
 }
@@ -289,6 +296,8 @@ interface GridRowProps<T> {
   selectable: boolean;
   selected: boolean;
   menuOpen: boolean;
+  /** The row the grid's find stands on. */
+  found: boolean;
   /** Names the row in its Actions control; undefined when the grid has no row menu. */
   menuLabel: string | undefined;
   clickable: boolean;
@@ -309,6 +318,7 @@ function GridRowView<T>({
   selectable,
   selected,
   menuOpen,
+  found,
   menuLabel,
   clickable,
   className,
@@ -323,6 +333,7 @@ function GridRowView<T>({
       data-grid-row={index + 1}
       data-selected={selected || undefined}
       data-menu-open={menuOpen || undefined}
+      data-found={found || undefined}
       className={`${classes.row} ${classes.bodyRow} ${clickable ? classes.clickable : ''} ${className ?? ''}`}
       onClick={clickable ? (e) => handlers.activate(e, row) : undefined}
       style={{ transform: `translateY(${start}px)` }}
@@ -602,6 +613,25 @@ export function GridTable<T>({
     }
   });
 
+  // ── Find ───────────────────────────────────────────────────────────────────
+  // The browser's find cannot see rows the virtualizer has not rendered, so the grid searches its
+  // data itself and scrolls the virtualizer to each match.
+  const [find, setFind] = useState<{ query: string; cursor: number; epoch: number } | null>(null);
+  const query = useDeferredValue(find?.query ?? '');
+  const matches = useMemo(() => findRows(columns, data, query), [columns, data, query]);
+  const cursor = matches.length === 0 ? -1 : Math.min(find?.cursor ?? 0, matches.length - 1);
+  const foundRow = find && cursor >= 0 ? matches[cursor] : -1;
+  useEffect(() => {
+    if (foundRow >= 0) virtualizer.scrollToIndex(foundRow, { align: 'center' });
+  }, [foundRow, virtualizer]);
+
+  const closeFind = () => {
+    const row = foundRow;
+    setFind(null);
+    if (row >= 0) moveTo({ row: row + 1, col: activeCol });
+    else pendingFocus.current = true;
+  };
+
   // ── Row menu ───────────────────────────────────────────────────────────────
   const [menu, setMenu] = useState<OpenMenu | null>(null);
   const suppressContextMenuUntil = useRef(0);
@@ -767,6 +797,11 @@ export function GridTable<T>({
   };
 
   const onGridKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (isFindKey(e)) {
+      e.preventDefault();
+      setFind((prev) => ({ query: prev?.query ?? '', cursor: prev?.cursor ?? 0, epoch: (prev?.epoch ?? 0) + 1 }));
+      return;
+    }
     const pos = posOf(e.target as Element);
     if (!pos) return;
     const target = e.target as HTMLElement;
@@ -872,128 +907,143 @@ export function GridTable<T>({
   const actionsCol = colIds.length - 1;
 
   return (
-    <div
-      ref={scrollRef}
-      className={classes.scroll}
-      data-overflow={model.overflow || undefined}
-      data-capped={model.maxRows === undefined ? undefined : true}
-      style={scrollStyle(model, selectable, hasMenu)}
-      onScroll={(e) => {
-        if (performance.now() > quietScrollUntil.current) {
-          cancelIntent();
-          if (reveal) setReveal(null);
-        }
-        if (menu) closeMenu(false);
-        const atTop = e.currentTarget.scrollTop <= 4;
-        interaction.set('scrolled', !atTop);
-        onAtTopChange?.(atTop);
-      }}
-      onPointerEnter={() => interaction.set('pointer', true)}
-      onPointerLeave={() => interaction.set('pointer', false)}
-    >
-      {model.measurer}
+    <>
+      {find ? (
+        <GridFind
+          key={find.epoch}
+          label={model.label}
+          query={find.query}
+          onQuery={(next) => setFind((prev) => prev && { ...prev, query: next, cursor: 0 })}
+          count={matches.length}
+          current={cursor}
+          onStep={(by) => setFind((prev) => prev && { ...prev, cursor: stepMatch(cursor, matches.length, by) })}
+          onClose={closeFind}
+        />
+      ) : null}
       <div
-        ref={gridRef}
-        className={classes.grid}
-        role="grid"
-        aria-label={model.label}
-        aria-busy={model.loading || undefined}
-        aria-rowcount={rowCount + 1}
-        aria-colcount={colIds.length}
-        onFocus={onGridFocus}
-        onBlur={onGridBlur}
-        onKeyDown={onGridKeyDown}
+        ref={scrollRef}
+        className={classes.scroll}
+        data-overflow={model.overflow || undefined}
+        data-capped={model.maxRows === undefined ? undefined : true}
+        style={scrollStyle(model, selectable, hasMenu)}
+        onScroll={(e) => {
+          if (performance.now() > quietScrollUntil.current) {
+            cancelIntent();
+            if (reveal) setReveal(null);
+          }
+          if (menu) closeMenu(false);
+          const atTop = e.currentTarget.scrollTop <= 4;
+          interaction.set('scrolled', !atTop);
+          onAtTopChange?.(atTop);
+        }}
+        onPointerEnter={() => interaction.set('pointer', true)}
+        onPointerLeave={() => interaction.set('pointer', false)}
       >
-        {model.overflow ? (
-          <>
-            <span data-sentinel="start" className={classes.sentinelStart} />
-            <span data-sentinel="end" className={classes.sentinelEnd} />
-          </>
-        ) : null}
-        {/* Directly under the grid, not wrapped in a `rowgroup`: a sticky element can only travel
+        {model.measurer}
+        <div
+          ref={gridRef}
+          className={classes.grid}
+          role="grid"
+          aria-label={model.label}
+          aria-busy={model.loading || undefined}
+          aria-rowcount={rowCount + 1}
+          aria-colcount={colIds.length}
+          onFocus={onGridFocus}
+          onBlur={onGridBlur}
+          onKeyDown={onGridKeyDown}
+        >
+          {model.overflow ? (
+            <>
+              <span data-sentinel="start" className={classes.sentinelStart} />
+              <span data-sentinel="end" className={classes.sentinelEnd} />
+            </>
+          ) : null}
+          {/* Directly under the grid, not wrapped in a `rowgroup`: a sticky element can only travel
             inside its containing block, and a wrapper sized to the header itself would leave it
             nothing to travel through. */}
-        <div
-          ref={headerRef}
-          className={`${classes.row} ${classes.headRow}`}
-          role="row"
-          aria-rowindex={1}
-          data-grid-row={0}
-        >
-          {selectable ? <SelectAllCell keys={loadedKeys} selected={selected} onToggleAll={onToggleAll} /> : null}
-          {columns.map((column, i) => (
-            <HeaderCell
-              key={column.id}
-              as="div"
-              column={column}
-              className={i === 0 ? classes.stickyFirst : undefined}
-              grid={{ col: firstDataCol + i, index: firstDataCol + i + 1 }}
-              sorting={sortingOf(model.sort, column.sortKey, model.onSortChange !== undefined)}
-              onSort={() => model.onSortChange?.(nextSort(model.sort, column.sortKey!))}
-              resize={{ onStart: (e) => startResize(e, column.id), onFit: () => model.fit(column.id) }}
-            />
-          ))}
-          {hasMenu ? (
-            <div
-              role="columnheader"
-              aria-colindex={actionsCol + 1}
-              data-grid-col={actionsCol}
-              className={`${classes.cell} ${classes.headCell} ${classes.stickyEnd}`}
-            >
-              <VisuallyHidden>Actions</VisuallyHidden>
-            </div>
-          ) : null}
-        </div>
-
-        <div
-          className={classes.body}
-          role="rowgroup"
-          style={{ blockSize: virtualizer.getTotalSize() }}
-          onContextMenu={onBodyContextMenu}
-        >
-          {virtualizer.getVirtualItems().map((vi) => {
-            const row = data[vi.index];
-            const key = loadedKeys[vi.index];
-            return (
-              <GridRow
-                key={key}
-                row={row}
-                rowKey={key}
-                index={vi.index}
-                start={vi.start}
-                columns={columns}
-                selectable={selectable}
-                selected={selected?.has(key) ?? false}
-                menuOpen={menu?.key === key}
-                menuLabel={rowMenu ? rowMenu.label(row) : undefined}
-                clickable={onRowClick !== undefined}
-                className={model.rowClassName?.(row)}
-                handlers={handlers}
+          <div
+            ref={headerRef}
+            className={`${classes.row} ${classes.headRow}`}
+            role="row"
+            aria-rowindex={1}
+            data-grid-row={0}
+          >
+            {selectable ? <SelectAllCell keys={loadedKeys} selected={selected} onToggleAll={onToggleAll} /> : null}
+            {columns.map((column, i) => (
+              <HeaderCell
+                key={column.id}
+                as="div"
+                column={column}
+                className={i === 0 ? classes.stickyFirst : undefined}
+                grid={{ col: firstDataCol + i, index: firstDataCol + i + 1 }}
+                sorting={sortingOf(model.sort, column.sortKey, model.onSortChange !== undefined)}
+                onSort={() => model.onSortChange?.(nextSort(model.sort, column.sortKey!))}
+                resize={{ onStart: (e) => startResize(e, column.id), onFit: () => model.fit(column.id) }}
               />
-            );
-          })}
+            ))}
+            {hasMenu ? (
+              <div
+                role="columnheader"
+                aria-colindex={actionsCol + 1}
+                data-grid-col={actionsCol}
+                className={`${classes.cell} ${classes.headCell} ${classes.stickyEnd}`}
+              >
+                <VisuallyHidden>Actions</VisuallyHidden>
+              </div>
+            ) : null}
+          </div>
+
+          <div
+            className={classes.body}
+            role="rowgroup"
+            style={{ blockSize: virtualizer.getTotalSize() }}
+            onContextMenu={onBodyContextMenu}
+          >
+            {virtualizer.getVirtualItems().map((vi) => {
+              const row = data[vi.index];
+              const key = loadedKeys[vi.index];
+              return (
+                <GridRow
+                  key={key}
+                  row={row}
+                  rowKey={key}
+                  index={vi.index}
+                  start={vi.start}
+                  columns={columns}
+                  selectable={selectable}
+                  selected={selected?.has(key) ?? false}
+                  menuOpen={menu?.key === key}
+                  found={vi.index === foundRow}
+                  menuLabel={rowMenu ? rowMenu.label(row) : undefined}
+                  clickable={onRowClick !== undefined}
+                  className={model.rowClassName?.(row)}
+                  handlers={handlers}
+                />
+              );
+            })}
+          </div>
         </div>
+
+        {placeholder ? (
+          <>
+            <SkeletonRows tracks={trackCount} />
+            <LoadingLabel label={model.label} />
+          </>
+        ) : null}
+
+        {rowMenu && menu && menuRow !== undefined && menuContext ? (
+          <AnchoredMenu
+            opened
+            anchor={menu.anchor}
+            label={`Actions for ${rowMenu.label(menuRow)}`}
+            onClose={() => closeMenu(true)}
+          >
+            {rowMenu.render(menuRow, menuContext)}
+          </AnchoredMenu>
+        ) : null}
+
+        {reveal ? <RevealPanel reveal={reveal} panelRef={panelRef} onHide={closeReveal} /> : null}
       </div>
-
-      {placeholder ? (
-        <>
-          <SkeletonRows tracks={trackCount} />
-          <LoadingLabel label={model.label} />
-        </>
-      ) : null}
-
-      {rowMenu && menu && menuRow !== undefined && menuContext ? (
-        <AnchoredMenu
-          opened
-          anchor={menu.anchor}
-          label={`Actions for ${rowMenu.label(menuRow)}`}
-          onClose={() => closeMenu(true)}
-        >
-          {rowMenu.render(menuRow, menuContext)}
-        </AnchoredMenu>
-      ) : null}
-
-      {reveal ? <RevealPanel reveal={reveal} panelRef={panelRef} onHide={closeReveal} /> : null}
-    </div>
+    </>
   );
 }

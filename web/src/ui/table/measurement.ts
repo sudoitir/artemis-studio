@@ -52,15 +52,19 @@ const GROW_INTERVAL = 2000;
 /** Added to a measured width: layout widths come back as whole pixels, and a value rounded down would be clipped. */
 const ROUNDING = 1;
 
-/**
- * What the Measurer renders: the text of the first rows of the page, then the longest values of each
- * text-like column beyond them, one row each with the other cells empty. One string per column.
- */
-export function sampleRows<T>(columns: Column<T>[], data: readonly T[]): string[][] {
-  const head = data.slice(0, SAMPLE_ROWS).map((row) => columns.map((column) => cellText(column.accessor(row))));
-  const longest = columns.flatMap((column, index) => {
-    if (!columnSpec(column).textLike) return [];
-    const top: string[] = [];
+/** The longest values of a column beyond the head, by the rows they were scanned from and the accessor that read them. */
+const longestCache = new WeakMap<readonly unknown[], WeakMap<object, string[]>>();
+
+/** The scan over every row is paid once per page of data: a change of columns or of density reuses it. */
+function longestValues<T>(column: Column<T>, data: readonly T[]): string[] {
+  let byAccessor = longestCache.get(data);
+  if (!byAccessor) {
+    byAccessor = new WeakMap();
+    longestCache.set(data, byAccessor);
+  }
+  let top = byAccessor.get(column.accessor);
+  if (!top) {
+    top = [];
     for (let i = SAMPLE_ROWS; i < data.length; i++) {
       const text = cellText(column.accessor(data[i]));
       if (top.length < LONGEST_VALUES || text.length > top.at(-1)!.length) {
@@ -69,7 +73,20 @@ export function sampleRows<T>(columns: Column<T>[], data: readonly T[]): string[
         top.length = Math.min(top.length, LONGEST_VALUES);
       }
     }
-    return top.map((text) => columns.map((_, i) => (i === index ? text : '')));
+    byAccessor.set(column.accessor, top);
+  }
+  return top;
+}
+
+/**
+ * What the Measurer renders: the text of the first rows of the page, then the longest values of each
+ * text-like column beyond them, one row each with the other cells empty. One string per column.
+ */
+export function sampleRows<T>(columns: Column<T>[], data: readonly T[]): string[][] {
+  const head = data.slice(0, SAMPLE_ROWS).map((row) => columns.map((column) => cellText(column.accessor(row))));
+  const longest = columns.flatMap((column, index) => {
+    if (!columnSpec(column).textLike) return [];
+    return longestValues(column, data).map((text) => columns.map((_, i) => (i === index ? text : '')));
   });
   return [...head, ...longest];
 }
