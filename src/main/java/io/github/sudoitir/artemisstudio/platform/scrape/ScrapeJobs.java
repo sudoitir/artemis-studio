@@ -2,8 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.scrape;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownPhases;
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownStep;
-import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
-import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionSpec;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -18,12 +17,7 @@ class ScrapeJobs {
     }
 
     @Bean
-    ScheduledJob metricPartitionJob(MetricPartitionMaintainer maintainer, SettingsService settings) {
-        return ScheduledJob.cron(
-                "metric-partitions",
-                FEATURE,
-                ScheduledJob.Scope.INSTALLATION,
-                () -> settings.value(ScrapeSettings.METRIC_PARTITION_CRON),
-                maintainer::maintain);
+    PartitionSpec metricSamplePartitions() {
+        return MetricSampleStore.PARTITIONS;
     }
 }

@@ -20,6 +20,9 @@ _Others_
 * `i.g.s.a.k.l.PurgeStatus`
 * `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.ReplicaStore`)
 * `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.StorageSampleStore`)
+* `i.g.s.a.k.l.partition.PartitionDrops`
+* `i.g.s.a.k.l.partition.PartitionMaintainer`
+* `i.g.s.a.k.l.partition.PartitionSpec`
 |Bean references
 |* `i.g.s.a.k.a.AuditRetentionGuard` (in Audit delivery)
 * `i.g.s.a.k.a.AuditService` (in Audit log)

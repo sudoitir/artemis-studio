@@ -7,7 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** Scrape cadence and metric partition maintenance (ADR-0015, ADR-0006, ADR-0048). */
+/** Scrape cadence (ADR-0015, ADR-0048). */
 @Component
 @RequiredArgsConstructor
 public class ScrapeSettings implements SettingsContribution {
@@ -16,13 +16,10 @@ public class ScrapeSettings implements SettingsContribution {
     public static final String TIER_B = "scrape.tier-b-interval";
     public static final String TIER_C = "scrape.tier-c-interval";
     public static final String DISCOVERY = "scrape.discovery-interval";
-    public static final String METRIC_PARTITION_CRON = "metric.partition-maintainer-cron";
 
     private static final String GROUP_SCRAPE = "Scrape";
-    private static final String GROUP_RETENTION = "Retention";
 
     private final ScrapeProperties scrape;
-    private final MetricProperties metric;
 
     @Override
     public String featureId() {
@@ -63,14 +60,6 @@ public class ScrapeSettings implements SettingsContribution {
                         "Re-read each cluster's topology, so a broker that joins appears on its own.",
                         Kind.DURATION,
                         () -> scrape.discoveryInterval().toString(),
-                        null),
-                new SettingDef(
-                        METRIC_PARTITION_CRON,
-                        GROUP_RETENTION,
-                        "Partition maintainer schedule",
-                        "When daily metric partitions are created ahead.",
-                        Kind.CRON,
-                        metric::partitionMaintainerCron,
                         null));
     }
 }

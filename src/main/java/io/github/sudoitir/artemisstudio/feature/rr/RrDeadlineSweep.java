@@ -4,13 +4,14 @@ import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrEventE
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrEventRepository;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrFlowEntity;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrFlowRepository;
+import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Moves flows past their deadline out of {@code AWAITING_REPLY} (design.md D4):
@@ -26,13 +27,21 @@ public class RrDeadlineSweep {
     private final RrFlowRepository flows;
     private final RrEventRepository events;
     private final SseHub sseHub;
+    private final PartitionProvisioner partitions;
+    private final TransactionTemplate transactions;
 
     /**
      * Scheduled by {@code JobScheduler} on {@code rr.sweep-interval}. It used to
      * hardcode 5s and ignore the configured value entirely.
      */
-    @Transactional
     public void sweep() {
+        partitions.retryingNoPartition(() -> transactions.execute(status -> {
+            moveOverdue();
+            return null;
+        }));
+    }
+
+    private void moveOverdue() {
         Instant now = Instant.now();
         List<RrFlowEntity> overdue = flows.findByStateAndDeadlineAtBefore(RrState.AWAITING_REPLY.name(), now);
         for (RrFlowEntity flow : overdue) {

@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
+import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEventSink;
@@ -66,6 +67,7 @@ public class BrokerEventWriter implements BrokerEventSink {
     private final ObjectProvider<BrokerEventPublisher> publisher;
 
     private final TransactionTemplate transaction;
+    private final PartitionProvisioner partitions;
 
     private final LinkedBlockingDeque<BrokerEvent> buffer = new LinkedBlockingDeque<>();
     private final Map<UUID, AtomicLong> dropped = new ConcurrentHashMap<>();
@@ -76,11 +78,13 @@ public class BrokerEventWriter implements BrokerEventSink {
             ObjectMapper mapper,
             ObjectProvider<BrokerEventPublisher> publisher,
             PlatformTransactionManager transactions,
+            PartitionProvisioner partitions,
             EventsProperties properties) {
         this.jdbc = jdbc;
         this.mapper = mapper;
         this.publisher = publisher;
         this.transaction = new TransactionTemplate(transactions);
+        this.partitions = partitions;
         this.capacity = Math.max(1, properties.bufferSize());
     }
 
@@ -130,7 +134,12 @@ public class BrokerEventWriter implements BrokerEventSink {
             return;
         }
         try {
-            transaction.executeWithoutResult(status -> write(batch));
+            // received_at is the database's clock, so only a missed maintenance run can leave a day without a
+            // partition.
+            partitions.retryingNoPartition(() -> {
+                transaction.executeWithoutResult(status -> write(batch));
+                return null;
+            });
         } catch (DataIntegrityViolationException _) {
             dropOrphans(batch);
         } catch (RuntimeException e) {

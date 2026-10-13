@@ -1,6 +1,6 @@
 # ADR-0134: One data lifecycle for every store
 
-- **Status**: accepted
+- **Status**: accepted; amended by [ADR-0193](0193-partitioned-history-with-no-default-partition.md): the partitioned stores drop partitions through one maintainer
 - **Date**: 2026-09-30
 - **Deciders**: Mahdi Amirabdollahi
 

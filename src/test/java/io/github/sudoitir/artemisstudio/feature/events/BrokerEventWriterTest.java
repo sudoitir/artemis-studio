@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.events;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
@@ -48,6 +49,9 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
     @Autowired
     PlatformTransactionManager transactions;
 
+    @Autowired
+    PartitionProvisioner partitions;
+
     private final UUID clusterId = UUID.randomUUID();
     private BrokerEventWriter writer;
 
@@ -56,7 +60,7 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
         jdbc.update(
                 "INSERT INTO cluster (id, name) VALUES (:id, :name)",
                 Map.of("id", clusterId, "name", "writer-" + clusterId));
-        writer = new BrokerEventWriter(jdbc, mapper, publisher, transactions, properties);
+        writer = new BrokerEventWriter(jdbc, mapper, publisher, transactions, partitions, properties);
     }
 
     @AfterEach
@@ -116,7 +120,8 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
                                 org.springframework.jdbc.core.namedparam.SqlParameterSource[].class),
                         org.mockito.ArgumentMatchers.any(org.springframework.jdbc.support.KeyHolder.class),
                         org.mockito.ArgumentMatchers.any(String[].class));
-        BrokerEventWriter flaky = new BrokerEventWriter(failingOnce, mapper, publisher, transactions, properties);
+        BrokerEventWriter flaky =
+                new BrokerEventWriter(failingOnce, mapper, publisher, transactions, partitions, properties);
         flaky.accept(event("CONSUMER_CREATED"));
         flaky.accept(event("SESSION_CREATED"));
 
@@ -175,7 +180,8 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
         ObjectProvider<BrokerEventPublisher> capturing = Mockito.mock();
         Mockito.when(capturing.getIfAvailable())
                 .thenReturn((seqs, batch) -> batch.forEach(e -> published.add(e.type())));
-        BrokerEventWriter capturingWriter = new BrokerEventWriter(jdbc, mapper, capturing, transactions, properties);
+        BrokerEventWriter capturingWriter =
+                new BrokerEventWriter(jdbc, mapper, capturing, transactions, partitions, properties);
         TransactionTemplate tx = new TransactionTemplate(transactions);
         capturingWriter.accept(event("CONSUMER_CREATED"));
         capturingWriter.accept(event("SESSION_CREATED"));

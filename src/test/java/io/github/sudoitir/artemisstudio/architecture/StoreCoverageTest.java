@@ -109,8 +109,7 @@ class StoreCoverageTest extends PostgresIntegrationTest {
                 .collect(Collectors.toSet());
         Set<String> uncovered = new TreeSet<>();
         for (String table : createdTables()) {
-            boolean partition = table.endsWith("_default") && stored.contains(table.substring(0, table.length() - 8));
-            if (!stored.contains(table) && !partition && !BOUNDED_BY_DESIGN.containsKey(table)) {
+            if (!stored.contains(table) && !BOUNDED_BY_DESIGN.containsKey(table)) {
                 uncovered.add(table);
             }
         }

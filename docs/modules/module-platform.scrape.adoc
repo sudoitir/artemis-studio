@@ -14,12 +14,10 @@ _Event listeners_
 
 _Configuration properties_
 
-* `i.g.s.a.p.s.MetricProperties`
 * `i.g.s.a.p.s.ScrapeProperties`
 
 _Others_
 
-* `i.g.s.a.p.s.MetricPartitionMaintainer`
 * `i.g.s.a.p.s.MetricSampleStore`
 * `i.g.s.a.p.s.MetricSampleWriter`
 * `i.g.s.a.p.s.QueueLocator`
@@ -30,7 +28,9 @@ _Others_
 * `i.g.s.a.p.s.StreamSignals`
 * `i.g.s.a.p.s.SweepCursor`
 |Bean references
-|* `i.g.s.a.k.s.SettingsService` (in Settings)
+|* `i.g.s.a.k.l.partition.PartitionDrops` (in Data lifecycle)
+* `i.g.s.a.k.c.PartitionProvisioner` (in Core)
+* `i.g.s.a.k.s.SettingsService` (in Settings)
 * `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
 * `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
 * `i.g.s.a.p.c.NodeStateRecorder` (in Clusters)

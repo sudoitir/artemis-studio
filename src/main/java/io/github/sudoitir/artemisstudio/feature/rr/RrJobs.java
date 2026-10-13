@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.rr;
 
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionSpec;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +17,11 @@ class RrJobs {
                 ScheduledJob.Scope.INSTALLATION,
                 () -> settings.duration(RrSettings.SWEEP_INTERVAL),
                 sweep::sweep);
+    }
+
+    @Bean
+    PartitionSpec rrEventPartitions() {
+        return RrFlowStore.EVENT_PARTITIONS;
     }
 
     @Bean

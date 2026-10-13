@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpect
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrExpectationRepository;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrFlowEntity;
 import io.github.sudoitir.artemisstudio.feature.rr.internal.persistence.RrFlowRepository;
+import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
 import java.time.Duration;
@@ -22,7 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -60,6 +62,9 @@ public class RrCorrelator implements RrObservationSink {
             .expireAfterWrite(Duration.ofMinutes(10))
             .build();
 
+    private final PartitionProvisioner partitions;
+    private final TransactionTemplate transactions;
+
     public RrCorrelator(
             RrFlowRepository flows,
             RrEventRepository events,
@@ -70,7 +75,11 @@ public class RrCorrelator implements RrObservationSink {
             SseHub sseHub,
             ObjectMapper mapper,
             RrPayloads payloads,
-            RrProperties properties) {
+            RrProperties properties,
+            PartitionProvisioner partitions,
+            PlatformTransactionManager transactionManager) {
+        this.partitions = partitions;
+        this.transactions = new TransactionTemplate(transactionManager);
         this.flows = flows;
         this.events = events;
         this.expectations = expectations;
@@ -103,9 +112,19 @@ public class RrCorrelator implements RrObservationSink {
         this.sampleIntervalMs = Math.max(1, sampleIntervalMs);
     }
 
+    /**
+     * Each observation is its own transaction. One whose event finds no {@code rr_event} partition creates
+     * it and is applied once more (ADR-0193), which is why the transaction is opened here and not by an annotation.
+     */
     @Override
-    @Transactional
     public void accept(Observation observation) {
+        partitions.retryingNoPartition(() -> transactions.execute(status -> {
+            apply(observation);
+            return null;
+        }));
+    }
+
+    private void apply(Observation observation) {
         switch (observation) {
             case Observation.RequestSeen r -> onRequestSeen(r);
             case Observation.ReplySeen r -> onReplySeen(r);
@@ -159,7 +178,7 @@ public class RrCorrelator implements RrObservationSink {
         flow.setRequestSkewMs(skew);
         flows.save(flow);
         if (skew != null) {
-            recordEvent(flow.getId(), r.nodeId(), "CLOCK_SKEW", r.at(), skewDetail("request", skew));
+            recordEvent(flow.getId(), r.nodeId(), "CLOCK_SKEW", skewDetail("request", skew));
         }
         recentRequestFlow.put(dedupeKey, flow.getId());
 
@@ -168,7 +187,6 @@ public class RrCorrelator implements RrObservationSink {
                 flow.getId(),
                 r.nodeId(),
                 "REQUEST_SEEN",
-                r.at(),
                 capturePayload
                         ? payload(
                                 r.clusterId(),
@@ -189,7 +207,7 @@ public class RrCorrelator implements RrObservationSink {
             RrFlowEntity orphan = RrFlowEntity.orphanedReply(
                     r.clusterId(), r.nodeId(), r.replyDestination(), replyKind, r.correlationId(), r.at());
             flows.save(orphan);
-            recordEvent(orphan.getId(), r.nodeId(), "ORPHANED_REPLY", r.at(), null);
+            recordEvent(orphan.getId(), r.nodeId(), "ORPHANED_REPLY", null);
             sseHub.publish(r.clusterId(), "rr");
             return;
         }
@@ -227,7 +245,7 @@ public class RrCorrelator implements RrObservationSink {
         flow.setObservedAt(r.at());
         flows.save(flow);
         if (replySkew != null) {
-            recordEvent(flow.getId(), r.nodeId(), "CLOCK_SKEW", r.at(), skewDetail("reply", replySkew));
+            recordEvent(flow.getId(), r.nodeId(), "CLOCK_SKEW", skewDetail("reply", replySkew));
         }
 
         if (t.latencyMs() != null) {
@@ -240,7 +258,6 @@ public class RrCorrelator implements RrObservationSink {
                 flow.getId(),
                 r.nodeId(),
                 t.eventKind(),
-                r.at(),
                 capturePayload
                         ? payload(
                                 r.clusterId(),
@@ -311,7 +328,7 @@ public class RrCorrelator implements RrObservationSink {
         flow.setState(t.next().name());
         flow.setObservedAt(at);
         flows.save(flow);
-        recordEvent(flow.getId(), flow.getNodeId(), t.eventKind(), at, null);
+        recordEvent(flow.getId(), flow.getNodeId(), t.eventKind(), null);
         sseHub.publishAboutAddress(flow.getClusterId(), "rr", flow.getRequestAddress());
     }
 
@@ -400,9 +417,10 @@ public class RrCorrelator implements RrObservationSink {
                 .orElse(null);
     }
 
-    private void recordEvent(UUID flowId, UUID nodeId, String kind, Instant at, Map<String, Object> detail) {
+    /** Stamped with this instance's clock, never the broker's: the stamp picks the day's partition (ADR-0193). */
+    private void recordEvent(UUID flowId, UUID nodeId, String kind, Map<String, Object> detail) {
         String json = detail == null || detail.isEmpty() ? null : mapper.writeValueAsString(detail);
-        events.save(new RrEventEntity(flowId, nodeId, kind, at, json));
+        events.save(new RrEventEntity(flowId, nodeId, kind, Instant.now(), json));
     }
 
     /**

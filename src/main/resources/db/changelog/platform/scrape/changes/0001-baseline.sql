@@ -16,17 +16,6 @@ CREATE TABLE metric_sample (
 )
 PARTITION BY RANGE (ts);
 
-CREATE TABLE metric_sample_default (
-    ts timestamp with time zone NOT NULL,
-    value double precision NOT NULL,
-    subject_type text NOT NULL,
-    subject_name text NOT NULL,
-    metric text NOT NULL,
-    cluster_id uuid NOT NULL,
-    node_id uuid
-)
-WITH (fillfactor='100', autovacuum_vacuum_insert_scale_factor='0.0', autovacuum_vacuum_insert_threshold='10000', autovacuum_analyze_scale_factor='0.05');
-
 CREATE TABLE queue_snapshot (
     ts timestamp with time zone DEFAULT now() NOT NULL,
     message_count bigint DEFAULT 0 NOT NULL,
@@ -47,28 +36,17 @@ CREATE TABLE queue_snapshot (
 )
 WITH (fillfactor='80', autovacuum_vacuum_scale_factor='0.02', autovacuum_analyze_scale_factor='0.02', autovacuum_vacuum_cost_delay='2');
 
-ALTER TABLE ONLY metric_sample ATTACH PARTITION metric_sample_default DEFAULT;
-
-ALTER TABLE ONLY metric_sample
+ALTER TABLE metric_sample
     ADD CONSTRAINT pk_metric_sample PRIMARY KEY (cluster_id, subject_type, subject_name, metric, ts);
-
-ALTER TABLE ONLY metric_sample_default
-    ADD CONSTRAINT metric_sample_default_pkey PRIMARY KEY (cluster_id, subject_type, subject_name, metric, ts);
 
 ALTER TABLE ONLY queue_snapshot
     ADD CONSTRAINT pk_queue_snapshot PRIMARY KEY (node_id, queue_name);
 
-CREATE INDEX ix_metric_sample_ts_brin ON ONLY metric_sample USING brin (ts) WITH (pages_per_range='32');
+CREATE INDEX ix_metric_sample_ts_brin ON metric_sample USING brin (ts) WITH (pages_per_range='32');
 
 CREATE INDEX ix_queue_snapshot_address ON queue_snapshot USING btree (cluster_id, address);
 
 CREATE INDEX ix_queue_snapshot_cluster ON queue_snapshot USING btree (cluster_id);
-
-CREATE INDEX metric_sample_default_ts_idx ON metric_sample_default USING brin (ts) WITH (pages_per_range='32');
-
-ALTER INDEX pk_metric_sample ATTACH PARTITION metric_sample_default_pkey;
-
-ALTER INDEX ix_metric_sample_ts_brin ATTACH PARTITION metric_sample_default_ts_idx;
 
 ALTER TABLE ONLY queue_snapshot
     ADD CONSTRAINT fk_queue_snapshot_cluster FOREIGN KEY (cluster_id) REFERENCES cluster(id) ON DELETE CASCADE;
