@@ -61,6 +61,7 @@ _Others_
 * `i.g.s.a.p.b.JolokiaMessageTransport` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreMessageTransport` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
+* `i.g.s.a.k.c.HeavyRequests` (in Core)
 * `i.g.s.a.p.g.ContentPolicy` (in Data governance)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
 * `i.g.s.a.p.g.ClearViewAudit` (in Data governance)

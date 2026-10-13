@@ -34,7 +34,7 @@ System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication",
 }
 
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Approvalgatecontract, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "listens to", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Core, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Security, "listens to", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
@@ -45,7 +45,7 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.Brokerconnectivity, Artemi
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Approvalgatecontract, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Brokerconnectivity, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Core, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Settings, "uses", $techn="", $tags="", $link="")
@@ -73,7 +73,7 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.SQLconsole, ArtemisStudioA
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.SQLconsole, ArtemisStudioApplication.ArtemisStudioApplication.Brokerconnectivity, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.SQLconsole, ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "listens to", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.SQLconsole, ArtemisStudioApplication.ArtemisStudioApplication.Clusters, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.SQLconsole, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.SQLconsole, ArtemisStudioApplication.ArtemisStudioApplication.Core, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.SQLconsole, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.SQLconsole, ArtemisStudioApplication.ArtemisStudioApplication.Queues, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.SQLconsole, ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, "uses", $techn="", $tags="", $link="")

@@ -7,7 +7,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 import javax.sql.DataSource;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 /**
@@ -93,6 +95,8 @@ public class HeavyRequests {
     public <T> T run(Endpoint endpoint, String owner, Function<Run, T> work) {
         try (Run run = open(endpoint, owner)) {
             return work.apply(run);
+        } catch (QueryTimeoutException _) {
+            throw new HeavyTimeoutException(endpoint.name(), endpoint.time());
         }
     }
 
@@ -179,9 +183,20 @@ public class HeavyRequests {
             return Duration.ofNanos(Math.max(0, deadlineNanos - System.nanoTime()));
         }
 
-        /** Notes that the database cut a statement at the time bound. */
-        public void timedOut() {
-            reached = Bound.TIME;
+        /**
+         * Reads through {@code routing} with what is left of the time bound as the statement timeout.
+         * A statement the database cuts at the bound ends the request with a {@link HeavyTimeoutException}.
+         */
+        public <T> Routed<T> read(ReadRouting routing, Function<JdbcClient, T> query) {
+            try {
+                return routing.read(client -> {
+                    client.sql(statementTimeout()).update();
+                    return query.apply(client);
+                });
+            } catch (QueryTimeoutException _) {
+                reached = Bound.TIME;
+                throw new HeavyTimeoutException(endpoint.name(), endpoint.time());
+            }
         }
 
         /** The bound the request stopped at, or null when it ran to its end. */

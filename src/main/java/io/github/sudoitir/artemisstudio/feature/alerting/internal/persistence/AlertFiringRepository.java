@@ -4,8 +4,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,16 +22,6 @@ public interface AlertFiringRepository extends JpaRepository<AlertFiringEntity, 
             @Param("installation") boolean installation,
             @Param("everything") boolean everything,
             @Param("ruleIds") Collection<UUID> ruleIds);
-
-    @Query("SELECT f FROM AlertFiringEntity f WHERE (f.clusterId = :clusterId "
-            + "AND (:everything = true OR f.ruleId IN :ruleIds)) "
-            + "OR (:installation = true AND f.clusterId IS NULL) ORDER BY f.seq DESC")
-    Page<AlertFiringEntity> findVisible(
-            @Param("clusterId") UUID clusterId,
-            @Param("installation") boolean installation,
-            @Param("everything") boolean everything,
-            @Param("ruleIds") Collection<UUID> ruleIds,
-            Pageable pageable);
 
     long countByClusterIdAndResolvedAtIsNullAndRuleIdIn(UUID clusterId, Collection<UUID> ruleIds);
 

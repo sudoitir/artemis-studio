@@ -5,9 +5,15 @@ import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditE
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditFilter;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditExportRow;
+import io.github.sudoitir.artemisstudio.kernel.core.Cursor;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyTimeoutException;
+import io.github.sudoitir.artemisstudio.kernel.core.HistoryPage;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.ReadRouting;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.core.Routed;
 import io.github.sudoitir.artemisstudio.kernel.core.StatementTimeout;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -16,21 +22,22 @@ import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
-import jakarta.persistence.EntityManager;
+import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.core.exc.JacksonIOException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -48,8 +55,21 @@ public class AuditQueryService {
     private final AuditService audit;
     private final ActorResolver actors;
     private final ScopeHierarchy clusters;
-    private final EntityManager entityManager;
-    private final TransactionTemplate transactions;
+    private final HeavyRequests heavy;
+    private final ReadRouting routing;
+
+    /** A page of the history: a few at once per user, the page size at most, and the database's 30 s. */
+    static final HeavyRequests.Endpoint HISTORY =
+            new HeavyRequests.Endpoint("audit history reads", 4, Duration.ofSeconds(30), ResourceQuery.MAX_SIZE);
+
+    /** An export: one at a time per user, ten minutes at most (below the driver's socket timeout), a million rows. */
+    static final HeavyRequests.Endpoint EXPORT =
+            new HeavyRequests.Endpoint("audit exports", 1, StatementTimeout.LONG, 1_000_000);
+
+    private static final String COLUMNS = """
+            id, parent_id, ts, username, host(source_ip) AS source_ip, request_id, action, target_type, target_name,
+            affected_count, outcome, dry_run, params::text AS params, error, cluster_name, node_id,
+            outcome_detail::text AS outcome_detail""";
 
     /** The parameters that name a queue or address other than the one the event is about. */
     private static final Set<String> RESOURCE_PARAMS =
@@ -57,13 +77,159 @@ public class AuditQueryService {
 
     private static final String HIDDEN = "(a queue or address you may not read)";
 
-    @Transactional(readOnly = true)
-    public PagedView<AuditEventView> page(UUID clusterId, AuditQuery query) {
+    /**
+     * A page of the cluster's trail, newest first. By page number for the first {@value HistoryPage#MAX_OFFSET} rows,
+     * with a total; by {@code query.after()} beyond that, which costs the same however deep it reads and has no total.
+     * Read from the replica when there is one and it is current.
+     */
+    public HistoryPage<AuditEventView> page(UUID clusterId, AuditQuery query) {
         clusterAccess.requireVisible(clusterId);
         Scope scope = scope(clusterId);
-        Page<AuditEventEntity> result =
-                events.findPage(filter(clusterId, scope, query), PageRequest.of(query.page() - 1, query.size()));
-        return PagedView.of(result, e -> toView(e, scope.redaction()));
+        ResourceQuery paging = ResourceQuery.ofPage(query.page(), query.size());
+        if (query.after() == null) {
+            HistoryPage.requireReachable(paging);
+        }
+        AuditFilter filter = filter(clusterId, scope, query);
+        Routed<Slice> routed =
+                heavy.run(HISTORY, owner(), run -> run.read(routing, client -> slice(client, filter, query, paging)));
+        Slice slice = routed.value();
+        boolean more = slice.rows().size() > paging.size();
+        List<AuditRow> shown = more ? slice.rows().subList(0, paging.size()) : slice.rows();
+        String next = more ? cursor(shown.getLast()).encode() : null;
+        return new HistoryPage<>(
+                shown.stream().map(r -> toView(r, scope.redaction())).toList(),
+                paging.page(),
+                paging.size(),
+                slice.count(),
+                more,
+                next,
+                routed.fromReplica());
+    }
+
+    private String owner() {
+        return actors.resolve().displayName();
+    }
+
+    private static Cursor cursor(AuditRow row) {
+        return Cursor.of(row.ts(), row.id());
+    }
+
+    /** One more row than the page holds, so there is a next page when it comes back; and the total, by page number. */
+    private static Slice slice(JdbcClient client, AuditFilter filter, AuditQuery query, ResourceQuery paging) {
+        Where where = where(filter);
+        Cursor after = query.after();
+        String sql = "SELECT " + COLUMNS + " FROM audit_event WHERE " + where.sql()
+                + (after == null ? "" : " AND (ts, id) < (:afterTs, :afterId)")
+                + " ORDER BY ts DESC, id DESC LIMIT :limit OFFSET :offset";
+        JdbcClient.StatementSpec spec = client.sql(sql)
+                .params(where.params())
+                .param("limit", paging.size() + 1)
+                .param("offset", after == null ? paging.offset() : 0);
+        if (after != null) {
+            spec = spec.param("afterTs", Timestamp.from(after.instant())).param("afterId", after.minor());
+        }
+        List<AuditRow> rows = spec.query(AuditQueryService::row).list();
+        Long count = after != null
+                ? null
+                : client.sql("SELECT count(*) FROM audit_event WHERE " + where.sql())
+                        .params(where.params())
+                        .query(Long.class)
+                        .single();
+        return new Slice(rows, count);
+    }
+
+    private record Slice(List<AuditRow> rows, Long count) {}
+
+    /** The conditions of a read, and what they bind. Optional filters are left out when unset. */
+    private record Where(String sql, Map<String, Object> params) {}
+
+    private static Where where(AuditFilter f) {
+        StringBuilder sql = new StringBuilder("cluster_id = :cluster AND ts >= :from AND ts <= :to");
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("cluster", f.clusterId());
+        params.put("from", Timestamp.from(f.from()));
+        params.put("to", Timestamp.from(f.to()));
+        if (!f.everything()) {
+            sql.append(" AND ((target_type = 'QUEUE' AND target_name IN (:queues))")
+                    .append(" OR (target_type = 'ADDRESS' AND target_name IN (:addresses)))");
+            params.put("queues", f.queues());
+            params.put("addresses", f.addresses());
+        }
+        optional(sql, params, "username", f.username());
+        optional(sql, params, "action", f.action());
+        optional(sql, params, "outcome", f.outcome());
+        optional(sql, params, "parent_id", f.parentId());
+        return new Where(sql.toString(), params);
+    }
+
+    private static void optional(StringBuilder sql, Map<String, Object> params, String column, Object value) {
+        if (value != null) {
+            sql.append(" AND ").append(column).append(" = :").append(column);
+            params.put(column, value);
+        }
+    }
+
+    private static AuditRow row(java.sql.ResultSet rs, int i) throws java.sql.SQLException {
+        return new AuditRow(
+                rs.getLong("id"),
+                rs.getObject("parent_id", Long.class),
+                rs.getObject("ts", OffsetDateTime.class).toInstant(),
+                rs.getString("username"),
+                rs.getString("source_ip"),
+                rs.getString("request_id"),
+                rs.getString("action"),
+                rs.getString("target_type"),
+                rs.getString("target_name"),
+                rs.getObject("affected_count", Long.class),
+                rs.getString("outcome"),
+                rs.getBoolean("dry_run"),
+                rs.getString("params"),
+                rs.getString("error"),
+                rs.getString("cluster_name"),
+                rs.getObject("node_id", UUID.class),
+                rs.getString("outcome_detail"));
+    }
+
+    /** An audit event as the reads keep it: the columns the views are made of, whichever way they were read. */
+    private record AuditRow(
+            long id,
+            Long parentId,
+            Instant ts,
+            String username,
+            String sourceIp,
+            String requestId,
+            String action,
+            String targetType,
+            String targetName,
+            Long affectedCount,
+            String outcome,
+            boolean dryRun,
+            String params,
+            String error,
+            String clusterName,
+            UUID nodeId,
+            String outcomeDetail) {
+
+        static AuditRow of(AuditEventEntity e) {
+            return new AuditRow(
+                    e.getId(),
+                    e.getParentId(),
+                    e.getTs(),
+                    e.getUsername(),
+                    e.getSourceIp(),
+                    e.getRequestId(),
+                    e.getAction(),
+                    e.getTargetType(),
+                    e.getTargetName(),
+                    e.getAffectedCount(),
+                    e.getOutcome(),
+                    e.isDryRun(),
+                    e.getParams(),
+                    e.getError(),
+                    e.getClusterName(),
+                    e.getNodeId(),
+                    e.getOutcomeDetail());
+        }
     }
 
     /**
@@ -77,13 +243,16 @@ public class AuditQueryService {
         private final AuditEvent event;
         private final Scope scope;
         private final AuditQuery query;
+        private final String owner;
 
-        private Export(UUID clusterId, String clusterName, AuditEvent event, Scope scope, AuditQuery query) {
+        private Export(
+                UUID clusterId, String clusterName, AuditEvent event, Scope scope, AuditQuery query, String owner) {
             this.clusterId = clusterId;
             this.clusterName = clusterName;
             this.event = event;
             this.scope = scope;
             this.query = query;
+            this.owner = owner;
         }
 
         /** The cluster's name, for the file's name. */
@@ -119,42 +288,84 @@ public class AuditQueryService {
                 null,
                 Map.of("format", format, "filters", filters),
                 false);
-        return new Export(clusterId, clusterName, event, scope, query);
+        return new Export(clusterId, clusterName, event, scope, query, owner());
+    }
+
+    /** Where an export's rows go. Closing is {@link #finish()}, which flushes and ends the file. */
+    public interface ExportSink {
+
+        void write(AuditExportRow row);
+
+        /** The export stopped at {@code bound}, so the file is incomplete; written before the file ends. */
+        void truncated(HeavyRequests.Bound bound);
+
+        void finish();
     }
 
     /**
      * Write the export's rows, oldest first, to {@code sink} and record the outcome: the count on success, how far it
-     * got when the sink fails (the client went away) or the read does. {@code finish} flushes and closes the sink; it
-     * runs before the outcome, so a file cut short by a failing close is never recorded as complete. The export's own row is left out.
+     * got when the sink fails (the client went away), the read does, or a bound is reached. A bound ends the file with
+     * the sink's mark that it is incomplete and records the export as partial, naming the bound. {@code finish} flushes
+     * and closes the sink; it runs before the outcome, so a file cut short by a failing close is never recorded as
+     * complete. The export's own row is left out.
      */
-    public void run(Export export, Consumer<AuditExportRow> sink, Runnable finish) {
+    public void run(Export export, ExportSink sink) {
         long[] written = {0};
+        HeavyRequests.Bound bound;
         try {
-            transactions.executeWithoutResult(tx -> {
-                entityManager
-                        .createNativeQuery(StatementTimeout.setLocal(StatementTimeout.LONG))
-                        .executeUpdate();
-                try (Stream<AuditEventEntity> rows =
-                        events.streamFiltered(filter(export.clusterId, export.scope, export.query))) {
-                    rows.forEach(e -> {
-                        if (!e.getId().equals(export.event.getId())) {
-                            sink.accept(new AuditExportRow(
-                                    toView(e, export.scope.redaction()),
-                                    export.scope.everything() ? e.getOutcomeDetail() : null));
-                            written[0]++;
-                        }
-                        entityManager.detach(e);
+            bound = heavy.run(EXPORT, export.owner, run -> {
+                try {
+                    run.read(routing, client -> {
+                        stream(client, export, run, sink, written);
+                        return null;
                     });
+                } catch (HeavyTimeoutException _) {
+                    // The database cut the read at the time bound; what was written stands, marked as incomplete.
                 }
+                if (run.truncated()) {
+                    sink.truncated(run.reached());
+                }
+                sink.finish();
+                return run.reached();
             });
-            finish.run();
         } catch (RuntimeException ex) {
             // A write that fails is the client going away; anything else is the read.
             String how = ex instanceof JacksonIOException ? "cancelled" : "failed";
             audit.failPartial(export.event, written[0], how + " after " + written[0] + " rows");
             throw ex;
         }
+        if (bound != null) {
+            audit.failPartial(
+                    export.event,
+                    written[0],
+                    "stopped at the " + (bound == HeavyRequests.Bound.ROWS ? "row" : "time") + " bound after "
+                            + written[0] + " rows");
+            return;
+        }
         audit.succeed(export.event, written[0]);
+    }
+
+    private void stream(JdbcClient client, Export export, HeavyRequests.Run run, ExportSink sink, long[] written) {
+        Where where = where(filter(export.clusterId, export.scope, export.query));
+        try (Stream<AuditRow> rows = client
+                .sql("SELECT " + COLUMNS + " FROM audit_event WHERE " + where.sql() + " ORDER BY ts ASC, id ASC")
+                .params(where.params())
+                .query(AuditQueryService::row)
+                .stream()) {
+            Iterator<AuditRow> it = rows.iterator();
+            while (it.hasNext()) {
+                AuditRow e = it.next();
+                if (e.id() == export.event.getId()) {
+                    continue;
+                }
+                if (!run.admit()) {
+                    return;
+                }
+                sink.write(new AuditExportRow(
+                        toView(e, export.scope.redaction()), export.scope.everything() ? e.outcomeDetail() : null));
+                written[0]++;
+            }
+        }
     }
 
     /** What the caller reads of a cluster's trail, resolved once. */
@@ -255,24 +466,28 @@ public class AuditQueryService {
      * is replaced, and so is the cluster a transfer went to when one was.
      */
     private AuditEventView toView(AuditEventEntity e, Redaction redaction) {
-        String params = redaction == null || e.getParams() == null ? e.getParams() : redacted(e.getParams(), redaction);
+        return toView(AuditRow.of(e), redaction);
+    }
+
+    private AuditEventView toView(AuditRow e, Redaction redaction) {
+        String params = redaction == null || e.params() == null ? e.params() : redacted(e.params(), redaction);
         return new AuditEventView(
-                e.getId(),
-                e.getParentId(),
-                e.getTs(),
-                e.getUsername(),
-                e.getSourceIp(),
-                e.getRequestId(),
-                e.getAction(),
-                e.getTargetType(),
-                e.getTargetName(),
-                e.getAffectedCount(),
-                e.getOutcome(),
-                e.isDryRun(),
+                e.id(),
+                e.parentId(),
+                e.ts(),
+                e.username(),
+                e.sourceIp(),
+                e.requestId(),
+                e.action(),
+                e.targetType(),
+                e.targetName(),
+                e.affectedCount(),
+                e.outcome(),
+                e.dryRun(),
                 params,
-                e.getError(),
-                e.getClusterName(),
-                e.getNodeId());
+                e.error(),
+                e.clusterName(),
+                e.nodeId());
     }
 
     private String redacted(String paramsJson, Redaction redaction) {

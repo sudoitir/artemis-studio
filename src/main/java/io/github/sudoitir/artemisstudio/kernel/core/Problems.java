@@ -41,5 +41,18 @@ public final class Problems {
         return problem;
     }
 
+    /** A heavy read stopped at its time bound; the bound is named in the body, as in a bounded response. */
+    public static ProblemDetail heavyTimeout(HeavyTimeoutException e) {
+        ProblemDetail problem = of(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "heavy-request-timed-out",
+                "The request reached its time bound",
+                e.getMessage());
+        problem.setProperty("endpoint", e.endpoint());
+        problem.setProperty("bound", HeavyRequests.Bound.TIME);
+        problem.setProperty("seconds", e.limit().toSeconds());
+        return problem;
+    }
+
     private Problems() {}
 }

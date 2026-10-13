@@ -27,6 +27,7 @@ import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Pager } from '../../ui/Pager.tsx';
+import { ReplicaLagNotice } from '../../ui/ReplicaLagNotice.tsx';
 import { Section } from '../../ui/Section.tsx';
 import { Toolbar } from '../../ui/Toolbar.tsx';
 import { at, auditColumns, outcome } from './columns.tsx';
@@ -436,6 +437,8 @@ export function AuditView() {
           </Button>
         </Group>
       ) : null}
+
+      <ReplicaLagNotice mayLag={query.data?.mayLag} />
 
       <DataTable
         label="Audit events"

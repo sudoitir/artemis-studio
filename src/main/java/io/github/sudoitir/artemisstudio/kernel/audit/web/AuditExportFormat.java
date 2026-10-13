@@ -1,6 +1,8 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.web;
 
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditExportRow;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -47,12 +49,15 @@ enum AuditExportFormat {
             .build();
 
     /** A row of rows being written to one response. Closing it finishes the file. */
-    interface Sink extends AutoCloseable {
-
-        void write(AuditExportRow row);
+    interface Sink extends AutoCloseable, AuditQueryService.ExportSink {
 
         @Override
         void close();
+
+        @Override
+        default void finish() {
+            close();
+        }
     }
 
     private final String contentType;
@@ -79,18 +84,44 @@ enum AuditExportFormat {
 
     Sink open(OutputStream out, ObjectMapper mapper) {
         return switch (this) {
-            case CSV -> sink(CSV_MAPPER.writer(CSV_SCHEMA).writeValues(out), row -> csv(row));
-            case JSON -> sink(mapper.writer().writeValuesAsArray(out), row -> json(row, mapper));
+            case CSV -> sink(CSV_MAPPER.writer(CSV_SCHEMA).writeValues(out), row -> csv(row), bound -> csvMark(bound));
+            case JSON ->
+                sink(mapper.writer().writeValuesAsArray(out), row -> json(row, mapper), AuditExportFormat::jsonMark);
             case NDJSON ->
-                sink(mapper.writer().withRootValueSeparator("\n").writeValues(out), row -> json(row, mapper));
+                sink(
+                        mapper.writer().withRootValueSeparator("\n").writeValues(out),
+                        row -> json(row, mapper),
+                        AuditExportFormat::jsonMark);
         };
     }
 
-    private static Sink sink(SequenceWriter writer, java.util.function.Function<AuditExportRow, Object> columns) {
+    /** The mark that ends a file that stopped at a bound: an element of its own, not a row of the trail. */
+    private static Map<String, Object> jsonMark(HeavyRequests.Bound bound) {
+        Map<String, Object> mark = new LinkedHashMap<>();
+        mark.put("truncated", true);
+        mark.put("bound", bound.name());
+        return mark;
+    }
+
+    private static Map<String, String> csvMark(HeavyRequests.Bound bound) {
+        Map<String, String> mark = new LinkedHashMap<>();
+        mark.put("id", "# incomplete: the " + bound.name() + " bound was reached; narrow the time range");
+        return mark;
+    }
+
+    private static Sink sink(
+            SequenceWriter writer,
+            java.util.function.Function<AuditExportRow, Object> columns,
+            java.util.function.Function<HeavyRequests.Bound, Object> mark) {
         return new Sink() {
             @Override
             public void write(AuditExportRow row) {
                 writer.write(columns.apply(row));
+            }
+
+            @Override
+            public void truncated(HeavyRequests.Bound bound) {
+                writer.write(mark.apply(bound));
             }
 
             @Override

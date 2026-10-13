@@ -75,6 +75,30 @@ class EventControllerTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aCursorContinuesWhereThePageEndedWithoutATotal() throws Exception {
+        String body = mvc.perform(get("/api/v1/clusters/{c}/events", clusterId).param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.mayLag").value(false))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String next = new tools.jackson.databind.json.JsonMapper()
+                .readTree(body)
+                .get("next")
+                .asString();
+
+        mvc.perform(get("/api/v1/clusters/{c}/events", clusterId)
+                        .param("size", "2")
+                        .param("after", next))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").doesNotExist())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].type").value("CONSUMER_CREATED"))
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
     void filtersByType() throws Exception {
         mvc.perform(get("/api/v1/clusters/{c}/events", clusterId).param("type", "CONSUMER_CREATED"))
                 .andExpect(status().isOk())

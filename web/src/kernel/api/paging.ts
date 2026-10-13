@@ -12,6 +12,17 @@ export interface PagedView<T> {
   hasNext: boolean;
 }
 
+/**
+ * A page of a history that can be very long (`HistoryPage<T>` on the backend): by page number for the first
+ * rows, then by the `next` cursor passed as `after`, which has no total.
+ */
+export interface HistoryPage<T> extends PagedView<T> {
+  /** The cursor of the page after this one; null on the last page. */
+  next: string | null;
+  /** Read from a replica that may be a little behind the primary. */
+  mayLag: boolean;
+}
+
 /** The largest page the server allows (`ResourceQuery.MAX_SIZE`). */
 export const MAX_PAGE_SIZE = 500;
 

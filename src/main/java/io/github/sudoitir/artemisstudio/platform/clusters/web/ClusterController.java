@@ -1,8 +1,10 @@
 package io.github.sudoitir.artemisstudio.platform.clusters.web;
 
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
+import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccount;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -23,6 +25,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -50,6 +53,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class ClusterController {
 
     private final ClusterService service;
+    private final HeavyRequests heavy;
+    private final ActorResolver actors;
+
+    /** The topology is assembled from the nodes' stored state; a few at once per user, the database's 30 s. */
+    private static final HeavyRequests.Endpoint TOPOLOGY =
+            new HeavyRequests.Endpoint("topology reads", 4, Duration.ofSeconds(30), Integer.MAX_VALUE);
 
     /** Register from a list of seed URLs (ADR-0013). {@code ?dryRun=true} probes and returns without persisting. */
     @ApiResponse(
@@ -96,7 +105,7 @@ public class ClusterController {
 
     @GetMapping("/{clusterId}/topology")
     public TopologyView topology(@PathVariable UUID clusterId) {
-        return service.topology(clusterId);
+        return heavy.run(TOPOLOGY, actors.resolve().displayName(), _ -> service.topology(clusterId));
     }
 
     @GetMapping("/{clusterId}/health")

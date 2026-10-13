@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.core.web;
 
 import io.github.sudoitir.artemisstudio.kernel.core.ConflictException;
 import io.github.sudoitir.artemisstudio.kernel.core.HeavyLimitException;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyTimeoutException;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.core.Problems;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceForbiddenException;
@@ -50,6 +51,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER, Integer.toString(Problems.HEAVY_RETRY_AFTER_SECONDS))
                 .body(Problems.heavyLimit(e));
+    }
+
+    @ExceptionHandler(HeavyTimeoutException.class)
+    ProblemDetail onHeavyTimeout(HeavyTimeoutException e) {
+        return Problems.heavyTimeout(e);
     }
 
     @ExceptionHandler(ConflictException.class)
