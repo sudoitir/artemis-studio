@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -69,6 +70,7 @@ public class HeavyRequests {
     private final int installationCap;
     private final UUID replica = Ids.v7();
 
+    @Autowired
     public HeavyRequests(JdbcTemplate jdbc, DataSource dataSource) {
         this(jdbc, Math.max(1, poolSize(dataSource) / 4));
     }
