@@ -162,7 +162,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
 
     @Test
     void sendRealWritesASuccessRowWithCountOne() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL))).thenReturn(client(SEARCH, fixture("send-message.json")));
+        when(connections.forCluster(clusterId, URL)).thenReturn(client(SEARCH, fixture("send-message.json")));
 
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, Q)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -214,7 +214,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
     @Test
     void deleteByIdsRealCountsTheBrokerBooleans() throws Exception {
         // Both ids go to the broker in one batch request (ADR-0076), answered positionally.
-        when(connections.forCluster(eq(clusterId), eq(URL)))
+        when(connections.forCluster(clusterId, URL))
                 .thenReturn(client(SEARCH, "[" + BOOL_TRUE + "," + BOOL_TRUE + "]"));
 
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages/actions/delete", clusterId, Q)
@@ -238,7 +238,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
 
     @Test
     void deleteByFilterDryRunIssuesOnlyCountMessages() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL))).thenReturn(client(SEARCH, fixture("count-messages.json")));
+        when(connections.forCluster(clusterId, URL)).thenReturn(client(SEARCH, fixture("count-messages.json")));
 
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages/actions/delete", clusterId, Q)
                         .param("dryRun", "true")
@@ -254,7 +254,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
     @Test
     void deleteByFilterOverCapIsA422WithAffectedCountAndCap() throws Exception {
         settings.put(BrokerSettings.BULK_CAP, "2");
-        when(connections.forCluster(eq(clusterId), eq(URL))).thenReturn(client(SEARCH, COUNT_3));
+        when(connections.forCluster(clusterId, URL)).thenReturn(client(SEARCH, COUNT_3));
 
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages/actions/delete", clusterId, Q)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -270,7 +270,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
     @Test
     void deleteByFilterExactlyAtTheCapIsAllowed() throws Exception {
         settings.put(BrokerSettings.BULK_CAP, "3");
-        when(connections.forCluster(eq(clusterId), eq(URL)))
+        when(connections.forCluster(clusterId, URL))
                 .thenReturn(client(SEARCH, COUNT_3, fixture("remove-messages.json")));
 
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages/actions/delete", clusterId, Q)
@@ -284,7 +284,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
     @Test
     void deleteByFilterOverCapProceedsWithOverride() throws Exception {
         settings.put(BrokerSettings.BULK_CAP, "2");
-        when(connections.forCluster(eq(clusterId), eq(URL)))
+        when(connections.forCluster(clusterId, URL))
                 .thenReturn(client(SEARCH, COUNT_3, fixture("remove-messages.json")));
 
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages/actions/delete", clusterId, Q)
@@ -301,7 +301,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
 
     @Test
     void purgeDryRunReadsMessageCountAndDoesNotRemove() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL))).thenReturn(client(SEARCH, COUNT_3));
+        when(connections.forCluster(clusterId, URL)).thenReturn(client(SEARCH, COUNT_3));
 
         mvc.perform(delete("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, Q)
                         .param("dryRun", "true"))
@@ -315,7 +315,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
 
     @Test
     void purgeRealAuditsTheRemovedCount() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL)))
+        when(connections.forCluster(clusterId, URL))
                 .thenReturn(client(SEARCH, COUNT_3, fixture("remove-all-messages.json")));
 
         mvc.perform(delete("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, Q))
