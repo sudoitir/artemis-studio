@@ -343,6 +343,45 @@ describe('DataTable', () => {
     expect(onRowClick).toHaveBeenCalledWith({ name: 'DLQ', depth: 431 });
   });
 
+  describe('find', () => {
+    async function open(user: ReturnType<typeof userEvent.setup>) {
+      renderWithProviders(<Grid columns={columns} data={rows} rowKey={(r) => r.name} />);
+      await user.click(screen.getAllByRole('columnheader')[0]);
+      await user.keyboard('{Control>}f{/Control}');
+      return screen.findByRole('textbox', { name: 'Find in Table' });
+    }
+
+    it('opens on Ctrl+F in the grid, counts the matches and moves between them', async () => {
+      const user = userEvent.setup();
+      const input = await open(user);
+      expect(input).toHaveFocus();
+
+      await user.type(input, 'S');
+      // ORDERS, SHIPMENTS and DLQ: only the first two contain an S.
+      expect(await screen.findByRole('status')).toHaveTextContent('1 of 2 matches');
+      expect(document.querySelector('[data-found]')).toHaveTextContent('ORDERS');
+
+      await user.keyboard('{Enter}');
+      expect(screen.getByRole('status')).toHaveTextContent('2 of 2 matches');
+      expect(document.querySelector('[data-found]')).toHaveTextContent('SHIPMENTS');
+
+      await user.keyboard('{Shift>}{Enter}{/Shift}');
+      expect(screen.getByRole('status')).toHaveTextContent('1 of 2 matches');
+    });
+
+    it('says there are no matches, and Escape closes it and puts focus back in the grid', async () => {
+      const user = userEvent.setup();
+      const input = await open(user);
+
+      await user.type(input, 'zzz');
+      expect(await screen.findByRole('status')).toHaveTextContent('No matches');
+
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('textbox', { name: 'Find in Table' })).not.toBeInTheDocument();
+      expect(screen.getByRole('grid')).toContainElement(document.activeElement as HTMLElement);
+    });
+  });
+
   describe('selection', () => {
     function Selectable({
       onToggleRow = () => {},

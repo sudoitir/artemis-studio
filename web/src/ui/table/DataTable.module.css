@@ -620,3 +620,20 @@
 .probe {
   block-size: 0;
 }
+
+/* The find bar of a virtualised grid sits above it; the row it stands on is tinted and ringed. */
+.find {
+  min-inline-size: 0;
+}
+
+.findCount {
+  min-inline-size: 9ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.bodyRow[data-found] {
+  --row-tint: var(--as-grid-row-hover);
+  outline: var(--as-focus-ring);
+  outline-offset: calc(-1 * var(--as-focus-offset));
+  transition: none;
+}
