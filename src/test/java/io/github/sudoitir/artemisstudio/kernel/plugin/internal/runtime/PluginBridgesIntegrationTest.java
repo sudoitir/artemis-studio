@@ -261,6 +261,35 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
         assertThat(listedAfter.path("result").path("tools").toString()).doesNotContain(toolName);
     }
 
+    /** A job whose interval reads one of the plugin's own settings is scheduled while attaching. */
+    @Test
+    void aJobThatReadsThePluginsOwnSettingWhenScheduledActivates() throws Exception {
+        String id = "acme-bridges-" + Math.abs(new SecureRandom().nextInt());
+        Path jar = bridgesJar(id)
+                .source("com.acme.bridges.BridgesJobs", """
+                        package com.acme.bridges;
+                        import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
+                        import io.github.sudoitir.artemisstudio.kernel.settings.SettingsReader;
+                        import java.time.Duration;
+                        import org.springframework.context.annotation.Bean;
+                        import org.springframework.context.annotation.Configuration;
+                        @Configuration
+                        public class BridgesJobs {
+                            @Bean
+                            public ScheduledJob bridgesJob(SettingsReader settings) {
+                                return ScheduledJob.fixedDelay("%s-job", "%s", ScheduledJob.Scope.INSTANCE,
+                                        () -> Duration.ofMinutes(settings.intValue("%s.limit")), () -> {});
+                            }
+                        }
+                        """.formatted(id, id, id))
+                .build();
+
+        activeRuntime = runtimeFactory.activate(descriptorOf(jar), jar, webContext.getServletContext());
+        registry.set(id, new PluginRuntimeRegistry.Active(activeRuntime));
+
+        assertThat(jobStatuses.all()).extracting(JobStatus::id).contains(id + "-job");
+    }
+
     @Test
     void anActivePluginsPermissionsAreInTheRoleCatalogueAndLeaveItOnDeactivation() throws Exception {
         String id = "acme-bridges-" + Math.abs(new SecureRandom().nextInt());

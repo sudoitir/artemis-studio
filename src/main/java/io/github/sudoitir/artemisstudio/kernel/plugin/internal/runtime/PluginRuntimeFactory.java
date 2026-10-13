@@ -162,8 +162,10 @@ public class PluginRuntimeFactory {
         List<PluginBridge> attached = new ArrayList<>();
         boolean allAttached = false;
         try {
-            for (PluginBridge bridge :
-                    mainContext.getBeansOfType(PluginBridge.class).values()) {
+            for (PluginBridge bridge : mainContext
+                    .getBeanProvider(PluginBridge.class)
+                    .orderedStream()
+                    .toList()) {
                 bridge.attach(runtime.handle());
                 attached.add(bridge);
             }
