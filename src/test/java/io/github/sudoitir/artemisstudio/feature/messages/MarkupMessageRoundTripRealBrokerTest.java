@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.messages;
 
 import static io.github.sudoitir.artemisstudio.support.SignedInSession.authentication;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -24,6 +25,7 @@ import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -162,8 +164,11 @@ class MarkupMessageRoundTripRealBrokerTest extends PostgresIntegrationTest {
                     .content(json.writeValueAsString(request)));
         }
 
-        JsonNode page = ok(get(MESSAGES, clusterId, queue).with(authentication(admin())));
-        assertThat(page.path("data")).hasSize(BODIES.size());
+        // A send is acknowledged before every broker version lists the message in a browse, so wait for all of them.
+        JsonNode page = await().atMost(Duration.ofSeconds(10))
+                .until(
+                        () -> ok(get(MESSAGES, clusterId, queue).with(authentication(admin()))),
+                        listed -> listed.path("data").size() == BODIES.size());
 
         List<String> seen = new java.util.ArrayList<>();
         for (JsonNode row : page.path("data")) {
