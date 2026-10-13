@@ -7,13 +7,16 @@ import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.Orpha
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferExecuteRequest;
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferPreviewRequest;
 import io.github.sudoitir.artemisstudio.feature.transfer.web.TransferViews.TransferRunView;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
+import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -38,11 +41,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class TransferController {
 
     private final TransferService transfers;
+    private final HeavyRequests heavy;
+    private final ActorResolver actors;
+
+    /** A preview reads the source queue and its target from the brokers; a few at once per user. */
+    private static final HeavyRequests.Endpoint PREVIEW =
+            new HeavyRequests.Endpoint("transfer previews", 2, Duration.ofSeconds(60), Integer.MAX_VALUE);
 
     @PostMapping("/preview")
     @ResponseStatus(HttpStatus.CREATED)
     public TransferRunView preview(@PathVariable UUID clusterId, @Valid @RequestBody TransferPreviewRequest request) {
-        return transfers.preview(clusterId, request);
+        return heavy.run(PREVIEW, actors.resolve().displayName(), _ -> transfers.preview(clusterId, request));
     }
 
     /** Starts the run, or, when an approval provider holds it, answers 202 with the held request and starts nothing. */

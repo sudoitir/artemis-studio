@@ -61,7 +61,15 @@ class SchemaLintTest extends PostgresIntegrationTest {
             new Allowed(
                     "diagnostics_snapshot",
                     Rule.UUID_KEY_DEFAULT,
-                    "a bearer handle: its random UUIDv4 is the credential, so the database never invents one"));
+                    "a bearer handle: its random UUIDv4 is the credential, so the database never invents one"),
+            new Allowed(
+                    "request_in_flight",
+                    Rule.UUID_KEY_DEFAULT,
+                    "keyed by the id of the token or user it counts, which the limiter supplies; it names no row of its own"),
+            new Allowed(
+                    "upload_window",
+                    Rule.UUID_KEY_DEFAULT,
+                    "keyed by the id of the user it counts, which the limiter supplies; it names no row of its own"));
 
     private static final String SCHEMA = "n.nspname = current_schema()";
 

@@ -75,8 +75,8 @@ class JolokiaBrokerClientTest {
         // One permit for the single request; 120 operations in one batch cost three, so
         // batching can never carry more than fifty operations per unit of the ceiling.
         org.mockito.InOrder order = org.mockito.Mockito.inOrder(limiter);
-        order.verify(limiter).acquire(URL, 1);
-        order.verify(limiter).acquire(URL, 3);
+        order.verify(limiter).acquire(URL, 1, "single");
+        order.verify(limiter).acquire(URL, 3, "batch");
         server.verify();
     }
 

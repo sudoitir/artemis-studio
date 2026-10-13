@@ -29,7 +29,7 @@ System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication",
 
 }
 
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Core, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Clusters, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")

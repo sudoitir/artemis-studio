@@ -20,6 +20,7 @@ import { LoadingState } from '../../ui/LoadingState.tsx';
 import { Page } from '../../ui/Page.tsx';
 import { PageHeader } from '../../ui/PageHeader.tsx';
 import { Pager } from '../../ui/Pager.tsx';
+import { ReplicaLagNotice } from '../../ui/ReplicaLagNotice.tsx';
 import { Section } from '../../ui/Section.tsx';
 import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import { Toolbar } from '../../ui/Toolbar.tsx';
@@ -318,6 +319,8 @@ export function EventsView() {
           </>
         }
       />
+
+      <ReplicaLagNotice mayLag={query.data?.mayLag} />
 
       <DataTable
         label="Broker events"

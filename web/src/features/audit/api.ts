@@ -1,12 +1,12 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { type PagedView } from '../../kernel/api/paging.ts';
+import { type HistoryPage } from '../../kernel/api/paging.ts';
 import { ApiError, BASE, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 
 type Schemas = components['schemas'];
 
 export type AuditEventView = Schemas['AuditEventView'];
-export type AuditPageView = PagedView<AuditEventView>;
+export type AuditPageView = HistoryPage<AuditEventView>;
 
 export interface AuditFilter {
   user?: string;

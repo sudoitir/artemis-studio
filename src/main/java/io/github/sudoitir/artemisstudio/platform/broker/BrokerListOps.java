@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.broker;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -23,6 +24,9 @@ public class BrokerListOps {
      */
     public static final String ALL = "{\"field\":\"\",\"operation\":\"\",\"value\":\"\"}";
 
+    /** How many MBeans one {@link #readAll} request reads. */
+    public static final int BATCH = 200;
+
     /** One page of one op on one node. {@code page}/{@code size} of {@code -1} disables paging. */
     public record ListPage(JsonNode data, long count) {}
 
@@ -39,15 +43,21 @@ public class BrokerListOps {
      * disappeared between a search and this read contributes nothing rather than
      * failing the page — routing changes under us, and a half-listed view is more
      * useful than an error.
+     *
+     * <p>The names go in batches of {@link #BATCH}, one request each, so a cluster with thousands
+     * of bridges or diverts is never one unbounded POST that holds a broker thread for as long as
+     * it takes to answer. Each request takes its own permit from the node's ceiling.
      */
     public static <T> List<T> readAll(
             JolokiaBrokerClient client, List<String> objectNames, Function<JsonNode, T> parse) {
         if (objectNames.isEmpty()) {
             return List.of();
         }
-        List<JolokiaResponse> responses =
-                client.batch(objectNames.stream().map(JolokiaRequest::readAll).toList());
-        return responses.stream()
+        int size = objectNames.size();
+        return IntStream.range(0, (size + BATCH - 1) / BATCH)
+                .mapToObj(i -> objectNames.subList(i * BATCH, Math.min(size, (i + 1) * BATCH)))
+                .flatMap(chunk ->
+                        client.batch(chunk.stream().map(JolokiaRequest::readAll).toList()).stream())
                 .filter(response -> response.ok()
                         && response.value() != null
                         && response.value().isObject())

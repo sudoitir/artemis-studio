@@ -4,21 +4,33 @@ import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.Brok
 import io.github.sudoitir.artemisstudio.feature.events.internal.persistence.BrokerEventRepository;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventPageView;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
+import io.github.sudoitir.artemisstudio.kernel.core.Cursor;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
+import io.github.sudoitir.artemisstudio.kernel.core.HistoryPage;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
+import io.github.sudoitir.artemisstudio.kernel.core.ReadRouting;
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.core.Routed;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
+import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
 import io.github.sudoitir.artemisstudio.platform.governance.ContentPolicy;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
@@ -47,12 +59,32 @@ public class BrokerEventService {
 
     private final PermissionResolver permissions;
 
+    private final ActorResolver actors;
+    private final HeavyRequests heavy;
+    private final ReadRouting routing;
+
+    /** A page of the history: a few at once per user, the page size at most, and the database's 30 s. */
+    static final HeavyRequests.Endpoint HISTORY =
+            new HeavyRequests.Endpoint("event history reads", 4, Duration.ofSeconds(30), ResourceQuery.MAX_SIZE);
+
+    private static final String COLUMNS = """
+            seq, occurred_at, received_at, type, address, routing_name, consumer_name, session_name, connection_name,
+            remote_address, username, node_id, props::text AS props""";
+
     /** Notification props carry filter strings and user-supplied names; the detectors run over them. */
     private final ContentPolicy contentPolicy;
 
-    @Transactional(readOnly = true)
+    /**
+     * A page of the cluster's events, newest first. By page number for the first {@value HistoryPage#MAX_OFFSET} rows,
+     * with a total; by {@code query.after()} beyond that, which costs the same however deep it reads and has no total.
+     * Read from the replica when there is one and it is current.
+     */
     public BrokerEventPageView page(UUID clusterId, BrokerEventQuery query) {
         clusterAccess.requireVisible(clusterId);
+        ResourceQuery paging = ResourceQuery.ofPage(query.page(), query.size());
+        if (query.after() == null) {
+            HistoryPage.requireReachable(paging);
+        }
         ResourceFilter addresses = permissions.filter(clusterId, ResourceKind.ADDRESS);
         // Filtered in the query, before paging, so a total never counts an event about an address the caller
         // may not read. An event about no address belongs to the cluster, and is read with it.
@@ -61,7 +93,7 @@ public class BrokerEventService {
                 : events.findDistinctAddressByClusterId(clusterId).stream()
                         .filter(addresses::readable)
                         .toList();
-        Page<BrokerEventEntity> result = events.findPage(
+        Where where = new Where(
                 clusterId,
                 addresses.everything(),
                 readable.isEmpty() ? List.of("") : readable,
@@ -71,16 +103,111 @@ public class BrokerEventService {
                 query.nodeId(),
                 blankToNull(query.address()),
                 query.from() != null ? query.from() : Instant.EPOCH,
-                query.to() != null ? query.to() : Instant.parse("9999-12-31T23:59:59Z"),
-                PageRequest.of(query.page() - 1, query.size()));
+                query.to() != null ? query.to() : Instant.parse("9999-12-31T23:59:59Z"));
+        Routed<Slice> routed = heavy.run(
+                HISTORY,
+                actors.resolve().displayName(),
+                run -> run.read(routing, client -> slice(client, where, query, paging)));
+        Slice slice = routed.value();
+        boolean more = slice.rows().size() > paging.size();
+        List<BrokerEventView> shown = more ? slice.rows().subList(0, paging.size()) : slice.rows();
         return new BrokerEventPageView(
-                result.getContent().stream().map(this::toView).toList(),
-                result.getNumber() + 1,
-                result.getSize(),
-                result.getTotalElements(),
-                result.hasNext(),
+                shown,
+                paging.page(),
+                paging.size(),
+                slice.count(),
+                more,
+                more ? new Cursor(shown.getLast().seq(), 0).encode() : null,
+                routed.fromReplica(),
                 writer.droppedFor(clusterId),
-                events.oldestRetained(clusterId));
+                slice.oldestRetained());
+    }
+
+    /** What a read keeps. */
+    private record Where(
+            UUID clusterId,
+            boolean everything,
+            List<String> readableAddresses,
+            List<String> readableNames,
+            boolean unaddressed,
+            String type,
+            UUID nodeId,
+            String address,
+            Instant from,
+            Instant to) {}
+
+    private record Slice(List<BrokerEventView> rows, Long count, Instant oldestRetained) {}
+
+    /** One more row than the page holds, so there is a next page when it comes back; and the total, by page number. */
+    private Slice slice(JdbcClient client, Where w, BrokerEventQuery query, ResourceQuery paging) {
+        StringBuilder conditions =
+                new StringBuilder("cluster_id = :cluster AND occurred_at >= :from AND occurred_at <= :to");
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("cluster", w.clusterId());
+        params.put("from", Timestamp.from(w.from()));
+        params.put("to", Timestamp.from(w.to()));
+        if (!w.everything()) {
+            conditions
+                    .append(
+                            w.unaddressed()
+                                    ? " AND (address IN (:addresses) OR address IS NULL)"
+                                    : " AND address IN (:addresses)")
+                    .append(" AND (routing_name IS NULL OR routing_name IN (:names))");
+            params.put("addresses", w.readableAddresses());
+            params.put("names", w.readableNames());
+        }
+        optional(conditions, params, "type", w.type());
+        optional(conditions, params, "node_id", w.nodeId());
+        optional(conditions, params, "address", w.address());
+        Cursor after = query.after();
+        String sql = "SELECT " + COLUMNS + " FROM broker_event WHERE " + conditions
+                + (after == null ? "" : " AND seq < :afterSeq")
+                + " ORDER BY seq DESC LIMIT :limit OFFSET :offset";
+        JdbcClient.StatementSpec spec = client.sql(sql)
+                .params(params)
+                .param("limit", paging.size() + 1)
+                .param("offset", after == null ? paging.offset() : 0);
+        if (after != null) {
+            spec = spec.param("afterSeq", after.major());
+        }
+        List<BrokerEventView> rows = spec.query(this::row).list();
+        Long count = after != null
+                ? null
+                : client.sql("SELECT count(*) FROM broker_event WHERE " + conditions)
+                        .params(params)
+                        .query(Long.class)
+                        .single();
+        Instant oldest = client.sql("SELECT min(occurred_at) FROM broker_event WHERE cluster_id = :cluster")
+                .param("cluster", w.clusterId())
+                .query(OffsetDateTime.class)
+                .optional()
+                .map(OffsetDateTime::toInstant)
+                .orElse(null);
+        return new Slice(rows, count, oldest);
+    }
+
+    private static void optional(StringBuilder sql, Map<String, Object> params, String column, Object value) {
+        if (value != null) {
+            sql.append(" AND ").append(column).append(" = :").append(column);
+            params.put(column, value);
+        }
+    }
+
+    private BrokerEventView row(ResultSet rs, int i) throws SQLException {
+        return new BrokerEventView(
+                rs.getLong("seq"),
+                rs.getObject("occurred_at", OffsetDateTime.class).toInstant(),
+                rs.getObject("received_at", OffsetDateTime.class).toInstant(),
+                rs.getString("type"),
+                rs.getString("address"),
+                rs.getString("routing_name"),
+                rs.getString("consumer_name"),
+                rs.getString("session_name"),
+                rs.getString("connection_name"),
+                rs.getString("remote_address"),
+                rs.getString("username"),
+                rs.getObject("node_id", UUID.class),
+                parseProps(rs.getString("props")));
     }
 
     /**

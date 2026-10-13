@@ -4,7 +4,8 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditQuery;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService.Export;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
-import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.Cursor;
+import io.github.sudoitir.artemisstudio.kernel.core.HistoryPage;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -41,7 +42,7 @@ public class AuditController {
     private final ObjectMapper mapper;
 
     @GetMapping
-    public PagedView<AuditEventView> list(
+    public HistoryPage<AuditEventView> list(
             @PathVariable UUID clusterId,
             @RequestParam(required = false) String user,
             @RequestParam(required = false) String action,
@@ -50,15 +51,19 @@ public class AuditController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size) {
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String after) {
         ResourceQuery paging = ResourceQuery.ofPage(page, size);
         return audit.page(
-                clusterId, new AuditQuery(user, action, outcome, parentId, from, to, paging.page(), paging.size()));
+                clusterId,
+                new AuditQuery(
+                        user, action, outcome, parentId, from, to, paging.page(), paging.size(), Cursor.decode(after)));
     }
 
     /**
      * The trail under the same filters as {@link #list}, oldest first, streamed to the client as a file so a long
-     * trail never sits in memory. Needs {@code audit:export}, and holds what the caller could read in the list.
+     * trail never sits in memory. Needs {@code audit:export}, and holds what the caller could read in the list. An
+     * export that reaches its row or time bound ends the file with a mark that it is incomplete and names the bound.
      */
     @GetMapping("/export")
     public ResponseEntity<StreamingResponseBody> exportAudit(
@@ -72,10 +77,10 @@ public class AuditController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
         AuditExportFormat type = AuditExportFormat.parse(format);
         Export export = audit.prepareExport(
-                clusterId, new AuditQuery(user, action, outcome, parentId, from, to, 1, 1), type.extension());
+                clusterId, new AuditQuery(user, action, outcome, parentId, from, to, 1, 1, null), type.extension());
         StreamingResponseBody body = out -> {
             try (AuditExportFormat.Sink sink = type.open(out, mapper)) {
-                audit.run(export, sink::write, sink::close);
+                audit.run(export, sink);
             }
         };
         String fileName = "audit-%s-%s.%s"

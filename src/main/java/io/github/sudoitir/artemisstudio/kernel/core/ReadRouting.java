@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.CannotCreateTransactionException;
@@ -25,6 +26,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 public final class ReadRouting implements AutoCloseable {
 
     static final Duration LAG_CACHE = Duration.ofSeconds(5);
+
+    private static final int FETCH_SIZE = 500;
 
     private final TransactionTemplate primary;
     private final TransactionTemplate replica;
@@ -84,7 +87,10 @@ public final class ReadRouting implements AutoCloseable {
 
     private static <T> T run(TransactionTemplate template, Function<JdbcClient, T> query) {
         DataSource dataSource = ((DataSourceTransactionManager) template.getTransactionManager()).getDataSource();
-        JdbcClient client = JdbcClient.create(dataSource);
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        // Heavy reads are long; a cursor keeps the driver from holding the whole result in memory.
+        jdbc.setFetchSize(FETCH_SIZE);
+        JdbcClient client = JdbcClient.create(jdbc);
         return template.execute(_ -> query.apply(client));
     }
 

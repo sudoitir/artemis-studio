@@ -45,7 +45,8 @@ _Others_
 * `i.g.s.a.p.b.NotificationMapper`
 * `i.g.s.a.p.b.StagingQueues`
 |Bean references
-|* `i.g.s.a.k.j.JobStatuses` (in Scheduled jobs)
+|* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
+* `i.g.s.a.k.j.JobStatuses` (in Scheduled jobs)
 |Events listened to
 |* `i.g.s.a.k.r.ReplicaSignal` 
 * `org.springframework.boot.context.event.ApplicationReadyEvent` 

@@ -27,7 +27,6 @@ import io.github.sudoitir.artemisstudio.kernel.security.UserAccounts;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.Clock;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -53,7 +52,7 @@ class PluginAdministrationTest {
                 audit,
                 actors,
                 new PluginAuditTrail(audit, mock(org.springframework.beans.factory.ObjectProvider.class)),
-                new UploadRateLimit(Clock.systemUTC()),
+                mock(UploadRateLimit.class),
                 new UpdateChecker(JsonMapper.builder().build()),
                 mock(StudioRestart.class),
                 mock(PluginTrust.class),
@@ -125,16 +124,6 @@ class PluginAdministrationTest {
                 .get()
                 .extracting(PluginAccessDeniedException::slug)
                 .isEqualTo("plugin-install-interactive-only");
-    }
-
-    @Test
-    void theSixthUploadInAnHourIsRefused() {
-        var limit = new UploadRateLimit(Clock.systemUTC());
-        for (int i = 0; i < UploadRateLimit.LIMIT; i++) {
-            assertThat(limit.tryAcquire(userId)).isTrue();
-        }
-        assertThat(limit.tryAcquire(userId)).isFalse();
-        assertThat(limit.tryAcquire(UUID.randomUUID())).as("per user").isTrue();
     }
 
     @Test

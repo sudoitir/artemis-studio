@@ -14,7 +14,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param maxRows how many rows one query may return
  * @param costCeiling the estimate above which a query is refused rather than started
  * @param timeout wall clock for one query, after which it returns what it has
- * @param maxConcurrentQueries how many queries one operator may have running
+ * @param maxConcurrentQueries how many queries one operator may have running, across all replicas
  * @param tailInterval how often a live tail re-reads its targets
  * @param minTailInterval the floor on {@code tailInterval}, so a tail cannot be turned into
  *     a load generator

@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.feature.events.BrokerEventQuery;
 import io.github.sudoitir.artemisstudio.feature.events.BrokerEventService;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventPageView;
 import io.github.sudoitir.artemisstudio.feature.events.web.EventViews.BrokerEventView;
+import io.github.sudoitir.artemisstudio.kernel.core.Cursor;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import java.time.Instant;
 import java.util.UUID;
@@ -37,10 +38,13 @@ public class EventController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size) {
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String after) {
         ResourceQuery paging = ResourceQuery.ofPage(page, size);
         return events.page(
-                clusterId, new BrokerEventQuery(type, nodeId, address, from, to, paging.page(), paging.size()));
+                clusterId,
+                new BrokerEventQuery(
+                        type, nodeId, address, from, to, paging.page(), paging.size(), Cursor.decode(after)));
     }
 
     /** One event by its seq, for a shared link; 404 once retention has reaped it. */

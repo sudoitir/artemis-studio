@@ -22,7 +22,7 @@ import io.github.sudoitir.artemisstudio.feature.triage.ConsumerHealthService;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQuery;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditQueryService;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
-import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.HistoryPage;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.artemisstudio.platform.broker.ClockOffsetService;
@@ -289,7 +289,9 @@ class TriageMcpToolsTest {
                                 null)),
                         1,
                         10,
-                        1,
+                        1L,
+                        false,
+                        null,
                         false,
                         0,
                         null));
@@ -327,7 +329,7 @@ class TriageMcpToolsTest {
         when(consumerHealth.forQueue(CLUSTER, "ORDERS"))
                 .thenReturn(Optional.of(health("orders", 0, false, 2, 2, null, null)));
         when(brokerEvents.page(eq(CLUSTER), any()))
-                .thenReturn(new BrokerEventPageView(List.of(), 1, 10, 0, false, 0, null));
+                .thenReturn(new BrokerEventPageView(List.of(), 1, 10, 0L, false, null, false, 0, null));
 
         McpViews.QueueDiagnosis d = (McpViews.QueueDiagnosis)
                 tools.diagnose(CLUSTER.toString(), "ORDERS").structuredContent();
@@ -342,7 +344,7 @@ class TriageMcpToolsTest {
     @Test
     void queueNamesLookedLikeDeadLetterQueuesAreRecognisedByPrefixInfixAndSuffix() {
         when(brokerEvents.page(eq(CLUSTER), any()))
-                .thenReturn(new BrokerEventPageView(List.of(), 1, 10, 0, false, 0, null));
+                .thenReturn(new BrokerEventPageView(List.of(), 1, 10, 0L, false, null, false, 0, null));
         for (String name : List.of("DLQ", "orders.DLQ", "orders.dlq")) {
             when(consumerHealth.forQueue(CLUSTER, name))
                     .thenReturn(Optional.of(health("a", 0, false, 1, 1, null, null)));
@@ -378,7 +380,15 @@ class TriageMcpToolsTest {
     void brokerEventsAreTheDefaultSourceAndFallBackToTheRoutingName() {
         when(brokerEvents.page(eq(CLUSTER), any()))
                 .thenReturn(new BrokerEventPageView(
-                        List.of(event("addr", null, null), event(null, "route", null)), 1, 26, 2, false, 0, null));
+                        List.of(event("addr", null, null), event(null, "route", null)),
+                        1,
+                        26,
+                        2L,
+                        false,
+                        null,
+                        false,
+                        0,
+                        null));
 
         McpViews.Page<McpViews.ActivityRow> page = page(tools.activityLog(CLUSTER.toString(), null, "addr", null));
 
@@ -397,7 +407,15 @@ class TriageMcpToolsTest {
     void theLimitIsClampedAndAnExtraRowMarksThePageTruncated() {
         when(brokerEvents.page(eq(CLUSTER), any()))
                 .thenReturn(new BrokerEventPageView(
-                        List.of(event("a", null, null), event("b", null, null)), 1, 2, 2, false, 0, null));
+                        List.of(event("a", null, null), event("b", null, null)),
+                        1,
+                        2,
+                        2L,
+                        false,
+                        null,
+                        false,
+                        0,
+                        null));
 
         McpViews.Page<McpViews.ActivityRow> page =
                 page(tools.activityLog(CLUSTER.toString(), "broker_events", null, 1));
@@ -409,7 +427,7 @@ class TriageMcpToolsTest {
     @Test
     void auditRowsMarkADryRunAndPreferTheErrorOverTheAffectedCount() {
         when(auditLog.page(eq(CLUSTER), any()))
-                .thenReturn(new PagedView<>(
+                .thenReturn(new HistoryPage<>(
                         List.of(
                                 audit("purge", "SUCCESS", true, null, 5L),
                                 audit("purge", "FAILURE", false, "boom", 5L),
@@ -418,6 +436,8 @@ class TriageMcpToolsTest {
                         1,
                         26,
                         4L,
+                        false,
+                        null,
                         false));
 
         McpViews.Page<McpViews.ActivityRow> page = page(tools.activityLog(CLUSTER.toString(), "audit", "purge", null));

@@ -20648,6 +20648,13 @@
             "type" : "integer",
             "format" : "int32"
           }
+        }, {
+          "name" : "after",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -22726,6 +22733,13 @@
             "type" : "integer",
             "format" : "int32"
           }
+        }, {
+          "name" : "after",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -22733,7 +22747,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PagedViewAuditEventView"
+                  "$ref" : "#/components/schemas/HistoryPageAuditEventView"
                 }
               }
             }
@@ -23166,6 +23180,13 @@
             "type" : "integer",
             "format" : "int32"
           }
+        }, {
+          "name" : "after",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -23173,7 +23194,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PagedViewAlertFiringView"
+                  "$ref" : "#/components/schemas/HistoryPageAlertFiringView"
                 }
               }
             }
@@ -35882,6 +35903,11 @@
           },
           "clamped" : {
             "type" : "boolean"
+          },
+          "bound" : {
+            "type" : [ "string", "null" ],
+            "description" : "ROWS when more paths matched than the limit, so some are not drawn.",
+            "enum" : [ "ROWS", "TIME", null ]
           }
         },
         "required" : [ "clamped", "limit", "paths", "shown" ]
@@ -35904,11 +35930,20 @@
             "format" : "int32"
           },
           "count" : {
-            "type" : "integer",
-            "format" : "int64"
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The total; null when the page was reached by cursor."
           },
           "hasNext" : {
             "type" : "boolean"
+          },
+          "next" : {
+            "type" : [ "string", "null" ],
+            "description" : "Pass as `after` for the page that follows; null on the last page."
+          },
+          "mayLag" : {
+            "type" : "boolean",
+            "description" : "Read from a replica that may be a little behind."
           },
           "dropped" : {
             "type" : "integer",
@@ -35919,7 +35954,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "count", "data", "dropped", "hasNext", "page", "pageSize" ]
+        "required" : [ "data", "dropped", "hasNext", "mayLag", "page", "pageSize" ]
       },
       "BrokerEventView" : {
         "type" : "object",
@@ -37198,7 +37233,7 @@
         },
         "required" : [ "action", "dryRun", "id", "outcome", "ts" ]
       },
-      "PagedViewAuditEventView" : {
+      "HistoryPageAuditEventView" : {
         "type" : "object",
         "properties" : {
           "data" : {
@@ -37218,13 +37253,21 @@
           "count" : {
             "type" : [ "integer", "null" ],
             "format" : "int64",
-            "description" : "The total across all pages; null when it is not known."
+            "description" : "The total; null when the page was reached by cursor."
           },
           "hasNext" : {
             "type" : "boolean"
+          },
+          "next" : {
+            "type" : [ "string", "null" ],
+            "description" : "Pass as `after` for the page that follows; null on the last page."
+          },
+          "mayLag" : {
+            "type" : "boolean",
+            "description" : "Read from a replica that may be a little behind."
           }
         },
-        "required" : [ "data", "hasNext", "page", "pageSize" ]
+        "required" : [ "data", "hasNext", "mayLag", "page", "pageSize" ]
       },
       "PagedViewAlertRuleView" : {
         "type" : "object",
@@ -37342,6 +37385,42 @@
           }
         },
         "required" : [ "ruleId", "ruleName", "seq", "severity", "startedAt", "subjectKey" ]
+      },
+      "HistoryPageAlertFiringView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AlertFiringView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "count" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The total; null when the page was reached by cursor."
+          },
+          "hasNext" : {
+            "type" : "boolean"
+          },
+          "next" : {
+            "type" : [ "string", "null" ],
+            "description" : "Pass as `after` for the page that follows; null on the last page."
+          },
+          "mayLag" : {
+            "type" : "boolean",
+            "description" : "Read from a replica that may be a little behind."
+          }
+        },
+        "required" : [ "data", "hasNext", "mayLag", "page", "pageSize" ]
       },
       "PagedViewAlertFiringView" : {
         "type" : "object",
@@ -37839,6 +37918,34 @@
           }
         },
         "required" : [ "command", "needed", "restarting", "supervised", "unreleased" ]
+      },
+      "PagedViewAuditEventView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AuditEventView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "count" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The total across all pages; null when it is not known."
+          },
+          "hasNext" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "data", "hasNext", "page", "pageSize" ]
       },
       "TrustedKeysView" : {
         "type" : "object",
