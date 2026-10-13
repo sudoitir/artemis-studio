@@ -92,3 +92,43 @@ Studio SHALL size its connection pool so that every replica together stays under
 #### Scenario: A transaction is abandoned
 - **WHEN** a session holds a transaction open and idle beyond the idle-in-transaction timeout
 - **THEN** the database ends the session and its locks are released
+
+### Requirement: Studio runs on an external PostgreSQL 18 it does not administer
+Studio SHALL run against an operator-provided PostgreSQL 18 or later, in any schema, as a non-superuser that owns its schema and may create schemas, without depending on server settings or extensions.
+
+#### Scenario: A managed database in its own schema
+- **WHEN** Studio is configured with a JDBC URL whose current schema is not `public` and a role without superuser
+- **THEN** it migrates and starts, and every table it creates is in that schema
+
+#### Scenario: Server settings differ from the bundled database
+- **WHEN** the server's own timeouts or autovacuum settings differ from the shipped configuration
+- **THEN** Studio's connection limits still apply, because Studio sets them on each connection
+
+### Requirement: The boot refuses a database Studio cannot run on
+Studio SHALL check the database before migrating, and SHALL fail the boot with a message naming the fix when the server is older than 18, a required privilege is missing, or the connection does not keep session state across transactions.
+
+#### Scenario: Transaction-mode pooling
+- **WHEN** Studio connects through a pooler in transaction mode
+- **THEN** the boot fails and the message says that session-mode pooling or a direct connection is required
+
+#### Scenario: Too few connections for the budget
+- **WHEN** the server's connection limit cannot hold Studio's configured pools
+- **THEN** Studio starts, and logs and reports a warning with the budget and the limit
+
+### Requirement: Studio rides through a database failover
+Studio SHALL accept a multi-host connection that targets the primary, SHALL recover its pools after a failover without a restart, and SHALL treat every session-scoped lock or listener on a dropped connection as lost.
+
+#### Scenario: The primary fails over
+- **WHEN** the database primary changes
+- **THEN** requests fail fast during the switch and succeed again afterwards, the change listener reconnects and caches resync, and a duty held by a session lock stops until the lock is reacquired
+
+### Requirement: Heavy reads may use a read replica
+When a read-only database is configured, Studio SHALL serve heavy history reads and exports from it while its replication lag is within a bound, SHALL fall back to the primary otherwise, and SHALL say in the response that the data may lag.
+
+#### Scenario: The replica lags too far
+- **WHEN** the replica's lag exceeds the bound or it cannot be reached
+- **THEN** the read is served by the primary
+
+#### Scenario: Reads after writes
+- **WHEN** a request reads what it has just written
+- **THEN** it reads from the primary

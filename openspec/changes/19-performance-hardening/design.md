@@ -237,6 +237,60 @@ PG18's `initdb` enables data checksums by default.
 - **The README gets a hardware section:** minimum and recommended, for single and HA, all taken from
   the measurements.
 
+### 11. Studio runs on an external PostgreSQL 18 it does not administer
+
+Operators may point Studio at a managed or HA PostgreSQL 18 (a cloud service, Patroni, an in-house
+cluster) that Studio treats as a black box: other tenants, its own server settings, a schema of the
+operator's choosing, replicas and failovers, and a connection limit shared with others.
+
+- **No dependency on server settings.** Everything Studio needs is set per connection (§5). The
+  shipped `postgresql.conf` (§4) is for the bundled database only and the external guide lists it as
+  recommended. No extension is required (`uuidv7()` is core; `pg_stat_statements` is optional).
+- **Least privilege.** Studio runs as a non-superuser that owns its schema and holds `CREATE` on the
+  database (for plugin schemas). Storage parameters, `VACUUM`, partition DDL and advisory locks all work
+  for a table owner.
+- **Any schema.** Core tables live in the connection's current schema (`currentSchema` in the JDBC URL).
+  No SQL names `public`. An integration test migrates and boots Studio in a non-default schema as a
+  restricted role.
+- **Boot preflight** (`kernel/core` `DatabasePreflight`, before Liquibase). It fails the boot with a
+  message naming the fix when:
+  - the server is older than 18;
+  - a required privilege is missing;
+  - the connection is not session-stable. Two transactions on one pooled connection must see the same
+    backend pid and keep a session `SET`, which transaction-mode PgBouncer or RDS Proxy pinning breaks.
+    Session-mode pooling is required because Studio uses session advisory locks, `LISTEN` and session
+    settings.
+  
+  It warns, without failing, when `max_connections` cannot hold Studio's connection budget, and when the
+  server's `idle_in_transaction_session_timeout` or `statement_timeout` would cut in below Studio's.
+- **Failover.**
+  - The datasource accepts a multi-host URL with `targetServerType=primary`.
+  - Hikari drops broken connections, and the 5 s connect timeout bounds the wait.
+  - Every session-scoped resource treats a dropped connection as lost: the `LISTEN` connection reconnects
+    and signals a resync, so caches refresh; a session advisory lock (`ClusterLock`, plugin host) is
+    reported lost and its duty stops until it is reacquired.
+  - Table-based locks (ShedLock, cluster leases) already survive a failover.
+  - The partition maintainer uses transaction-scoped advisory locks.
+- **Optional read replica.** `studio.database.read.*` (url, username, password, pool size) configures a
+  second, read-only pool against a standby.
+  - It is used only by heavy history reads and exports (§8), through one `ReadRouting` API that runs a
+    callback on the read pool in a read-only transaction.
+  - Before use it checks the replica's lag (`now() - pg_last_xact_replay_timestamp()`). Past a bound
+    (default 30 s), or when the replica is unreachable, the read goes to the primary.
+  - A response served from the replica states that it may lag.
+  - Writes, locks and anything read-after-write always use the primary.
+- **Connection budget.** The guide gives the formula, per replica: pool + 1 `LISTEN` + plugin pools +
+  read pool. Every pool size is configurable.
+- **`docs/external-database.md`** covers:
+  - version and privileges;
+  - schema;
+  - TLS (`sslmode=verify-full`);
+  - poolers (session mode only);
+  - multi-host failover URLs;
+  - the read replica;
+  - the connection budget;
+  - the recommended server settings.
+
 ## Risks / Trade-offs
 
 - [A write lands outside the partition window] → partition columns use database or writer time; a
@@ -247,6 +301,8 @@ PG18's `initdb` enables data checksums by default.
   the load test sizes the pool against the reference machine.
 - [Interrupting a timed-out job leaves partial work] → jobs are idempotent per row; the guide and the
   job status show the timeout.
+- [A session advisory lock vanishes in a failover without the holder noticing] → lock holders watch their connection and stop the duty when it drops; table leases are the authority for cluster ownership.
+- [A standby serves stale history] → lag is checked before use and the response says it may lag; read-after-write paths never use it.
 - [The re-baseline drops changeset history] → greenfield, and `SchemaLintTest` plus the ownership tests
   guard the result.
 - [A partition is dropped while a plugin still needs its audit rows] → a month drops only when every row
@@ -262,4 +318,4 @@ note says so under `BREAKING CHANGE:`.
 UUIDv7 keys and the second re-baseline (amends 0072 and 0008); partitioned history with no default
 partition (amends 0134); the job runner (amends 0048, supersedes 0125's job list); the connection budget
 and the shipped Postgres configuration; heavy-request permits across replicas; stream backpressure
-(amends 0018); the Gatling load test.
+(amends 0018); the Gatling load test; Studio on an external PostgreSQL.
