@@ -133,7 +133,7 @@ class DiagnosticsControllerTest extends PostgresIntegrationTest {
         when(connections.forCluster(clusterId, URL)).thenReturn(client(SEARCH, fixture("send-message.json")));
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, Q)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":3,\"durable\":true,\"body\":\"%s\",\"properties\":{\"k\":\"%s\"}}"
+                        .content("{\"kind\":\"TEXT\",\"durable\":true,\"body\":\"%s\",\"properties\":{\"k\":\"%s\"}}"
                                 .formatted(body, property)))
                 .andExpect(status().isOk());
 

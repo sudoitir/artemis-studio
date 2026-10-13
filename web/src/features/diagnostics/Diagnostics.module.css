@@ -99,10 +99,6 @@
   color: var(--as-text-dimmed);
 }
 
-.intro {
-  max-inline-size: 45rem;
-}
-
 .empty {
   padding: var(--mantine-spacing-md);
 }

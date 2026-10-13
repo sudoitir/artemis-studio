@@ -290,3 +290,33 @@ describe.each(SCHEMES)('the Settings page in the %s scheme at 1280 px', (scheme)
     if ('broken' in state) onlineManager.setOnline(false);
   });
 });
+
+describe('a setting row', () => {
+  async function rowAt(width: number) {
+    renderThemed(
+      <QueryClientProvider client={seeded()}>
+        <Frame width={width} height={1200}>
+          <RouterProvider router={router('?tab=scrape')} />
+        </Frame>
+      </QueryClientProvider>,
+      'light',
+    );
+    const input = await screen.findByLabelText('Tier A interval');
+    const label = document.querySelector(`label[for="${input.id}"]`)!;
+    return { input: input.getBoundingClientRect(), label: label.getBoundingClientRect() };
+  }
+
+  it('puts its label beside its input across a wide panel', async () => {
+    await page.viewport(1920, 1080);
+    const { input, label } = await rowAt(contentWidth(1920));
+    expect(label.right).toBeLessThan(input.left);
+    expect(Math.abs(label.top + label.height / 2 - (input.top + input.height / 2))).toBeLessThanOrEqual(2);
+  });
+
+  it('stacks its input under its label in a narrow one, scrolling nothing sideways', async () => {
+    await page.viewport(640, 900);
+    const { input, label } = await rowAt(640);
+    expect(input.top).toBeGreaterThanOrEqual(label.bottom);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(640);
+  });
+});

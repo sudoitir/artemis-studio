@@ -26,11 +26,15 @@ OTEL_LOGS_EXPORTER=otlp
 | --- | --- |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Collector base URL (OTLP over HTTP). `/v1/traces`, `/v1/metrics` and `/v1/logs` are appended. Each signal has its own `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`. |
 | `OTEL_METRICS_EXPORTER`, `OTEL_TRACES_EXPORTER`, `OTEL_LOGS_EXPORTER` | Set to `otlp` to export that signal. Left unset, that signal is not exported. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | `http/protobuf` (the default) or `grpc`, for traces and logs. Metrics always go over HTTP. |
 | `OTEL_EXPORTER_OTLP_HEADERS` | Headers sent with every export, for example `authorization=Bearer …`. |
 | `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | Sampler, for example `parentbased_traceidratio` with `0.1`. Studio samples every trace by default; it is a low-traffic admin tool. |
 | `OTEL_SERVICE_NAME` | Service name on everything exported. Defaults to `artemis-studio`. |
 | `OTEL_RESOURCE_ATTRIBUTES` | Extra resource attributes, for example `deployment.environment=prod`. |
 | `OTEL_SDK_DISABLED` | `true` turns the OpenTelemetry SDK off entirely. |
+
+With the compose files, set them in `.env`: `.env.example` lists them, and `compose.prod.yaml` and
+`compose.ha.yaml` pass them to Studio. An empty variable counts as unset.
 
 Compression, timeout and the other `OTEL_EXPORTER_OTLP_*` variables work as the specification
 describes. The sampling probability can also be set with `MANAGEMENT_TRACING_SAMPLING_PROBABILITY`.

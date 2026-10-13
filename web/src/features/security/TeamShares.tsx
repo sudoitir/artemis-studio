@@ -20,7 +20,7 @@ import {
   type ShareView,
   type TeamView,
 } from './api.ts';
-import { KindField } from './KindField.tsx';
+import { KindField } from '../../ui/KindField.tsx';
 import { withNotice } from './outcomes.ts';
 import { useTeamAccess } from './teamAccess.ts';
 import { shareColumns } from './teamColumns.tsx';

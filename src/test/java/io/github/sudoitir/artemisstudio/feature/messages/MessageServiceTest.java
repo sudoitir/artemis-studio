@@ -53,6 +53,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BodyEncoding;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsePage;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageKind;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageOperations;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
@@ -421,7 +422,7 @@ class MessageServiceTest {
     // ---- send -----------------------------------------------------------------------------
 
     private static SendMessageRequest sendRequest() {
-        return new SendMessageRequest(3, true, "{}", null, Map.of("correlationId", "c-1"), Map.of("p", 2));
+        return new SendMessageRequest(MessageKind.TEXT, true, "{}", Map.of("correlationId", "c-1"), Map.of("p", 2));
     }
 
     @Test
@@ -439,7 +440,8 @@ class MessageServiceTest {
 
     @Test
     void aSendWithAnInvalidPropertyNameIsRefusedBeforeItIsAudited() {
-        SendMessageRequest bad = new SendMessageRequest(3, true, "{}", null, Map.of(), Map.of("x-long-name", "v"));
+        SendMessageRequest bad =
+                new SendMessageRequest(MessageKind.TEXT, true, "{}", Map.of(), Map.of("x-long-name", "v"));
 
         assertThatThrownBy(() -> service.send(CLUSTER, "orders", null, bad, false))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -450,8 +452,20 @@ class MessageServiceTest {
     }
 
     @Test
+    void aBytesSendWhoseBodyIsNotBase64IsRefusedBeforeItIsAudited() {
+        SendMessageRequest bad = new SendMessageRequest(MessageKind.BYTES, true, "not base64!", Map.of(), Map.of());
+
+        assertThatThrownBy(() -> service.send(CLUSTER, "orders", null, bad, false))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("base64");
+        verify(audit, never())
+                .begin(any(), anyString(), anyString(), anyString(), any(), any(), any(), any(Boolean.class));
+        verify(jolokia, never()).send(any(), any());
+    }
+
+    @Test
     void aSendWithAnUnknownHeaderIsRefusedBeforeItIsAudited() {
-        SendMessageRequest bad = new SendMessageRequest(3, true, "{}", null, Map.of("h", 1), Map.of());
+        SendMessageRequest bad = new SendMessageRequest(MessageKind.TEXT, true, "{}", Map.of("h", 1), Map.of());
 
         assertThatThrownBy(() -> service.send(CLUSTER, "orders", null, bad, true))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -469,10 +483,9 @@ class MessageServiceTest {
                         Attempt.Ok.class, ok -> assertThat(ok.value()).isEqualTo(new Outcome.Affected(1, NODE_A)));
         ArgumentCaptor<SendSpec> spec = ArgumentCaptor.forClass(SendSpec.class);
         verify(jolokia).send(any(TransportTarget.class), spec.capture());
-        assertThat(spec.getValue().type()).isEqualTo(3);
+        assertThat(spec.getValue().kind()).isEqualTo(MessageKind.TEXT);
         assertThat(spec.getValue().durable()).isTrue();
         assertThat(spec.getValue().body()).isEqualTo("{}");
-        assertThat(spec.getValue().bodyBase64()).isFalse();
         verify(audit).succeed(event, 1);
         verify(hub).publishAbout(eq(CLUSTER), eq("queues"), anyCollection(), anyCollection());
     }
@@ -818,7 +831,12 @@ class MessageServiceTest {
 
     @Test
     void sendingNeedsTheQueueToBeReadableAndMessageSendOnItsAddress() {
-        service.send(CLUSTER, "orders", null, new SendMessageRequest(3, true, "hi", null, Map.of(), Map.of()), true);
+        service.send(
+                CLUSTER,
+                "orders",
+                null,
+                new SendMessageRequest(MessageKind.TEXT, true, "hi", Map.of(), Map.of()),
+                true);
 
         verify(access).requireResource(CLUSTER, ResourceRef.queue("orders"), Permissions.QUEUE_READ);
         verify(access).requireResource(CLUSTER, ResourceRef.address("orders.addr"), MessagePermissions.MESSAGE_SEND);
@@ -830,7 +848,7 @@ class MessageServiceTest {
                 .when(access)
                 .requireResource(CLUSTER, ResourceRef.address("orders.addr"), MessagePermissions.MESSAGE_SEND);
 
-        SendMessageRequest request = new SendMessageRequest(3, true, "hi", null, Map.of(), Map.of());
+        SendMessageRequest request = new SendMessageRequest(MessageKind.TEXT, true, "hi", Map.of(), Map.of());
 
         assertThatThrownBy(() -> service.send(CLUSTER, "orders", null, request, true))
                 .isInstanceOf(NotFoundException.class)

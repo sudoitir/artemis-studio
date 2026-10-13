@@ -100,11 +100,22 @@ services:
       # Metaspace is bounded so a plugin that does not unload cleanly fails loudly rather than
       # growing without limit; a restart frees it.
       JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50 -XX:MaxMetaspaceSize=384m}
-      # Export metrics, traces and logs over OTLP: uncomment and set the endpoint (site/src/guide/observability.md).
-      # OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
-      # OTEL_METRICS_EXPORTER: otlp
-      # OTEL_TRACES_EXPORTER: otlp
-      # OTEL_LOGS_EXPORTER: otlp
+      # The standard OpenTelemetry variables from .env (.env.example): empty ones stay unset, so nothing is
+      # exported until OTEL_EXPORTER_OTLP_ENDPOINT and a signal's exporter are set (site/src/guide/observability.md).
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-}
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-}
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-}
+      OTEL_METRICS_EXPORTER: ${OTEL_METRICS_EXPORTER:-}
+      OTEL_LOGS_EXPORTER: ${OTEL_LOGS_EXPORTER:-}
+      OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER:-}
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-}
+      OTEL_PROPAGATORS: ${OTEL_PROPAGATORS:-}
+      OTEL_METRIC_EXPORT_INTERVAL: ${OTEL_METRIC_EXPORT_INTERVAL:-}
     ports:
       - "${STUDIO_BIND:-127.0.0.1:8080}:8080"
     depends_on:

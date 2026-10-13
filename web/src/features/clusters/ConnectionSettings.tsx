@@ -198,101 +198,104 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
 
   return (
     <form className={classes.settingsForm} noValidate onSubmit={runCheck}>
-      <TextInput label="Name" {...form.getInputProps('name')} size="sm" />
-      <TextInput label="Description" {...form.getInputProps('description')} size="sm" />
+      <div className={classes.formGroup}>
+        <TextInput label="Name" {...form.getInputProps('name')} size="sm" />
+        <TextInput label="Description" {...form.getInputProps('description')} size="sm" />
 
-      <TextInput
-        label="Broker management URL"
-        description="The addresses you gave. Studio derives the rest from the pattern."
-        {...form.getInputProps('seed')}
-        size="sm"
-      />
-      {f.moreSeeds.map((row, i) => (
-        <FieldRow key={row.key}>
-          <TextInput
-            label={`Another management URL (${i + 2})`}
-            {...form.getInputProps(`moreSeeds.${i}.url`)}
-            size="sm"
-          />
-          <ActionIcon
-            variant="subtle"
-            aria-label={`Remove management URL ${i + 2}`}
-            onClick={() => form.removeListItem('moreSeeds', i)}
-          >
-            <IconX size={16} aria-hidden />
-          </ActionIcon>
-        </FieldRow>
-      ))}
-      <Button
-        variant="subtle"
-        size="compact-xs"
-        className={classes.start}
-        onClick={() => form.insertListItem('moreSeeds', seedRow())}
-      >
-        Add another seed
-      </Button>
-
-      <Text size="sm" fw={600}>
-        Management account
-      </Text>
-      <FieldRow>
-        <TextInput label="Username" autoComplete="off" {...form.getInputProps('username')} size="sm" />
-        <PasswordInput
-          label="Password"
-          description="Leave empty to keep the stored password."
-          autoComplete="new-password"
-          {...form.getInputProps('password')}
+        <TextInput
+          label="Broker management URL"
+          description="The addresses you gave. Studio derives the rest from the pattern."
+          {...form.getInputProps('seed')}
           size="sm"
         />
-      </FieldRow>
+        {f.moreSeeds.map((row, i) => (
+          <FieldRow key={row.key}>
+            <TextInput
+              label={`Another management URL (${i + 2})`}
+              {...form.getInputProps(`moreSeeds.${i}.url`)}
+              size="sm"
+            />
+            <ActionIcon
+              variant="subtle"
+              aria-label={`Remove management URL ${i + 2}`}
+              onClick={() => form.removeListItem('moreSeeds', i)}
+            >
+              <IconX size={16} aria-hidden />
+            </ActionIcon>
+          </FieldRow>
+        ))}
+        <Button
+          variant="subtle"
+          size="compact-xs"
+          className={classes.start}
+          onClick={() => form.insertListItem('moreSeeds', seedRow())}
+        >
+          Add another seed
+        </Button>
+        <Button
+          variant="subtle"
+          size="compact-xs"
+          className={classes.start}
+          onClick={() => setAdvancedOpen((o) => !o)}
+          aria-expanded={advancedOpen}
+          leftSection={
+            <IconChevronRight size={14} aria-hidden className={classes.chevron} data-open={advancedOpen || undefined} />
+          }
+        >
+          Advanced: management URL pattern and TLS
+        </Button>
+        <Collapse expanded={advancedOpen}>
+          <Stack gap="xs">
+            <TextInput
+              label="Management URL pattern"
+              description="Each node's host replaces {host}. A broker answering there is accepted only when it is that node."
+              {...form.getInputProps('pattern')}
+              size="sm"
+            />
+            <TextInput
+              label="TLS bundle"
+              description="Optional. Name of a Spring SSL bundle for an HTTPS broker."
+              {...form.getInputProps('tlsBundle')}
+              size="sm"
+            />
+          </Stack>
+        </Collapse>
+      </div>
 
-      <Switch
-        label="Use a separate Core account"
-        description="Off: Core connections use the management account."
-        {...form.getInputProps('separateCore', { type: 'checkbox' })}
-        size="sm"
-      />
-      {f.separateCore ? (
+      <div className={classes.formGroup}>
+        <Text size="sm" fw={600}>
+          Management account
+        </Text>
         <FieldRow>
-          <TextInput label="Core username" autoComplete="off" {...form.getInputProps('coreUsername')} size="sm" />
+          <TextInput label="Username" autoComplete="off" {...form.getInputProps('username')} size="sm" />
           <PasswordInput
-            label="Core password"
+            label="Password"
             description="Leave empty to keep the stored password."
             autoComplete="new-password"
-            {...form.getInputProps('corePassword')}
+            {...form.getInputProps('password')}
             size="sm"
           />
         </FieldRow>
-      ) : null}
 
-      <Button
-        variant="subtle"
-        size="compact-xs"
-        className={classes.start}
-        onClick={() => setAdvancedOpen((o) => !o)}
-        aria-expanded={advancedOpen}
-        leftSection={
-          <IconChevronRight size={14} aria-hidden className={classes.chevron} data-open={advancedOpen || undefined} />
-        }
-      >
-        Advanced: management URL pattern and TLS
-      </Button>
-      <Collapse expanded={advancedOpen}>
-        <Stack gap="xs">
-          <TextInput
-            label="Management URL pattern"
-            description="Each node's host replaces {host}. A broker answering there is accepted only when it is that node."
-            {...form.getInputProps('pattern')}
-            size="sm"
-          />
-          <TextInput
-            label="TLS bundle"
-            description="Optional. Name of a Spring SSL bundle for an HTTPS broker."
-            {...form.getInputProps('tlsBundle')}
-            size="sm"
-          />
-        </Stack>
-      </Collapse>
+        <Switch
+          label="Use a separate Core account"
+          description="Off: Core connections use the management account."
+          {...form.getInputProps('separateCore', { type: 'checkbox' })}
+          size="sm"
+        />
+        {f.separateCore ? (
+          <FieldRow>
+            <TextInput label="Core username" autoComplete="off" {...form.getInputProps('coreUsername')} size="sm" />
+            <PasswordInput
+              label="Core password"
+              description="Leave empty to keep the stored password."
+              autoComplete="new-password"
+              {...form.getInputProps('corePassword')}
+              size="sm"
+            />
+          </FieldRow>
+        ) : null}
+      </div>
 
       <div aria-live="polite" className={classes.form}>
         {check.isError ? <ErrorState variant="inline" error={check.error} /> : null}

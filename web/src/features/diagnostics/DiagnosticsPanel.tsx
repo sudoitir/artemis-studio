@@ -91,35 +91,33 @@ function Intro({
     </List.Item>
   );
   return (
-    <div className={classes.intro}>
-      <Section
-        title="Support bundle"
-        variant="card"
-        description={`Everything a maintainer needs to diagnose a problem, in one file: versions and environment, settings, health, features and plugins, a thread dump and the recent logs of this ${branding.productShortName}.`}
-      >
-        {error ? <ErrorState error={error} onRetry={onPrepare} /> : null}
-        <List spacing="xs" size="sm" center>
-          {promise(IconShieldLock, 'Passwords, tokens, keys and credentials in URLs are replaced with [redacted].')}
-          {promise(IconMailOff, 'No message bodies or properties are included, whatever the governance policy.')}
-          {promise(IconWifiOff, 'Built on this server. Nothing is uploaded anywhere; it works offline.')}
-          {promise(IconEye, 'You review every section and choose what to keep before anything is downloaded.')}
-        </List>
-        <Group>
-          <CapabilityGate verdict={gate} what="preparing a support bundle">
-            <Button
-              leftSection={<IconRefresh size="1rem" aria-hidden />}
-              disabled={gate.kind === 'blocked'}
-              onClick={onPrepare}
-            >
-              Prepare bundle
-            </Button>
-          </CapabilityGate>
-          <Text size="xs" className={classes.hint}>
-            Downloading a bundle is recorded in the audit log.
-          </Text>
-        </Group>
-      </Section>
-    </div>
+    <Section
+      title="Support bundle"
+      variant="card"
+      description={`Everything a maintainer needs to diagnose a problem, in one file: versions and environment, settings, health, features and plugins, a thread dump and the recent logs of this ${branding.productShortName}.`}
+    >
+      {error ? <ErrorState error={error} onRetry={onPrepare} /> : null}
+      <List spacing="xs" size="sm" center>
+        {promise(IconShieldLock, 'Passwords, tokens, keys and credentials in URLs are replaced with [redacted].')}
+        {promise(IconMailOff, 'No message bodies or properties are included, whatever the governance policy.')}
+        {promise(IconWifiOff, 'Built on this server. Nothing is uploaded anywhere; it works offline.')}
+        {promise(IconEye, 'You review every section and choose what to keep before anything is downloaded.')}
+      </List>
+      <Group>
+        <CapabilityGate verdict={gate} what="preparing a support bundle">
+          <Button
+            leftSection={<IconRefresh size="1rem" aria-hidden />}
+            disabled={gate.kind === 'blocked'}
+            onClick={onPrepare}
+          >
+            Prepare bundle
+          </Button>
+        </CapabilityGate>
+        <Text size="xs" className={classes.hint}>
+          Downloading a bundle is recorded in the audit log.
+        </Text>
+      </Group>
+    </Section>
   );
 }
 

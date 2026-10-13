@@ -40,12 +40,11 @@ public interface MessageTransport {
             String jolokiaUrl,
             String coreUrl) {}
 
-    /** A message to enqueue. {@code bodyBase64} is true when {@code body} is base64-encoded bytes. */
+    /** A message to enqueue. {@code body} is base64-encoded bytes when {@code kind} is {@link MessageKind#BYTES}. */
     record SendSpec(
-            int type,
+            MessageKind kind,
             boolean durable,
             String body,
-            boolean bodyBase64,
             Map<String, Object> headers,
             Map<String, Object> properties) {}
 }

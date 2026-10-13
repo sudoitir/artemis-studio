@@ -205,7 +205,7 @@ say "sending a few JSON orders, so the SQL Console has a body to search"
 for id in 4471 4472 4473 4474 4475 4476 4477 4478; do
   tenant=$([ $((id % 2)) -eq 0 ] && echo acme || echo globex)
   api POST "/clusters/$cluster/queues/ORDERS.held/messages" -d "{
-    \"type\": 3,
+    \"kind\": \"TEXT\",
     \"durable\": true,
     \"body\": \"{\\\"orderId\\\": \\\"$id\\\", \\\"tenant\\\": \\\"$tenant\\\", \\\"total\\\": $((id % 97 + 12)).50, \\\"currency\\\": \\\"EUR\\\"}\",
     \"properties\": {\"tenant\": \"$tenant\", \"orderId\": \"$id\"}

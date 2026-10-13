@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,10 +31,9 @@ class JolokiaMessageTransportTest {
                 .send(
                         new TransportTarget(UUID.randomUUID(), UUID.randomUUID(), "q", "q", "ANYCAST", "u", null),
                         new SendSpec(
-                                3,
+                                MessageKind.TEXT,
                                 true,
                                 "hi",
-                                false,
                                 Map.of("correlationId", "c-1", "type", "order", "groupId", "g"),
                                 Map.of("orderId", "A-1", "n", 7, "ok", true)));
 
@@ -51,6 +51,27 @@ class JolokiaMessageTransportTest {
     }
 
     @Test
+    void theKindMapsToTheArtemisMessageType() {
+        BrokerConnections connections = mock(BrokerConnections.class);
+        JolokiaBrokerClient client = mock(JolokiaBrokerClient.class);
+        MessageOperations ops = mock(MessageOperations.class);
+        when(connections.forCluster(any(), any())).thenReturn(client);
+        when(client.resolveBrokerObjectName()).thenReturn("org.apache.activemq.artemis:broker=\"b\"");
+        JolokiaMessageTransport transport = new JolokiaMessageTransport(connections, mock(MessageBrowser.class), ops);
+        TransportTarget target =
+                new TransportTarget(UUID.randomUUID(), UUID.randomUUID(), "q", "q", "ANYCAST", "u", null);
+
+        transport.send(target, new SendSpec(MessageKind.TEXT, true, "hi", Map.of(), Map.of()));
+        transport.send(target, new SendSpec(MessageKind.BYTES, true, "aGk=", Map.of(), Map.of()));
+
+        ArgumentCaptor<MessageOperations.Outgoing> sent = ArgumentCaptor.forClass(MessageOperations.Outgoing.class);
+        verify(ops, times(2)).send(eq(client), anyString(), sent.capture(), any());
+        assertThat(sent.getAllValues())
+                .extracting(MessageOperations.Outgoing::type)
+                .containsExactly(3, 4);
+    }
+
+    @Test
     void anApplicationPropertyNamedLikeAHeaderKeepsItsName() {
         BrokerConnections connections = mock(BrokerConnections.class);
         JolokiaBrokerClient client = mock(JolokiaBrokerClient.class);
@@ -62,10 +83,9 @@ class JolokiaMessageTransportTest {
                 .send(
                         new TransportTarget(UUID.randomUUID(), UUID.randomUUID(), "q", "q", "ANYCAST", "u", null),
                         new SendSpec(
-                                3,
+                                MessageKind.TEXT,
                                 true,
                                 "hi",
-                                false,
                                 Map.of("type", "header-type"),
                                 Map.of("type", "property-type", "groupId", "not-a-group", "JMSXGroupID", "g")));
 

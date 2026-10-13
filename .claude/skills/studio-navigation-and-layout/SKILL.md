@@ -42,6 +42,13 @@ has a full-row background and the accent bar as a `::before`, so the bar never s
 sentence case and truncate with an ellipsis; a `title` only when it is actually truncated (`useTruncated`).
 The list is `overflow-y:auto` and sticky with sticky group headings. Logical properties only.
 
+**The open section fills the column beside the list.** No `max-inline-size` on the panel or on a section's
+wrapper: tables, lists and cards use the page's width. A reading measure (`70ch`) is for prose only, a section
+description or an opening paragraph. A settings row is a three-column grid across the panel (label and hint,
+control, state), stacked by a container query when the panel is narrow; a form of a few groups puts its
+groups side by side (at most two) rather than one narrow column. A button stays as wide as its words: a bare
+button in a flex column stretches, so wrap it in a `Group`.
+
 ## Scroll, focus and flicker
 
 - **The router resets the scroll on every navigation** unless told not to. `app/router.ts` wraps `navigate`

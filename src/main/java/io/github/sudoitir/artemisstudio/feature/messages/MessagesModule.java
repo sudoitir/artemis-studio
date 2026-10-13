@@ -5,6 +5,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.McpToolDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PermissionDef;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageKind;
 import java.util.List;
 
 /** Message browse, send, move and delete; dead letters. Module descriptor (ADR-0070). */
@@ -60,7 +61,8 @@ public final class MessagesModule {
                     McpToolDef.Posture.MUTATE,
                     "Enqueue one message. Adds, never removes.",
                     List.of(
-                            McpToolDef.Param.values("type", List.of("3 (text)", "4 (bytes)"), "Default 3."),
+                            McpToolDef.Param.enumValues(
+                                    "kind", MessageKind.values(), "Default TEXT. BYTES: body is base64."),
                             McpToolDef.Param.note("durable", "Default true."),
                             McpToolDef.Param.note("dryRun", McpToolDef.DRY_RUN))))
             .build();

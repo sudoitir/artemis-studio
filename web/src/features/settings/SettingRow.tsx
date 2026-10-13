@@ -34,6 +34,26 @@ const MATCH = {
 /** How often the age of a pending change is brought up to date. */
 const AGE_TICK_MS = 30_000;
 
+/** A field's parts become the setting row's grid cells: label and hint, input box, message. */
+const FIELD_PARTS = {
+  root: classes.field,
+  label: classes.fieldLabel,
+  description: classes.fieldHint,
+  wrapper: classes.fieldControl,
+  error: classes.fieldMessage,
+};
+
+/** The same for a switch, whose track is its control. */
+const SWITCH_PARTS = {
+  root: classes.field,
+  body: classes.field,
+  labelWrapper: classes.field,
+  label: classes.fieldLabel,
+  description: classes.fieldHint,
+  track: classes.fieldTrack,
+  error: classes.fieldMessage,
+};
+
 /**
  * One setting as a form row: its input, matched to its kind, beside what state it is in (edited, modified
  * from its default, or about to be reset) and the control that takes it back. A change waiting for approval
@@ -80,6 +100,7 @@ export function SettingRow({
     input = (
       <Switch
         {...common}
+        classNames={SWITCH_PARTS}
         checked={field.value === 'true'}
         onChange={(event) => draft.edit(settingKey, String(event.currentTarget.checked))}
       />
@@ -88,7 +109,7 @@ export function SettingRow({
     input = (
       <NumberInput
         {...common}
-        className={classes.input}
+        classNames={FIELD_PARTS}
         value={field.value}
         onChange={(value) => draft.edit(settingKey, String(value))}
         min={setting.min == null ? undefined : Number(setting.min)}
@@ -103,7 +124,7 @@ export function SettingRow({
     input = (
       <TextInput
         {...common}
-        className={classes.input}
+        classNames={FIELD_PARTS}
         value={field.value}
         onChange={(event) => draft.edit(settingKey, event.currentTarget.value)}
         spellCheck={false}
@@ -114,7 +135,7 @@ export function SettingRow({
 
   return (
     <div className={classes.setting} data-changed={changed || undefined}>
-      <div className={classes.settingInput}>{input}</div>
+      <div className={classes.field}>{input}</div>
       <div className={classes.settingState}>
         <SettingState
           setting={setting}

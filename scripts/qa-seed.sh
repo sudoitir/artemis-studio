@@ -145,7 +145,7 @@ lines = [{"sku": f"SKU-{n:03d}-{i:04d}", "description": "Replacement part, long 
 body = json.dumps({"orderId": f"ORD-{n:05d}", "tenant": "acme-global-industrial-holdings-international", "lines": lines,
                    "failure": "java.lang.IllegalStateException: " + "downstream settlement service rejected the instruction; " * 8})
 print(json.dumps({
-    "type": 3, "durable": True, "body": body,
+    "kind": "TEXT", "durable": True, "body": body,
     "headers": {"correlationId": "corr-" + f"{n:03d}-" + "c" * 400, "replyTo": "reply.to." + "r" * 200, "groupId": "group-" + "g" * 150},
     "properties": {
         "failureReason": "Exceeded the redelivery limit after repeated processing errors; " * 8,
@@ -161,7 +161,7 @@ for n in $(seq 1 6); do long_message ExpiryQueue "$n"; done
 say "sending 250 small messages to one queue, for a query with many rows"
 for n in $(seq 1 250); do
   code=$(api POST "/clusters/$cluster/queues/qa.orders.eu-central.001/messages" -o /dev/null -w '%{http_code}' \
-    -d "{\"type\":3,\"durable\":true,\"body\":\"{\\\"orderId\\\":\\\"ORD-$n\\\",\\\"amount\\\":$((n * 7 % 500))}\",\"properties\":{\"seq\":$n}}") || code=000
+    -d "{\"kind\":\"TEXT\",\"durable\":true,\"body\":\"{\\\"orderId\\\":\\\"ORD-$n\\\",\\\"amount\\\":$((n * 7 % 500))}\",\"properties\":{\"seq\":$n}}") || code=000
   case $code in 2??) ;; *) failed=$((failed + 1)) ;; esac
 done
 

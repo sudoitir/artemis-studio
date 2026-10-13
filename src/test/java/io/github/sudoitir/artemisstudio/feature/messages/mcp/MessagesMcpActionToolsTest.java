@@ -19,6 +19,7 @@ import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.Mes
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.SendMessageRequest;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageKind;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpViews.MutationOutcome;
 import io.modelcontextprotocol.spec.McpError;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
@@ -197,10 +198,9 @@ class MessagesMcpActionToolsTest {
         assertThat(outcome.dryRun()).isTrue();
         ArgumentCaptor<SendMessageRequest> request = ArgumentCaptor.forClass(SendMessageRequest.class);
         verify(messages).send(eq(cluster), eq("orders"), isNull(), request.capture(), eq(true));
-        assertThat(request.getValue().type()).isEqualTo(3);
+        assertThat(request.getValue().kind()).isEqualTo(MessageKind.TEXT);
         assertThat(request.getValue().durable()).isTrue();
         assertThat(request.getValue().body()).isEqualTo("hello");
-        assertThat(request.getValue().bodyBase64()).isFalse();
     }
 
     @Test
@@ -208,14 +208,24 @@ class MessagesMcpActionToolsTest {
         when(messages.send(any(), any(), any(), any(), anyBoolean()))
                 .thenReturn(new Attempt.Ok<>(new Outcome.Affected(1, node)));
 
-        MutationOutcome outcome = structured(tools.sendMessage(cluster.toString(), "orders", "x", 5, false, false));
+        MutationOutcome outcome =
+                structured(tools.sendMessage(cluster.toString(), "orders", "x", "bytes", false, false));
 
         assertThat(outcome.dryRun()).isFalse();
         assertThat(outcome.message()).isEqualTo("Applied.");
         ArgumentCaptor<SendMessageRequest> request = ArgumentCaptor.forClass(SendMessageRequest.class);
         verify(messages).send(any(), any(), any(), request.capture(), eq(false));
-        assertThat(request.getValue().type()).isEqualTo(5);
+        assertThat(request.getValue().kind()).isEqualTo(MessageKind.BYTES);
         assertThat(request.getValue().durable()).isFalse();
+    }
+
+    @Test
+    void sendMessageRefusesAnUnknownKind() {
+        String clusterId = cluster.toString();
+
+        assertThatThrownBy(() -> tools.sendMessage(clusterId, "orders", "x", "3", null, null))
+                .isInstanceOf(McpError.class);
+        verifyNoInteractions(messages);
     }
 
     @Test

@@ -3,11 +3,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A section's content stays a readable width instead of stretching across the page. */
-.narrow {
-  max-inline-size: 40rem;
-}
-
 /* The pool and stream figures wrap by their own width. */
 .stats {
   display: grid;
@@ -15,21 +10,28 @@
   gap: var(--mantine-spacing-md);
 }
 
-/* A category's settings: one row each, divided by hairlines, a readable width rather than the page's. */
+/* A category's settings: one row each, divided by hairlines, across the panel's width. The rows are laid out by
+   the width of this list, not the window's, so a zoomed page stacks them. */
 .settings {
   display: flex;
   flex-direction: column;
-  max-inline-size: 48rem;
+  container: settings / inline-size;
 }
 
-/* A setting: its input on the start side, where it stands and the way back on the end side, the change
-   waiting for approval beneath both. It wraps by its own width, so a zoomed page stacks instead of
-   scrolling sideways. */
+/* A setting: what it is on the start side (its label, its hint beneath), its control in the middle with the
+   field's message under it, where it stands and the way back at the end, and the change waiting for approval
+   beneath all three. The field's own parts are placed in this grid by `display: contents` on their wrappers
+   (`field` below), so the label keeps its `for` and the hint stays the input's description. */
 .setting {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 24rem) minmax(12rem, 20rem);
+  grid-template-areas:
+    'label control state'
+    'hint message state'
+    'pending pending pending';
+  column-gap: var(--mantine-spacing-xl);
+  align-items: start;
   padding-block: var(--mantine-spacing-sm) 0;
   padding-inline-start: var(--mantine-spacing-sm);
   border-block-start: 1px solid var(--as-border);
@@ -45,24 +47,73 @@
   border-inline-start-color: var(--as-accent);
 }
 
-.settingInput {
-  flex: 1 1 22rem;
-  min-inline-size: 0;
+/* The wrappers Mantine puts around a field's parts step aside, so the parts themselves are the row's cells. */
+.field {
+  display: contents;
 }
 
-/* The input box itself stays a width a value fits, while its hint may run across the row. */
-.input :global(.mantine-Input-wrapper) {
-  max-inline-size: 22rem;
+/* The label sits level with the input box beside it; the hint runs beneath, at a readable measure. */
+/* A switch's label weighs and starts the same as every other field's. */
+.fieldLabel {
+  grid-area: label;
+  align-self: center;
+  margin: 0;
+  padding-inline-start: 0;
+  font-weight: 500;
+}
+
+.fieldHint {
+  grid-area: hint;
+  max-inline-size: 70ch;
+  margin: 0;
+  padding-inline-start: 0;
+  padding-block-end: var(--mantine-spacing-sm);
+}
+
+.fieldControl {
+  grid-area: control;
+  align-self: center;
+  justify-self: stretch;
+  margin: 0 !important;
+}
+
+/* A switch is as wide as its track, at the start of its cell. */
+.fieldTrack {
+  grid-area: control;
+  align-self: center;
+  justify-self: start;
+}
+
+.fieldMessage {
+  grid-area: message;
+  margin-block: calc(var(--mantine-spacing-xs) / 2) 0;
 }
 
 .settingState {
-  flex: 0 1 13rem;
+  grid-area: state;
   min-inline-size: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 0.125rem;
   padding-block-start: 0.125rem;
+}
+
+/* Too narrow for three columns: the setting reads top to bottom, its control under its label. */
+@container settings (max-inline-size: 44rem) {
+  .setting {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'label' 'control' 'message' 'hint' 'state' 'pending';
+    row-gap: calc(var(--mantine-spacing-xs) / 2);
+  }
+
+  .fieldLabel {
+    align-self: start;
+  }
+
+  .settingState {
+    padding-block-end: var(--mantine-spacing-sm);
+  }
 }
 
 /* The setting's key, an identifier rather than a word: set apart from the state above it, so "Default" never reads as its label. */
@@ -79,7 +130,7 @@
 
 /* Changes waiting for approval: under the setting, across its row, one line each. */
 .pending {
-  flex: 1 1 100%;
+  grid-area: pending;
   margin: 0;
   padding: 0;
   list-style: none;

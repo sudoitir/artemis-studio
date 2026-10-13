@@ -127,7 +127,7 @@ export function SecuritySettings() {
   const verdict = rotationVerdict(!loading && !can('settings:write'), running, rotatable);
 
   return (
-    <Stack gap="lg" className={classes.narrow}>
+    <Stack gap="lg">
       <VisuallyHidden role="status">{announcement(rotate.isPending, last)}</VisuallyHidden>
 
       <Section

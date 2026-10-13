@@ -30202,18 +30202,15 @@
       "SendMessageRequest" : {
         "type" : "object",
         "properties" : {
-          "type" : {
-            "type" : "integer",
-            "format" : "int32"
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "TEXT", "BYTES" ]
           },
           "durable" : {
             "type" : "boolean"
           },
           "body" : {
             "type" : "string"
-          },
-          "bodyBase64" : {
-            "type" : "boolean"
           },
           "headers" : {
             "type" : "object",
@@ -30224,7 +30221,7 @@
             "additionalProperties" : { }
           }
         },
-        "required" : [ "durable", "type" ]
+        "required" : [ "durable", "kind" ]
       },
       "AffectedView" : {
         "type" : "object",

@@ -23,7 +23,7 @@ import {
   type MemberView,
   type TeamView,
 } from './api.ts';
-import { KindField } from './KindField.tsx';
+import { KindField } from '../../ui/KindField.tsx';
 import { withNotice } from './outcomes.ts';
 import classes from './Security.module.css';
 import { useTeamAccess } from './teamAccess.ts';

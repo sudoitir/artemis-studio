@@ -58,6 +58,21 @@ describe('SectionNav in a real browser', () => {
     });
   });
 
+  it('gives the open section the whole width beside the list, however wide the window', async () => {
+    const { container } = renderThemed(
+      <Frame width={1920} height={800}>
+        <RouterProvider router={page()} />
+      </Frame>,
+      'light',
+    );
+    await screen.findByRole('navigation', { name: 'Administration sections' });
+    const panel = container.querySelector('[data-section-panel]')!;
+    // The grid holding the list and the panel: the panel ends where it ends.
+    const grid = panel.parentElement!;
+    expect(Math.round(panel.getBoundingClientRect().right)).toBe(Math.round(grid.getBoundingClientRect().right));
+    expect(panel.getBoundingClientRect().width).toBeGreaterThan(1500);
+  });
+
   it('starts every label and every group heading on one left edge, with whole-row links of one height', async () => {
     renderThemed(
       <Frame width={960} height={600}>
