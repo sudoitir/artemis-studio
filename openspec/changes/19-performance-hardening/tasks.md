@@ -1,6 +1,74 @@
 ## 1. Design
-- [ ] 1.1 Brainstorm and investigate; run `/opsx:update` to add design.md, sharpen specs and replace these tasks
-## 2. Build
-- [ ] 2.1 Implement (tasks written by `/opsx:update`)
-## 3. Finish
-- [ ] 3.1 `just verify` green; PR merged; change archived
+
+- [x] 1.1 Brainstorm and investigate; `/opsx:update` adds design.md, sharpens specs, replaces these tasks
+
+## 2. U1 Schema (database-schema)
+
+- [ ] 2.1 Re-baseline every module changelog to one `changes/0001-baseline.sql` with final shapes: uuid PKs `DEFAULT uuidv7()` (bearer-handle tables without default), PKs for `storage_sample`, `flow_route`, `metric_sample`; `inbox_item.data` jsonb; drop `pgcrypto`; partitioned parents for `broker_event`, `rr_event`, `audit_event` (no default partition, no partitions); storage parameters by class; plugin template SQL on `uuidv7()`
+- [ ] 2.2 UNLOGGED `heavy_permit` and limiter counter tables in their owning modules
+- [ ] 2.3 Delete `SchemaBaselineDiffTest` and `db/reference-schema.sql`; add `SchemaLintTest` with its allow-list
+- [ ] 2.4 Liquibase session advisory lock (`liquibase-sessionlock` or a small `LockService`)
+- [ ] 2.5 ADR: UUIDv7 keys and the second re-baseline, superseding the "never edit a released changeset" convention until the stable release; update CLAUDE.md non-negotiable 7 and the master changelog comment
+
+## 3. U2 Ids
+
+- [ ] 3.1 `kernel/core/Ids.v7()` over Hibernate's `UuidVersion7Strategy`
+- [ ] 3.2 Every entity `@UuidGenerator(style = VERSION_7)`; JDBC inserts `RETURNING id`; replace `HeldStore`'s `SELECT uuidv7()`, `MessageIndexService`, `DiagnosticsService` (stays v4: bearer), `SecretRotations`
+- [ ] 3.3 `metric_sample` writer `ON CONFLICT DO NOTHING`
+
+## 4. U3 Partitions (data-lifecycle, audit-log, scrape-scheduling, message-index)
+
+- [ ] 4.1 `kernel/lifecycle/partition`: `PartitionSpec`, `PartitionMaintainer` (boot SmartLifecycle under advisory lock, hourly `partitions` job, create + `ATTACH`, UTC, freeze closed partitions, analyze parents), `PartitionDrops.dropOldest` (`FINALIZE` pending, `DETACH CONCURRENTLY`, `DROP`), `partitions` health contributor
+- [ ] 4.2 Specs for `metric_sample`, `message_index`, `broker_event`, `rr_event`, `audit_event`; delete the two old maintainers and their jobs
+- [ ] 4.3 Stores drop partitions in `purgeBatch`; `AuditStore` drops a month only when every row is eligible, else row purge in range
+- [ ] 4.4 Writers retry once after `23514` with `ensureAhead()`
+- [ ] 4.5 Child-first bounded deletes for transfer, bulk and rr cascades
+- [ ] 4.6 ADR: partitioned history with no default partition (amends 0134)
+
+## 5. U4 Jobs and threads (operational-health)
+
+- [ ] 5.1 `JobRunner`: timer thread, virtual thread per run, next fire after completion, per-job timeout, lock extension with `lockLost`, `invalidSchedule` re-parse, UTC, first-failure logging, counters; replaces `JobScheduler`, the scrape scheduler pool and the plugin job bridge pool
+- [ ] 5.2 `ScheduledJob` optional timeout; status fields in `JobStatus` and the jobs API
+- [ ] 5.3 Fix the SSE drain-thread leak; record interrupted approval executions
+- [ ] 5.4 `ThreadLeakIntegrationTest`
+- [ ] 5.5 ADR: the job runner (amends 0048, supersedes 0125's job list)
+
+## 6. U5 Database configuration
+
+- [ ] 6.1 HikariCP settings and connection timeouts in `application.yml`; remove `spring.task.scheduling`
+- [ ] 6.2 `SET LOCAL statement_timeout` for SQL console, exports, lifecycle preview, partition maintenance
+- [ ] 6.3 One `deploy/postgres/postgresql.conf` mounted by prod, HA and dev compose; remove the `-c` lists and `postgresql.tuning.conf`; update CLAUDE.md's pointer
+- [ ] 6.4 ADR: connection budget and the shipped Postgres configuration
+
+## 7. U6 Limits (performance-sizing)
+
+- [ ] 7.1 `kernel/core/HeavyRequests` (cross-replica permits, time and row bounds, response names the bound, installation cap pool/4)
+- [ ] 7.2 Apply to audit export and history, alert and event history, bulk and transfer previews, flow and topology reads, SQL console; keyset paging on history
+- [ ] 7.3 Login attempt, upload and in-flight limiters on Postgres counters; node call limiter divided by ready replicas
+- [ ] 7.4 `BrokerListOps.readAll` chunks of 200; `studio.broker.calls{kind}`
+- [ ] 7.5 ADR: heavy-request permits across replicas
+
+## 8. U7 Stream (realtime-stream)
+
+- [ ] 8.1 Subscriber bounds (1,000 frames, 1 MiB), signal coalescing, bounded replay hold buffer with resync, drop rule with `reconnect`, `studio.sse.dropped`
+- [ ] 8.2 Verify `broker_event.seq` replay against late commits; switch to `(txid, seq)` if needed
+- [ ] 8.3 ADR: stream backpressure (amends 0018)
+
+## 9. U8 Grids (operator-ui)
+
+- [ ] 9.1 Memoise the measurement row scan; in-grid find
+- [ ] 9.2 Move `.map` lists that can exceed 200 items onto `DataTable`
+- [ ] 9.3 50k-row browser test (time to interactive, bounded DOM rows)
+
+## 10. U10 Load test and sizing (performance-sizing)
+
+- [ ] 10.1 Gatling project in `load/`, `just load`, `workflow_dispatch` workflow
+- [ ] 10.2 Run it on the reference profile; write `docs/sizing.md`
+- [ ] 10.3 README hardware section (minimum and recommended, single and HA)
+- [ ] 10.4 ADR: the Gatling load test
+
+## 11. Finish
+
+- [ ] 11.1 `openspec validate 19-performance-hardening --strict`
+- [ ] 11.2 Narrow tests per unit green; push; CI `ci-ok` and Sonar gate green; PR merged
+- [ ] 11.3 `/opsx:archive`; tick `ROADMAP.md`; worktrees and branches removed

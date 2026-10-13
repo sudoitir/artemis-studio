@@ -21,13 +21,26 @@ Studio has no stated limits. Operators cannot tell how many clusters, nodes, que
 - Time, size and per-user concurrency bounds on the heavy endpoints that lack them (exports, bulk previews, flow and topology reads, audit and alert history), as the SQL console already has
 - Measured results recorded in the sizing guide
 - A review of every cache, counter, lock, queue and cross-replica signal, deciding for each whether PostgreSQL itself serves it best before reaching for another store. Options to weigh: `UNLOGGED` tables with an expiry column for shared key/value caching; `INSERT … ON CONFLICT DO UPDATE` for counters and rate limits; advisory locks; `FOR UPDATE SKIP LOCKED` work queues; and `LISTEN/NOTIFY` to invalidate per-replica in-memory caches. Studio adds no Redis or broker for these concerns
+- **BREAKING** Time-ordered UUIDv7 keys everywhere a uuid is a key, so B-tree inserts stay append-only; every module's schema is re-baselined to one changeset, and existing databases must be recreated
+- A schema lint that fails the build on random-UUID defaults, missing primary keys, unindexed foreign keys and loose column types
+- High-volume history (`metric_sample`, `message_index`, `broker_event`, `rr_event`, `audit_event`) time-partitioned without a default partition and retained by dropping whole partitions
+- Per-table vacuum and fill-factor settings by table class, and one shipped PostgreSQL 18 configuration for every deployment
+- A bounded, fail-fast connection pool with statement, lock, idle-in-transaction and network timeouts
+- Background jobs that never overlap themselves, are bounded in time, stop when they lose their lock, run in UTC and report a broken schedule
+- No thread outlives shutdown, checked by a test
+- A minimum and recommended hardware statement in the README, taken from the measurements
 
 ## Capabilities
 ### New Capabilities
+- `database-schema`: Key, type and index rules for every table, the migration lock and the database connection bounds.
 - `performance-sizing`: Published targets, a repeatable load test, the sizing guide and bounds on heavy endpoints.
 ### Modified Capabilities
 - `realtime-stream`: Backpressure for slow subscribers.
 - `operator-ui`: Large lists render without cost proportional to their length.
+- `data-lifecycle`: Partitioned history, child-first purges.
+- `audit-log`: Audit retention drops a month only when every row in it is eligible.
+- `scrape-scheduling`, `message-index`: Partitions kept by the shared maintainer, in UTC, with no default partition.
+- `operational-health`: Jobs never overlap, are time-bounded and lose their run with their lock; no thread outlives shutdown; heavy work cannot exhaust the pool.
 
 ## Out of scope
 - Horizontal scaling and multi-replica behaviour (change 11)
@@ -42,4 +55,4 @@ Studio has no stated limits. Operators cannot tell how many clusters, nodes, que
 **Subagent-driven, with the `planner` agent for the design**: the load test comes first, then the backend, database, event stream and UI fixes are independent tasks whose results feed one guide. Nothing here is adversarial, so a workflow is not worth its cost.
 
 ## Impact
-Event stream, admin UI grids, heavy read endpoints, broker call paths, documentation, a load-test harness in the repo.
+Event stream, admin UI grids, heavy read endpoints, broker call paths, every module's Liquibase changelog and the JPA entities, the job framework, the datasource configuration, the Postgres configuration and compose files, documentation, a load-test harness in the repo. Existing databases must be recreated.
