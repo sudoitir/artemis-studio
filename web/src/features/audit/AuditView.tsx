@@ -316,7 +316,11 @@ const EXPORT_FORMATS: readonly { format: AuditExportFormat; label: string }[] = 
  * Downloads what the filters show, oldest first. Each format is a plain link the browser follows, so the file
  * streams to disk and a long export can be cancelled there.
  */
-function ExportMenu({ clusterId, filter }: Readonly<{ clusterId: string; filter: AuditFilter }>) {
+function ExportMenu({
+  clusterId,
+  filter,
+  total,
+}: Readonly<{ clusterId: string; filter: AuditFilter; total: number | undefined }>) {
   const { can, loading } = useCan();
   const gate = gateFor(can('audit:export', clusterId), 'Export the audit trail', undefined, loading);
   return (
@@ -332,6 +336,11 @@ function ExportMenu({ clusterId, filter }: Readonly<{ clusterId: string; filter:
           </Button>
         </Menu.Target>
         <Menu.Dropdown>
+          <Menu.Label>
+            {total === undefined
+              ? 'The matching events, oldest first'
+              : `${total.toLocaleString()} matching ${total === 1 ? 'event' : 'events'}, oldest first`}
+          </Menu.Label>
           {EXPORT_FORMATS.map(({ format, label }) => (
             <Menu.Item key={format} component="a" href={auditExportHref(clusterId, filter, format)} download>
               {label}
@@ -409,7 +418,7 @@ export function AuditView() {
       <PageHeader
         title="Audit log"
         description="Every operation that changed something, newest first, with who ran it and how it ended."
-        actions={<ExportMenu clusterId={clusterId} filter={filter} />}
+        actions={<ExportMenu clusterId={clusterId} filter={filter} total={query.data?.count ?? undefined} />}
       />
 
       <Toolbar label="Audit filters" start={<AuditFilters key={filterEpoch} search={search} setParam={setParam} />} />
