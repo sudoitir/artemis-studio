@@ -21,46 +21,12 @@ services:
       POSTGRES_DB: ${DB_NAME:?}
       POSTGRES_USER: ${DB_USER:?}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?}
-    # Postgres reads its generated base config, then applies these overrides.
-    # The canonical values live in deploy/postgres/postgresql.tuning.conf; keep
-    # the two in sync (or, better, put Postgres on managed infrastructure).
-    command:
-      - postgres
-      - -c
-      - shared_buffers=512MB
-      - -c
-      - effective_cache_size=2GB
-      - -c
-      - work_mem=16MB
-      - -c
-      - maintenance_work_mem=256MB
-      - -c
-      - max_wal_size=3GB
-      - -c
-      - min_wal_size=512MB
-      - -c
-      - checkpoint_completion_target=0.9
-      - -c
-      - wal_compression=zstd
-      - -c
-      - random_page_cost=1.1
-      - -c
-      - effective_io_concurrency=64
-      - -c
-      - default_statistics_target=200
-      - -c
-      - autovacuum_naptime=15s
-      - -c
-      - autovacuum_max_workers=4
-      - -c
-      - autovacuum_vacuum_cost_limit=2000
-      - -c
-      - track_io_timing=on
-      - -c
-      - log_min_duration_statement=500ms
-      - -c
-      - timezone=UTC
+    # The whole server configuration is deploy/postgres/postgresql.conf (ADR-0195), shared with
+    # the HA and development stacks. Put Postgres on managed infrastructure for anything serious.
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     volumes:
+      - ../postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ../postgres/10-pg-stat-statements.sql:/docker-entrypoint-initdb.d/10-pg-stat-statements.sql:ro
       - pgdata:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
