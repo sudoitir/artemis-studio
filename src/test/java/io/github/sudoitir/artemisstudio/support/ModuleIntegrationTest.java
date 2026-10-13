@@ -8,6 +8,7 @@ import io.github.sudoitir.artemisstudio.app.StudioFeatures;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard;
 import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionDrops;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
 import io.github.sudoitir.artemisstudio.kernel.security.ResourceNames;
@@ -80,6 +81,10 @@ public abstract class ModuleIntegrationTest {
     /** The data lifecycle, where a module depends on it, purges the audit trail through the audit delivery module. */
     @MockitoBean
     AuditRetentionGuard auditRetentionGuard;
+
+    /** ...and its audit store drops expired partitions through the lifecycle's partition package. */
+    @MockitoBean
+    PartitionDrops partitionDrops;
 
     @Autowired
     ConfigurableApplicationContext context;
