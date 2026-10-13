@@ -2,7 +2,6 @@ package io.github.sudoitir.artemisstudio.feature.rr;
 
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
 import io.github.sudoitir.artemisstudio.feature.queues.QueueLifecycleOperations;
-import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.support.ModuleIntegrationTest;
 import org.springframework.modulith.test.ApplicationModuleTest;
@@ -26,9 +25,4 @@ class RrModuleTest extends ModuleIntegrationTest {
 
     @MockitoBean
     LifecycleRegistry lifecycleRegistry;
-
-    // ...and the lifecycle's audit store asks the audit delivery guard what a purge may remove.
-
-    @MockitoBean
-    AuditRetentionGuard auditRetentionGuard;
 }

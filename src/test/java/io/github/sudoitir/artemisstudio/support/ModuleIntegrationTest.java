@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import io.github.sudoitir.artemisstudio.app.StudioFeatures;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard;
+import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.gate.OperationGate;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
 import io.github.sudoitir.artemisstudio.kernel.plugin.InstalledFeatures;
@@ -29,6 +31,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ImportSelector;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.modulith.core.ApplicationModule;
 import org.springframework.modulith.core.JavaPackage;
@@ -73,6 +76,10 @@ public abstract class ModuleIntegrationTest {
     /** The approval engine is not a shared kernel module, so the gate every gated service takes runs actions as they are. */
     @TestBean(methodName = "io.github.sudoitir.artemisstudio.support.NoApprovalGate#operationGate")
     protected OperationGate operationGate;
+
+    /** The data lifecycle, where a module depends on it, purges the audit trail through the audit delivery module. */
+    @MockitoBean
+    AuditRetentionGuard auditRetentionGuard;
 
     @Autowired
     ConfigurableApplicationContext context;
@@ -138,6 +145,18 @@ public abstract class ModuleIntegrationTest {
 
     @TestConfiguration(proxyBeanMethods = false)
     static class Installed {
+
+        /**
+         * The audit trail and the writers of history retry through the partition provisioner, which the data
+         * lifecycle implements and a module test does not always bootstrap. The shared test database has its
+         * partitions in place ({@link PostgresIntegrationTest}), so there is nothing to create. Primary, so it
+         * wins where the lifecycle's own maintainer is present too.
+         */
+        @Bean
+        @Primary
+        PartitionProvisioner partitionProvisioner() {
+            return () -> {};
+        }
 
         /**
          * The descriptors of the bootstrapped modules, each declared in its module's base package, and of
