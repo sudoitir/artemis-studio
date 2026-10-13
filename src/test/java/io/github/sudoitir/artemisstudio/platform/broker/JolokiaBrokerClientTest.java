@@ -69,10 +69,7 @@ class JolokiaBrokerClientTest {
                 URL,
                 mapper,
                 new java.util.concurrent.ConcurrentHashMap<>(),
-                null,
-                null,
-                limiter,
-                BrokerCallGuard.OFF);
+                new JolokiaClientHooks(null, null, limiter, BrokerCallGuard.OFF));
 
         client.single(JolokiaRequest.search("org.apache.activemq.artemis:*"));
         client.batch(java.util.stream.IntStream.range(0, 120)
