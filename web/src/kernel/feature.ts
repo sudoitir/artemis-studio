@@ -13,6 +13,7 @@ export const CONTRACT = 13;
 export const FEATURE_IDS = [
   'security',
   'audit',
+  'auditfeed',
   'settings',
   'lifecycle',
   'stream',
