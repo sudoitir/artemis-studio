@@ -18,12 +18,12 @@
 
 ## 4. U3 Partitions (data-lifecycle, audit-log, scrape-scheduling, message-index)
 
-- [ ] 4.1 `kernel/lifecycle/partition`: `PartitionSpec`, `PartitionMaintainer` (boot SmartLifecycle under advisory lock, hourly `partitions` job, create + `ATTACH`, UTC, freeze closed partitions, analyze parents), `PartitionDrops.dropOldest` (`FINALIZE` pending, `DETACH CONCURRENTLY`, `DROP`), `partitions` health contributor
-- [ ] 4.2 Specs for `metric_sample`, `message_index`, `broker_event`, `rr_event`, `audit_event`; delete the two old maintainers and their jobs
-- [ ] 4.3 Stores drop partitions in `purgeBatch`; `AuditStore` drops a month only when every row is eligible, else row purge in range
-- [ ] 4.4 Writers retry once after `23514` with `ensureAhead()`
-- [ ] 4.5 Child-first bounded deletes for transfer, bulk and rr cascades
-- [ ] 4.6 ADR: partitioned history with no default partition (amends 0134)
+- [x] 4.1 `kernel/lifecycle/partition`: `PartitionSpec`, `PartitionMaintainer` (boot SmartLifecycle under advisory lock, hourly `partitions` job, create + `ATTACH`, UTC, freeze closed partitions, analyze parents), `PartitionDrops.dropOldest` (`FINALIZE` pending, `DETACH CONCURRENTLY`, `DROP`), `partitions` health contributor
+- [x] 4.2 Specs for `metric_sample`, `message_index`, `broker_event`, `rr_event`, `audit_event`; delete the two old maintainers and their jobs
+- [x] 4.3 Stores drop partitions in `purgeBatch`; `AuditStore` drops a month only when every row is eligible, else row purge in range
+- [x] 4.4 Writers retry once after `23514` with `ensureAhead()`
+- [x] 4.5 Child-first bounded deletes for transfer, bulk and rr cascades
+- [x] 4.6 ADR: partitioned history with no default partition (amends 0134)
 
 ## 5. U4 Jobs and threads (operational-health)
 
