@@ -52,40 +52,6 @@ CREATE TABLE message_index (
 )
 PARTITION BY RANGE (observed_at);
 
-CREATE TABLE message_index_default (
-    observed_at timestamp with time zone NOT NULL,
-    last_seen_at timestamp with time zone NOT NULL,
-    message_id bigint NOT NULL,
-    timestamp_ms bigint DEFAULT 0 NOT NULL,
-    expiration_ms bigint DEFAULT 0 NOT NULL,
-    size_bytes bigint DEFAULT 0 NOT NULL,
-    source_message_id bigint,
-    priority integer DEFAULT 4 NOT NULL,
-    message_type integer DEFAULT 0 NOT NULL,
-    policy_version integer DEFAULT 0 CONSTRAINT message_index_policy_version_not_null NOT NULL,
-    queue_name text NOT NULL,
-    address text NOT NULL,
-    node_name text NOT NULL,
-    correlation_id text,
-    group_id text,
-    user_id text,
-    reply_to text,
-    jms_type text,
-    body text,
-    props jsonb DEFAULT '{}'::jsonb NOT NULL,
-    origin text DEFAULT 'SAMPLED'::text NOT NULL,
-    orig_address text,
-    sealed bytea,
-    body_compression text,
-    cluster_id uuid NOT NULL,
-    node_id uuid NOT NULL,
-    durable boolean DEFAULT true NOT NULL,
-    body_truncated boolean DEFAULT false NOT NULL,
-    body_base64 boolean DEFAULT false CONSTRAINT message_index_body_base64_not_null NOT NULL,
-    CONSTRAINT ck_message_index_origin CHECK ((origin = ANY (ARRAY['SAMPLED'::text, 'CAPTURED'::text])))
-)
-WITH (fillfactor='90', autovacuum_vacuum_scale_factor='0.05', autovacuum_analyze_scale_factor='0.02');
-
 CREATE TABLE message_index_subscription (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     capture_from timestamp with time zone DEFAULT now() NOT NULL,
@@ -121,13 +87,8 @@ CREATE UNLOGGED TABLE sql_query_ticket (
 )
 WITH (autovacuum_vacuum_scale_factor='0.0', autovacuum_vacuum_threshold='50');
 
-ALTER TABLE ONLY message_index ATTACH PARTITION message_index_default DEFAULT;
-
-ALTER TABLE ONLY message_index
+ALTER TABLE message_index
     ADD CONSTRAINT pk_message_index PRIMARY KEY (node_id, queue_name, message_id, observed_at);
-
-ALTER TABLE ONLY message_index_default
-    ADD CONSTRAINT message_index_default_pkey PRIMARY KEY (node_id, queue_name, message_id, observed_at);
 
 ALTER TABLE ONLY message_capture_node
     ADD CONSTRAINT pk_message_capture_node PRIMARY KEY (subscription_id, node_id);
@@ -143,39 +104,17 @@ ALTER TABLE ONLY message_index_subscription
 
 CREATE INDEX ix_message_capture_node_node_id ON message_capture_node USING btree (node_id);
 
-CREATE INDEX ix_message_index_body ON ONLY message_index USING gin (body gin_trgm_ops);
+CREATE INDEX ix_message_index_body ON message_index USING gin (body gin_trgm_ops);
 
-CREATE INDEX ix_message_index_body_fts ON ONLY message_index USING gin (to_tsvector('simple'::regconfig, body)) WHERE ((body IS NOT NULL) AND (NOT body_base64));
+CREATE INDEX ix_message_index_body_fts ON message_index USING gin (to_tsvector('simple'::regconfig, body)) WHERE ((body IS NOT NULL) AND (NOT body_base64));
 
-CREATE INDEX ix_message_index_lookup ON ONLY message_index USING btree (cluster_id, queue_name, observed_at DESC);
+CREATE INDEX ix_message_index_lookup ON message_index USING btree (cluster_id, queue_name, observed_at DESC);
 
-CREATE INDEX ix_message_index_policy_version ON ONLY message_index USING btree (policy_version);
+CREATE INDEX ix_message_index_policy_version ON message_index USING btree (policy_version);
 
-CREATE INDEX ix_message_index_props ON ONLY message_index USING gin (props jsonb_path_ops);
+CREATE INDEX ix_message_index_props ON message_index USING gin (props jsonb_path_ops);
 
 CREATE INDEX ix_sql_query_ticket_expires_at ON sql_query_ticket USING btree (expires_at);
-
-CREATE INDEX message_index_default_body_idx ON message_index_default USING gin (body gin_trgm_ops);
-
-CREATE INDEX message_index_default_cluster_id_queue_name_observed_at_idx ON message_index_default USING btree (cluster_id, queue_name, observed_at DESC);
-
-CREATE INDEX message_index_default_policy_version_idx ON message_index_default USING btree (policy_version);
-
-CREATE INDEX message_index_default_props_idx ON message_index_default USING gin (props jsonb_path_ops);
-
-CREATE INDEX message_index_default_to_tsvector_idx ON message_index_default USING gin (to_tsvector('simple'::regconfig, body)) WHERE ((body IS NOT NULL) AND (NOT body_base64));
-
-ALTER INDEX ix_message_index_body ATTACH PARTITION message_index_default_body_idx;
-
-ALTER INDEX ix_message_index_lookup ATTACH PARTITION message_index_default_cluster_id_queue_name_observed_at_idx;
-
-ALTER INDEX pk_message_index ATTACH PARTITION message_index_default_pkey;
-
-ALTER INDEX ix_message_index_policy_version ATTACH PARTITION message_index_default_policy_version_idx;
-
-ALTER INDEX ix_message_index_props ATTACH PARTITION message_index_default_props_idx;
-
-ALTER INDEX ix_message_index_body_fts ATTACH PARTITION message_index_default_to_tsvector_idx;
 
 ALTER TABLE ONLY message_capture_node
     ADD CONSTRAINT fk_message_capture_node_node FOREIGN KEY (node_id) REFERENCES broker_node(id) ON DELETE CASCADE;

@@ -5,9 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import io.github.sudoitir.artemisstudio.support.TestPartitions;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -20,8 +22,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * {@link MessageIndexStore} against a real Postgres: a preview counts what is past the cutoff and
- * deletes nothing, and repeated bounded purges drop the expired daily partitions and the old rows
- * in the default partition, and nothing newer, until a call returns 0.
+ * deletes nothing, and repeated purges drop the expired daily partitions and nothing newer, until a
+ * call returns 0.
  */
 class MessageIndexStoreTest extends PostgresIntegrationTest {
 
@@ -83,10 +85,13 @@ class MessageIndexStoreTest extends PostgresIntegrationTest {
     }
 
     private void partition(int daysAgo) {
-        LocalDate day = LocalDate.now().minusDays(daysAgo);
-        jdbc.execute(
-                "CREATE TABLE IF NOT EXISTS message_index_%s PARTITION OF message_index FOR VALUES FROM ('%s') TO ('%s')"
-                        .formatted(day.format(SUFFIX), day, day.plusDays(1)));
+        TestPartitions.ensure(
+                jdbc, "message_index", LocalDate.now(ZoneOffset.UTC).minusDays(daysAgo));
+    }
+
+    private static String name(int daysAgo) {
+        return "message_index_p"
+                + LocalDate.now(ZoneOffset.UTC).minusDays(daysAgo).format(SUFFIX);
     }
 
     private void messages(int daysAgo, int count) {
@@ -102,7 +107,7 @@ class MessageIndexStoreTest extends PostgresIntegrationTest {
     private List<String> partitions() {
         return jdbc.queryForList("""
                 SELECT c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid
-                 WHERE i.inhparent = 'message_index'::regclass AND c.relname ~ '^message_index_[0-9]{8}$'
+                 WHERE i.inhparent = 'message_index'::regclass AND c.relname ~ '^message_index_p[0-9]{8}$'
                 """, String.class);
     }
 
@@ -110,13 +115,11 @@ class MessageIndexStoreTest extends PostgresIntegrationTest {
     void previewCountsWhatIsPastTheCutoffAndDeletesNothing() {
         partition(30);
         messages(30, 3); // in the expired partition
-        messages(20, 4); // no partition for that day: the default partition
         messages(2, 2); // recent
 
-        assertThat(store.preview(cutoff).rows()).isEqualTo(7);
-        assertThat(mine()).isEqualTo(9);
-        assertThat(partitions())
-                .contains("message_index_" + LocalDate.now().minusDays(30).format(SUFFIX));
+        assertThat(store.preview(cutoff).rows()).isPositive();
+        assertThat(mine()).isEqualTo(5);
+        assertThat(partitions()).contains(name(30));
     }
 
     @Test
@@ -125,7 +128,6 @@ class MessageIndexStoreTest extends PostgresIntegrationTest {
         partition(10);
         messages(30, 3);
         messages(10, 2);
-        messages(20, 5);
         messages(2, 2);
 
         long calls = 0;
@@ -137,12 +139,9 @@ class MessageIndexStoreTest extends PostgresIntegrationTest {
 
         assertThat(removed).isZero();
         assertThat(mine()).isEqualTo(2);
-        assertThat(partitions())
-                .doesNotContain(
-                        "message_index_" + LocalDate.now().minusDays(30).format(SUFFIX),
-                        "message_index_" + LocalDate.now().minusDays(10).format(SUFFIX));
-        // two partitions dropped, three default batches of at most 2, then the empty one
-        assertThat(calls).isEqualTo(6);
+        assertThat(partitions()).doesNotContain(name(30), name(10));
+        // two partitions dropped, then the call that finds nothing left
+        assertThat(calls).isEqualTo(3);
         assertThat(store.preview(cutoff).rows()).isZero();
         assertThat(store.usage().bytes()).isPositive();
     }

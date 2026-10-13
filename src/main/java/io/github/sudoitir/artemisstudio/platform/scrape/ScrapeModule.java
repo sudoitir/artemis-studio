@@ -16,7 +16,6 @@ public final class ScrapeModule {
             .settingKey(ScrapeSettings.TIER_B)
             .settingKey(ScrapeSettings.TIER_C)
             .settingKey(ScrapeSettings.DISCOVERY)
-            .settingKey(ScrapeSettings.METRIC_PARTITION_CRON)
             .streamTopic(TopicDef.signal("queues", Permissions.QUEUE_READ))
             .build();
 

@@ -21,7 +21,7 @@ CREATE TABLE broker_event (
     cluster_id uuid NOT NULL,
     node_id uuid
 )
-WITH (fillfactor='100', autovacuum_vacuum_insert_scale_factor='0.0', autovacuum_vacuum_insert_threshold='5000');
+PARTITION BY RANGE (received_at);
 
 ALTER TABLE broker_event ALTER COLUMN seq ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME broker_event_seq_seq
@@ -32,8 +32,8 @@ ALTER TABLE broker_event ALTER COLUMN seq ADD GENERATED ALWAYS AS IDENTITY (
     CACHE 1
 );
 
-ALTER TABLE ONLY broker_event
-    ADD CONSTRAINT pk_broker_event PRIMARY KEY (seq);
+ALTER TABLE broker_event
+    ADD CONSTRAINT pk_broker_event PRIMARY KEY (seq, received_at);
 
 CREATE INDEX ix_broker_event_cluster_seq ON broker_event USING btree (cluster_id, seq DESC);
 
@@ -43,9 +43,9 @@ CREATE INDEX ix_broker_event_node_id ON broker_event USING btree (node_id);
 
 CREATE INDEX ix_broker_event_type ON broker_event USING btree (cluster_id, type, occurred_at DESC);
 
-ALTER TABLE ONLY broker_event
+ALTER TABLE broker_event
     ADD CONSTRAINT fk_broker_event_cluster FOREIGN KEY (cluster_id) REFERENCES cluster(id) ON DELETE CASCADE;
 
-ALTER TABLE ONLY broker_event
+ALTER TABLE broker_event
     ADD CONSTRAINT fk_broker_event_node FOREIGN KEY (node_id) REFERENCES broker_node(id) ON DELETE SET NULL;
 --rollback DROP TABLE IF EXISTS broker_event CASCADE;

@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.rr;
 
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.HousekeepingContributor;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.ManagedStore;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionDrops;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -12,8 +13,8 @@ class RrHousekeeping implements HousekeepingContributor {
 
     private final List<ManagedStore> stores;
 
-    RrHousekeeping(JdbcTemplate jdbc) {
-        stores = List.of(new RrFlowStore(jdbc), new CapturedPayloadStore(jdbc));
+    RrHousekeeping(JdbcTemplate jdbc, PartitionDrops drops) {
+        stores = List.of(new RrFlowStore(jdbc, drops), new CapturedPayloadStore(jdbc));
     }
 
     @Override

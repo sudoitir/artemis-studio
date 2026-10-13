@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 /**
  * Bulk runs under the data lifecycle (ADR-0134): a finished run goes once it is older than the
  * retention, and a preview nobody executed goes when it expires, whatever the retention. A run's
- * items go with it through {@code ON DELETE CASCADE}. A previewed or running run is never touched
+ * items go first, in bounded batches, and the runs after them, so no statement cascades through an unbounded run. A previewed or running run is never touched
  * before its own expiry.
  */
 @Component
@@ -60,6 +60,7 @@ class BulkRunStore implements ManagedStore, HousekeepingContributor {
 
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
+        LifecycleSql.deleteChildren(jdbc, "bulk_run_item", "run_id", RUNS, PREDICATE, cutoff, limit);
         return LifecycleSql.deleteBatch(jdbc, RUNS, PREDICATE, cutoff, limit);
     }
 }

@@ -13,7 +13,7 @@ CREATE TABLE rr_event (
     flow_id uuid NOT NULL,
     node_id uuid
 )
-WITH (fillfactor='100', autovacuum_vacuum_insert_scale_factor='0.0', autovacuum_vacuum_insert_threshold='5000');
+PARTITION BY RANGE (ts);
 
 CREATE TABLE rr_expectation (
     deadline_ms integer,
@@ -67,8 +67,8 @@ ALTER TABLE rr_event ALTER COLUMN seq ADD GENERATED ALWAYS AS IDENTITY (
     CACHE 1
 );
 
-ALTER TABLE ONLY rr_event
-    ADD CONSTRAINT pk_rr_event PRIMARY KEY (seq);
+ALTER TABLE rr_event
+    ADD CONSTRAINT pk_rr_event PRIMARY KEY (seq, ts);
 
 ALTER TABLE ONLY rr_expectation
     ADD CONSTRAINT pk_rr_expectation PRIMARY KEY (id);
@@ -94,9 +94,6 @@ CREATE INDEX ix_rr_flow_node_id ON rr_flow USING btree (node_id);
 CREATE INDEX ix_rr_flow_open_reply ON rr_flow USING btree (cluster_id, reply_destination, correlation_id) WHERE (state = 'AWAITING_REPLY'::text);
 
 CREATE UNIQUE INDEX uq_rr_flow_request ON rr_flow USING btree (cluster_id, request_address, request_message_id) WHERE (request_message_id IS NOT NULL);
-
-ALTER TABLE ONLY rr_event
-    ADD CONSTRAINT fk_rr_event_flow FOREIGN KEY (flow_id) REFERENCES rr_flow(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY rr_expectation
     ADD CONSTRAINT fk_rr_expectation_cluster FOREIGN KEY (cluster_id) REFERENCES cluster(id) ON DELETE CASCADE;

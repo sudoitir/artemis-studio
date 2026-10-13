@@ -5,6 +5,9 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditPosition;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard.Plan;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard.Purged;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.Grain;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionDrops;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionSpec;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -12,6 +15,7 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -29,11 +33,26 @@ import org.springframework.transaction.support.TransactionTemplate;
  * key (audit outlives what it names, ADR-0072), and {@code parent_id} has none either, so a parent
  * may go before its children without a constraint failing. The {@code PURGE_STORE} event of the
  * running purge is newer than any cutoff, so the purge never removes its own record.
+ *
+ * <p>The table is partitioned by month (ADR-0193). A month that ended before the cutoff is dropped whole
+ * when every row in it is eligible, which is far cheaper than deleting it; a month with one row that is
+ * not (unacknowledged, or held) is purged row by row, so the gap records are written as they always were.
  */
 @Component
 class AuditStore implements ManagedStore, HousekeepingContributor {
 
     private static final String TABLE = "audit_event";
+
+    static final PartitionSpec PARTITIONS = new PartitionSpec(
+            TABLE,
+            "ts",
+            Grain.MONTH,
+            3,
+            "fillfactor=100, autovacuum_vacuum_insert_scale_factor=0, autovacuum_vacuum_insert_threshold=5000,"
+                    + " autovacuum_analyze_scale_factor=0.02");
+
+    /** The most unacknowledged rows a dropped month may hold; more are purged row by row, a batch at a time. */
+    private static final int MAX_GAP_ROWS = 10_000;
 
     /**
      * Older than the cutoff, and either older than the longest a receiver is waited for, or acknowledged by every
@@ -62,11 +81,13 @@ class AuditStore implements ManagedStore, HousekeepingContributor {
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
     private final AuditRetentionGuard guard;
+    private final PartitionDrops drops;
 
-    AuditStore(JdbcTemplate jdbc, TransactionTemplate tx, AuditRetentionGuard guard) {
+    AuditStore(JdbcTemplate jdbc, TransactionTemplate tx, AuditRetentionGuard guard, PartitionDrops drops) {
         this.jdbc = jdbc;
         this.tx = tx;
         this.guard = guard;
+        this.drops = drops;
     }
 
     @Override
@@ -100,7 +121,14 @@ class AuditStore implements ManagedStore, HousekeepingContributor {
      */
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
-        PreparedStatementSetter binder = binder(cutoff, guard.plan(), limit);
+        Plan plan = guard.plan();
+        for (String partition : drops.expired(PARTITIONS, cutoff)) {
+            long dropped = dropIfWhollyEligible(partition, cutoff, plan);
+            if (dropped > 0) {
+                return dropped;
+            }
+        }
+        PreparedStatementSetter binder = binder(cutoff, plan, limit);
         List<Purged> purged = tx.execute(status -> {
             List<Purged> removed = jdbc.query(
                     DELETE,
@@ -112,6 +140,50 @@ class AuditStore implements ManagedStore, HousekeepingContributor {
             return removed;
         });
         return purged == null ? 0 : purged.size();
+    }
+
+    /**
+     * Drops {@code partition} when every row in it is {@link #ELIGIBLE}, after recording the gaps for the
+     * rows a receiver had not acknowledged, exactly as the row purge would have. The gaps are committed
+     * before the drop, so a record is never gone without its gap.
+     *
+     * @return the rows dropped, counted: the purge is audited with this number. 0 when the partition was kept
+     */
+    private long dropIfWhollyEligible(String partition, Instant cutoff, Plan plan) {
+        // Names come from the catalog, not from a caller: see PartitionDrops.expired.
+        Boolean keep = jdbc.query(
+                "SELECT EXISTS (SELECT 1 FROM " + partition + " e WHERE NOT (" + ELIGIBLE + "))",
+                binder(cutoff, plan, null),
+                rs -> rs.next() && rs.getBoolean(1));
+        if (Boolean.TRUE.equals(keep)) {
+            return 0;
+        }
+        List<Purged> unacknowledged = plan.floor() == null ? List.of() : unacknowledged(partition, plan.floor());
+        if (unacknowledged.size() > MAX_GAP_ROWS) {
+            return 0;
+        }
+        Timestamp newestTs = jdbc.queryForObject("SELECT max(ts) FROM " + partition, Timestamp.class);
+        Instant newest = newestTs == null ? null : newestTs.toInstant();
+        List<Purged> purged = new ArrayList<>(unacknowledged);
+        if (newest != null) {
+            // Stands for the acknowledged rows: it moves "complete from" and is behind every cursor.
+            purged.add(new Purged(plan.floor() == null ? AuditPosition.START : plan.floor(), newest));
+        }
+        tx.executeWithoutResult(status -> guard.recordPurged(purged));
+        Long rows = jdbc.queryForObject("SELECT count(*) FROM " + partition, Long.class);
+        drops.drop(PARTITIONS, partition);
+        return rows == null ? 0 : rows;
+    }
+
+    private List<Purged> unacknowledged(String partition, AuditPosition floor) {
+        return jdbc.query(
+                "SELECT pos_txid::text, pos_seq, ts FROM " + partition
+                        + " WHERE (pos_txid, pos_seq) > (?::text::xid8, ?::bigint) LIMIT " + (MAX_GAP_ROWS + 1),
+                (rs, i) -> new Purged(
+                        new AuditPosition(Long.parseLong(rs.getString(1)), rs.getLong(2)),
+                        rs.getTimestamp(3).toInstant()),
+                Long.toString(floor.txid()),
+                floor.seq());
     }
 
     /**

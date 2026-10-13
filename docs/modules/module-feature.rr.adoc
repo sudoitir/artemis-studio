@@ -37,6 +37,8 @@ _Others_
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.p.g.ClearViewAudit` (in Data governance)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
+* `i.g.s.a.k.c.PartitionProvisioner` (in Core)
+* `i.g.s.a.k.l.partition.PartitionDrops` (in Data lifecycle)
 * `i.g.s.a.p.g.ContentPolicy` (in Data governance)
 * `i.g.s.a.p.g.ContentSealer` (in Data governance)
 * `i.g.s.a.p.c.ClusterOwnership` (in Clusters)

@@ -9,6 +9,7 @@ import io.github.sudoitir.artemisstudio.feature.identitylocal.IdentityLocalSetti
 import io.github.sudoitir.artemisstudio.kernel.approval.ApprovalSettings;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleSettings;
 import io.github.sudoitir.artemisstudio.kernel.security.SettingsPermissions;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingEntity;
 import io.github.sudoitir.artemisstudio.kernel.settings.internal.persistence.StudioSettingRepository;
@@ -128,16 +129,14 @@ class SettingsServiceTest extends PostgresIntegrationTest {
         settings.put(BrokerSettings.READ_TIMEOUT, "45s");
         settings.put(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME, "12h");
         settings.put(AlertingSettings.MAX_ATTEMPTS, "9");
-        settings.put(ScrapeSettings.METRIC_PARTITION_CRON, "0 45 4 * * *");
+        settings.put(LifecycleSettings.HOUSEKEEPING_CRON, "0 45 4 * * *");
 
         assertThat(settings.duration(BrokerSettings.READ_TIMEOUT)).isEqualTo(Duration.ofSeconds(45));
         assertThat(settings.duration(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME))
                 .isEqualTo(Duration.ofHours(12));
         assertThat(settings.intValue(AlertingSettings.MAX_ATTEMPTS)).isEqualTo(9);
-        assertThat(settings.value(ScrapeSettings.METRIC_PARTITION_CRON)).isEqualTo("0 45 4 * * *");
-        assertThat(settings.effective()
-                        .get(ScrapeSettings.METRIC_PARTITION_CRON)
-                        .kind())
+        assertThat(settings.value(LifecycleSettings.HOUSEKEEPING_CRON)).isEqualTo("0 45 4 * * *");
+        assertThat(settings.effective().get(LifecycleSettings.HOUSEKEEPING_CRON).kind())
                 .isEqualTo("CRON");
     }
 
@@ -148,11 +147,11 @@ class SettingsServiceTest extends PostgresIntegrationTest {
      */
     @Test
     void aCronThatFiresTooOftenIsRejected() {
-        assertThatThrownBy(() -> settings.put(ScrapeSettings.METRIC_PARTITION_CRON, "* * * * * *"))
+        assertThatThrownBy(() -> settings.put(LifecycleSettings.HOUSEKEEPING_CRON, "* * * * * *"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> settings.put(ScrapeSettings.METRIC_PARTITION_CRON, "not a cron"))
+        assertThatThrownBy(() -> settings.put(LifecycleSettings.HOUSEKEEPING_CRON, "not a cron"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThat(settings.value(ScrapeSettings.METRIC_PARTITION_CRON)).isEqualTo("0 0 3 * * *");
+        assertThat(settings.value(LifecycleSettings.HOUSEKEEPING_CRON)).isEqualTo("0 30 3 * * *");
     }
 
     /** Every key is described well enough for the settings screen to render it unaided. */

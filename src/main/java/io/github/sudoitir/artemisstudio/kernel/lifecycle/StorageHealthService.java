@@ -197,18 +197,18 @@ public class StorageHealthService {
     }
 
     /**
-     * The coming days with no {@code <table>_yyyyMMdd} partition. Only a table that already has
+     * The coming days with no {@code <table>_pyyyyMMdd} partition. Only a table that already has
      * such daily partitions is checked, since that naming is how Studio's daily partitions are made.
      */
     static List<LocalDate> missingPartitions(Set<String> children, String table, Instant now) {
-        if (children == null || children.stream().noneMatch(c -> c.matches(table + "_\\d{8}"))) {
+        if (children == null || children.stream().noneMatch(c -> c.matches(table + "_p\\d{8}"))) {
             return List.of();
         }
         LocalDate today = LocalDate.ofInstant(now, ZoneOffset.UTC);
         List<LocalDate> missing = new ArrayList<>();
         for (int d = 0; d <= PARTITION_DAYS_AHEAD; d++) {
             LocalDate day = today.plusDays(d);
-            if (!children.contains(table + "_" + DAY.format(day))) {
+            if (!children.contains(table + "_p" + DAY.format(day))) {
                 missing.add(day);
             }
         }

@@ -29,7 +29,7 @@ CREATE TABLE audit_event (
     dry_run boolean DEFAULT false NOT NULL,
     CONSTRAINT ck_audit_event_outcome CHECK ((outcome = ANY (ARRAY['PENDING'::text, 'SUCCESS'::text, 'FAILURE'::text, 'REFUSED'::text])))
 )
-WITH (fillfactor='100', autovacuum_vacuum_insert_scale_factor='0.0', autovacuum_vacuum_insert_threshold='5000', autovacuum_analyze_scale_factor='0.02');
+PARTITION BY RANGE (ts);
 
 ALTER TABLE audit_event ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME audit_event_id_seq
@@ -47,8 +47,8 @@ CREATE SEQUENCE audit_event_position_seq
     NO MAXVALUE
     CACHE 1;
 
-ALTER TABLE ONLY audit_event
-    ADD CONSTRAINT pk_audit_event PRIMARY KEY (id);
+ALTER TABLE audit_event
+    ADD CONSTRAINT pk_audit_event PRIMARY KEY (id, ts);
 
 CREATE INDEX ix_audit_event_cluster ON audit_event USING btree (cluster_id, ts DESC);
 
