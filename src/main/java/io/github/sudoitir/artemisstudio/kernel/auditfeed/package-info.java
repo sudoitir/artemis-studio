@@ -10,6 +10,7 @@
             "kernel.core",
             "kernel.jobs",
             "kernel.plugin",
+            "kernel.plugin :: descriptor",
             "kernel.security",
             "kernel.settings"
         })

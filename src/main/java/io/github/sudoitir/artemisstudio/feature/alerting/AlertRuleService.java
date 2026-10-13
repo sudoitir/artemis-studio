@@ -45,7 +45,8 @@ public class AlertRuleService {
             "SETUP_RISK");
 
     /** What an installation-scoped rule may watch (ADR-0135); a cluster's rules never may, and vice versa. */
-    private static final Set<String> INSTALLATION_CONDITIONS = Set.of("STORAGE_QUOTA", "STORAGE_HEALTH");
+    private static final Set<String> INSTALLATION_CONDITIONS =
+            Set.of("STORAGE_QUOTA", "STORAGE_HEALTH", "AUDIT_DELIVERY");
 
     private static final Set<String> COMPARATORS = Set.of("GT", "GTE", "LT", "LTE", "EQ", "NE");
 

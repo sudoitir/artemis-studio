@@ -125,10 +125,10 @@ class InstallationAlertsIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void theTwoStorageRulesExistOnceForTheInstallationWhateverTheClusters() {
+    void theInstallationRulesExistOnceForTheInstallationWhateverTheClusters() {
         assertThat(installationRules())
                 .extracting(AlertRuleEntity::getStateCondition)
-                .containsExactlyInAnyOrder("STORAGE_QUOTA", "STORAGE_HEALTH");
+                .containsExactlyInAnyOrder("STORAGE_QUOTA", "STORAGE_HEALTH", "AUDIT_DELIVERY");
         assertThat(installationRules()).allSatisfy(r -> {
             assertThat(r.getKind()).isEqualTo("STATE");
             assertThat(r.getSeverity()).isEqualTo("WARNING");
@@ -202,7 +202,7 @@ class InstallationAlertsIntegrationTest extends PostgresIntegrationTest {
             assertThat(ruleService.list(clusterId))
                     .filteredOn(r -> r.clusterId() == null)
                     .extracting(AlertRuleView::stateCondition)
-                    .containsExactlyInAnyOrder("STORAGE_QUOTA", "STORAGE_HEALTH");
+                    .containsExactlyInAnyOrder("STORAGE_QUOTA", "STORAGE_HEALTH", "AUDIT_DELIVERY");
             assertThat(alertService.firingNow(clusterId)).singleElement().satisfies(f -> {
                 assertThat(f.clusterId()).isNull();
                 assertThat(f.ruleName()).isEqualTo(quota.getName());

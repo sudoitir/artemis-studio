@@ -5,6 +5,7 @@
         displayName = "Alerting",
         allowedDependencies = {
             "kernel.audit",
+            "kernel.auditfeed",
             "kernel.core",
             "kernel.jobs",
             "kernel.lifecycle",
