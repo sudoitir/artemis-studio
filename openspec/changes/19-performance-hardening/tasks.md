@@ -56,9 +56,9 @@
 
 ## 9. U8 Grids (operator-ui)
 
-- [ ] 9.1 Memoise the measurement row scan; in-grid find
-- [ ] 9.2 Move `.map` lists that can exceed 200 items onto `DataTable`
-- [ ] 9.3 50k-row browser test (time to interactive, bounded DOM rows)
+- [x] 9.1 Memoise the measurement row scan; in-grid find
+- [x] 9.2 Move `.map` lists that can exceed 200 items onto `DataTable`
+- [x] 9.3 50k-row browser test (time to interactive, bounded DOM rows)
 
 ## 9b. U11 External database (database-schema)
 
