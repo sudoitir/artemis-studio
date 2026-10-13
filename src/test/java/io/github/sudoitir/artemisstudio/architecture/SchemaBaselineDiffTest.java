@@ -149,7 +149,13 @@ class SchemaBaselineDiffTest extends PostgresIntegrationTest {
                     "ck_alert_delivery_(kind|rule)",
                     "ix_alert_delivery_source_created",
                     // A notice's dedupe key, unique per source (changeset feature-alerting 0007).
-                    "ux_alert_delivery_source_dedupe")
+                    "ux_alert_delivery_source_dedupe",
+                    // Audit positions, the guard on finished records, and each receiver's cursor and gaps
+                    // (ADR-0190, changesets kernel-audit 0004, kernel-auditfeed 0001).
+                    "audit_event_(position|guard)",
+                    "tg_audit_event_",
+                    "audit_event\\.pos_txid",
+                    "audit_(receiver|feed_state)")
             .map(Pattern::compile)
             .toList();
 

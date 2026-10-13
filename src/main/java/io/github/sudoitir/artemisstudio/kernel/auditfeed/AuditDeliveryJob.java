@@ -156,6 +156,7 @@ class AuditDeliveryJob {
                         "UPDATE audit_receiver_gap SET delivered_at = now() WHERE plugin_id = ? AND delivered_at IS NULL AND id <= ?",
                         pluginId,
                         gaps.getLast().id());
+                removeSettledGaps();
             }
             return true;
         }));
@@ -226,6 +227,12 @@ class AuditDeliveryJob {
                 writeGapEvent(gap);
             }
         }
+        removeSettledGaps();
+    }
+
+    /** A gap that is audited and delivered has nothing left to do, so the table holds only what is open. */
+    private void removeSettledGaps() {
+        jdbc.update("DELETE FROM audit_receiver_gap WHERE audited_at IS NOT NULL AND delivered_at IS NOT NULL");
     }
 
     /** Only a failed {@code begin} gives the claim back; once the event exists, a second one would be a duplicate. */

@@ -239,10 +239,8 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
                 .containsExactly(2L);
         assertThat(receiver.batches).extracting(AuditDelivery::gap).contains(new AuditGap(2, first, last));
         assertThat(jdbc.queryForObject(
-                        "SELECT delivered_at IS NOT NULL AND audited_at IS NOT NULL FROM audit_receiver_gap WHERE plugin_id = ?",
-                        Boolean.class,
-                        pluginId))
-                .isTrue();
+                        "SELECT count(*) FROM audit_receiver_gap WHERE plugin_id = ?", Long.class, pluginId))
+                .isZero();
         assertThat(feed.retainedFrom()).contains(last);
     }
 
