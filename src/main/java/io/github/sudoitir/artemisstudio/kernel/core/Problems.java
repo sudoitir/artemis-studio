@@ -21,5 +21,25 @@ public final class Problems {
         return problem;
     }
 
+    /** Seconds a client is told to wait before retrying a refused heavy request; a running request has no known end. */
+    public static final int HEAVY_RETRY_AFTER_SECONDS = 5;
+
+    /**
+     * A heavy request refused because a limit is full. The wait is in the body as well as the
+     * {@code Retry-After} header, because an event stream reports it as a frame inside a 200.
+     */
+    public static ProblemDetail heavyLimit(HeavyLimitException e) {
+        ProblemDetail problem = of(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "too-many-heavy-requests",
+                "Too many heavy requests at once",
+                e.getMessage());
+        problem.setProperty("endpoint", e.endpoint());
+        problem.setProperty("cap", e.cap());
+        problem.setProperty("installation", e.installation());
+        problem.setProperty("retryAfter", HEAVY_RETRY_AFTER_SECONDS);
+        return problem;
+    }
+
     private Problems() {}
 }
