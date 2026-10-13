@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.Message
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.core.Ids;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
@@ -79,7 +80,7 @@ public class MessageIndexService {
         String pattern = validPattern(spec.queuePattern());
         clusterAccess.requireOnAll(clusterId, ResourceKind.QUEUE, pattern, SqlPermissions.CAPTURE_WRITE);
         MessageIndexSubscriptionEntity draft = new MessageIndexSubscriptionEntity();
-        draft.setId(UUID.randomUUID());
+        draft.setId(Ids.v7());
         draft.setClusterId(clusterId);
         draft.setQueuePattern(pattern);
         draft.setMode(CaptureMode.CAPTURE);
@@ -189,7 +190,7 @@ public class MessageIndexService {
         requireMayChange(clusterId, mode, pattern);
 
         MessageIndexSubscriptionEntity entity = new MessageIndexSubscriptionEntity();
-        entity.setId(UUID.randomUUID());
+        entity.setId(Ids.v7());
         entity.setClusterId(clusterId);
         entity.setQueuePattern(pattern);
         entity.setIntervalMs(spec.intervalMs() == null ? 5000L : validInterval(spec.intervalMs()));

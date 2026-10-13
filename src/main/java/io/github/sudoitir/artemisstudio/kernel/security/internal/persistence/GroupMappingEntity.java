@@ -2,8 +2,6 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.UUID;
@@ -11,6 +9,7 @@ import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.UuidGenerator;
 
 /** Maps {@code identity_group_mapping}: a provider's group -> a role grant, re-applied every sign-in (ADR-0073). */
 @Entity
@@ -21,7 +20,7 @@ import lombok.NoArgsConstructor;
 public class GroupMappingEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     @Column(name = "id", nullable = false, updatable = false)
     @EqualsAndHashCode.Include
     private UUID id;
