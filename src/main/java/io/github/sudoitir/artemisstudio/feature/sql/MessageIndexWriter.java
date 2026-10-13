@@ -38,6 +38,16 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class MessageIndexWriter {
 
+    private static final String INSERT_MESSAGE = """
+                INSERT INTO message_index (
+                    observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
+                    priority, message_type, queue_name, address, node_name, correlation_id, group_id,
+                    user_id, reply_to, jms_type, body, body_compression, props, cluster_id, node_id, durable,
+                    body_truncated, body_base64, policy_version, sealed)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT DO NOTHING
+                """;
+
     /**
      * How far back a captured insert looks for the same message before writing it.
      *
@@ -94,15 +104,7 @@ public class MessageIndexWriter {
         GovernedMessage governed = stored.governed();
         // observed_at is this instance's clock, so only a missed maintenance run can leave a day without a partition.
         partitions.retryingNoPartition(() -> jdbc.update(
-                """
-                INSERT INTO message_index (
-                    observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
-                    priority, message_type, queue_name, address, node_name, correlation_id, group_id,
-                    user_id, reply_to, jms_type, body, body_compression, props, cluster_id, node_id, durable,
-                    body_truncated, body_base64, policy_version, sealed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT DO NOTHING
-                """,
+                INSERT_MESSAGE,
                 Timestamp.from(at),
                 Timestamp.from(at),
                 row.messageId(),

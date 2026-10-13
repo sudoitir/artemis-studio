@@ -110,6 +110,23 @@ public final class Subscriber {
         Held(String topic, Object data, String id) {
             this(topic, data, id, null);
         }
+
+        /** The size of a frame for the byte bound: its text, which is what is written, plus a fixed overhead. */
+        private static int weigh(String topic, Object data, String id, BusFrame.About about) {
+            long size = 64;
+            size += topic == null ? 0 : topic.length();
+            size += id == null ? 0 : id.length();
+            if (data instanceof JsonNode node) {
+                size += node.toString().length();
+            } else if (data != null) {
+                size += 32;
+            }
+            if (about != null) {
+                size += about.queues().stream().mapToInt(String::length).sum();
+                size += about.addresses().stream().mapToInt(String::length).sum();
+            }
+            return (int) Math.min(size, Integer.MAX_VALUE);
+        }
     }
 
     /** What a queue reports to its hub: frames lost, and that the stream is being closed for lag. */
@@ -179,23 +196,6 @@ public final class Subscriber {
 
     void followSession(String newId) {
         this.sessionId = newId;
-    }
-
-    /** The size of a frame for the byte bound: its text, which is what is written, plus a fixed overhead. */
-    private static int weigh(String topic, Object data, String id, BusFrame.About about) {
-        long size = 64;
-        size += topic == null ? 0 : topic.length();
-        size += id == null ? 0 : id.length();
-        if (data instanceof JsonNode node) {
-            size += node.toString().length();
-        } else if (data != null) {
-            size += 32;
-        }
-        if (about != null) {
-            size += about.queues().stream().mapToInt(String::length).sum();
-            size += about.addresses().stream().mapToInt(String::length).sum();
-        }
-        return (int) Math.min(size, Integer.MAX_VALUE);
     }
 
     /**

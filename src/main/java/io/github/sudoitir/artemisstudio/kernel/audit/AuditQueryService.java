@@ -48,6 +48,9 @@ import tools.jackson.databind.node.ObjectNode;
 @RequiredArgsConstructor
 public class AuditQueryService {
 
+    private static final String ACTION = "action";
+    private static final String OUTCOME = "outcome";
+
     private final AuditEventRepository events;
     private final ClusterAccessGuard clusterAccess;
     private final PermissionResolver permissions;
@@ -156,8 +159,8 @@ public class AuditQueryService {
             params.put("addresses", f.addresses());
         }
         optional(sql, params, "username", f.username());
-        optional(sql, params, "action", f.action());
-        optional(sql, params, "outcome", f.outcome());
+        optional(sql, params, ACTION, f.action());
+        optional(sql, params, OUTCOME, f.outcome());
         optional(sql, params, "parent_id", f.parentId());
         return new Where(sql.toString(), params);
     }
@@ -177,11 +180,11 @@ public class AuditQueryService {
                 rs.getString("username"),
                 rs.getString("source_ip"),
                 rs.getString("request_id"),
-                rs.getString("action"),
+                rs.getString(ACTION),
                 rs.getString("target_type"),
                 rs.getString("target_name"),
                 rs.getObject("affected_count", Long.class),
-                rs.getString("outcome"),
+                rs.getString(OUTCOME),
                 rs.getBoolean("dry_run"),
                 rs.getString("params"),
                 rs.getString("error"),
@@ -272,8 +275,8 @@ public class AuditQueryService {
         Scope scope = scope(clusterId);
         Map<String, Object> filters = new LinkedHashMap<>();
         filters.put("user", blankToNull(query.username()));
-        filters.put("action", blankToNull(query.action()));
-        filters.put("outcome", blankToNull(query.outcome()));
+        filters.put(ACTION, blankToNull(query.action()));
+        filters.put(OUTCOME, blankToNull(query.outcome()));
         filters.put("parentId", query.parentId());
         filters.put("from", query.from());
         filters.put("to", query.to());

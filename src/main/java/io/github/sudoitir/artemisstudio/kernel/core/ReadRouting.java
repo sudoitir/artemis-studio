@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.core;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
@@ -38,7 +39,7 @@ public final class ReadRouting implements AutoCloseable {
     /** Whether the replica was within the bound when last checked, and when. */
     private record LagCheck(long atNanos, boolean usable) {}
 
-    private volatile LagCheck lagCheck;
+    private final AtomicReference<LagCheck> lagCheck = new AtomicReference<>();
 
     /**
      * @param primary the primary's data source
@@ -79,7 +80,7 @@ public final class ReadRouting implements AutoCloseable {
             try {
                 return new Routed<>(run(replica, query), true);
             } catch (CannotCreateTransactionException _) {
-                lagCheck = new LagCheck(System.nanoTime(), false);
+                lagCheck.set(new LagCheck(System.nanoTime(), false));
             }
         }
         return new Routed<>(run(primary, query), false);
@@ -95,13 +96,13 @@ public final class ReadRouting implements AutoCloseable {
     }
 
     private boolean replicaWithinBound() {
-        LagCheck check = lagCheck;
+        LagCheck check = lagCheck.get();
         long now = System.nanoTime();
         if (check == null || now - check.atNanos() >= LAG_CACHE.toNanos()) {
             check = new LagCheck(
                     now,
                     lagProbe.get().filter(lag -> lag.compareTo(maxLag) <= 0).isPresent());
-            lagCheck = check;
+            lagCheck.set(check);
         }
         return check.usable();
     }

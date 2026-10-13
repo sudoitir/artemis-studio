@@ -16,15 +16,17 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class ExpiringTables implements HousekeepingContributor {
 
+    private static final String EXPIRES_AT = "expires_at";
+
     private final JdbcTemplate jdbc;
 
     @Override
     public List<ManagedStore> stores() {
         return List.of(
-                new Expiring("heavy-permits", "Heavy request permits", "heavy_permit", "expires_at"),
-                new Expiring("login-attempts", "Failed sign-in counters", "login_attempt", "expires_at"),
+                new Expiring("heavy-permits", "Heavy request permits", "heavy_permit", EXPIRES_AT),
+                new Expiring("login-attempts", "Failed sign-in counters", "login_attempt", EXPIRES_AT),
                 new Expiring("upload-windows", "Plugin upload counters", "upload_window", "window_ends_at"),
-                new Expiring("request-in-flight", "In-flight request counters", "request_in_flight", "expires_at"));
+                new Expiring("request-in-flight", "In-flight request counters", "request_in_flight", EXPIRES_AT));
     }
 
     /** One table whose rows are stale once {@code column} is past. */

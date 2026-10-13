@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
@@ -40,7 +41,7 @@ class DatabasePreflight implements InitializingBean {
     private static final int PROBES = 3;
 
     private final DataSource dataSource;
-    private volatile List<String> warnings = List.of();
+    private final AtomicReference<List<String>> warnings = new AtomicReference<>(List.of());
 
     DatabasePreflight(DataSource dataSource) {
         this.dataSource = dataSource;
@@ -48,7 +49,7 @@ class DatabasePreflight implements InitializingBean {
 
     /** What the check found worth an operator's attention; empty when there is nothing. */
     List<String> warnings() {
-        return warnings;
+        return warnings.get();
     }
 
     @Override
@@ -60,9 +61,9 @@ class DatabasePreflight implements InitializingBean {
             throw new IllegalStateException("The primary datasource is not a Hikari pool", e);
         }
         try (Connection connection = dataSource.getConnection()) {
-            warnings = check(connection, pool);
+            warnings.set(check(connection, pool));
         }
-        warnings.forEach(warning -> log.warn("Database: {}", warning));
+        warnings.get().forEach(warning -> log.warn("Database: {}", warning));
     }
 
     /** Runs every check on {@code connection}; throws on a problem and returns the warnings otherwise. */
