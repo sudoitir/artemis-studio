@@ -225,6 +225,7 @@ public class JobRunner implements SmartInitializingSingleton, DisposableBean {
         boolean recorded = false;
         Duration timeout = null;
         Throwable failure = null;
+        boolean ended = false;
         try {
             if (job.scope() == ScheduledJob.Scope.INSTALLATION) {
                 held = acquire(entry);
@@ -241,36 +242,43 @@ public class JobRunner implements SmartInitializingSingleton, DisposableBean {
                 }
                 observation(job).observe(job.task());
             }
-        } catch (Throwable e) {
+            ended = true;
+        } catch (Exception e) {
             failure = e;
-        }
-        if (watchdog != null) {
-            watchdog.cancel(false);
-        }
-        if (held != null) {
-            held.release();
-        }
-        Thread.interrupted();
-        Instant completed = clock.instant();
-        if (skipped) {
-            statuses.skippedElsewhere(job.id(), completed);
-        } else {
-            if (!recorded) {
-                statuses.started(job.id(), started);
+            ended = true;
+        } finally {
+            // An Error still leaves the run recorded and the counters settled, or pause() would wait for it forever.
+            if (!ended) {
+                failure = new IllegalStateException("The job ended with an Error");
             }
-            record(entry, failure, timeout, completed);
+            if (watchdog != null) {
+                watchdog.cancel(false);
+            }
+            if (held != null) {
+                held.release();
+            }
+            Thread.interrupted();
+            Instant completed = clock.instant();
+            if (skipped) {
+                statuses.skippedElsewhere(job.id(), completed);
+            } else {
+                if (!recorded) {
+                    statuses.started(job.id(), started);
+                }
+                record(entry, failure, timeout, completed);
+            }
+            entry.context.update(entry.scheduledFor, started, completed);
+            if (!skipped && overran(entry, started, completed)) {
+                statuses.overran(job.id());
+            }
+            synchronized (this) {
+                entry.thread = null;
+                entry.stop.set(Stop.NONE);
+                running--;
+                notifyAll();
+            }
+            arm(entry);
         }
-        entry.context.update(entry.scheduledFor, started, completed);
-        if (!skipped && overran(entry, started, completed)) {
-            statuses.overran(job.id());
-        }
-        synchronized (this) {
-            entry.thread = null;
-            entry.stop.set(Stop.NONE);
-            running--;
-            notifyAll();
-        }
-        arm(entry);
     }
 
     /** Takes the installation-wide lock, or returns {@code null} when another instance holds it. */
@@ -378,6 +386,7 @@ public class JobRunner implements SmartInitializingSingleton, DisposableBean {
                 }
             } catch (InterruptedException _) {
                 // the run ended
+                Thread.currentThread().interrupt();
             } catch (RuntimeException e) {
                 log.warn("Job {} could not extend its lock", entry.job.id(), e);
                 lose();
@@ -430,7 +439,7 @@ public class JobRunner implements SmartInitializingSingleton, DisposableBean {
         }
     }
 
-    private boolean awaitIdle(Duration maxWait) {
+    private synchronized boolean awaitIdle(Duration maxWait) {
         long deadline = System.nanoTime() + maxWait.toNanos();
         try {
             long remaining;

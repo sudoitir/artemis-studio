@@ -133,7 +133,7 @@ public class ClusterLock {
                 log.debug("Cluster {} is being reconciled by another instance; skipping this pass", clusterId);
                 return false;
             }
-            try (Watchdog _ = watch(connection, scope, clusterId)) {
+            try (var _ = watch(connection, scope, clusterId)) {
                 work.run();
             } finally {
                 release(connection, namespace, key);
@@ -163,7 +163,8 @@ public class ClusterLock {
                     Thread.sleep(WATCH);
                 }
             } catch (InterruptedException _) {
-                return; // The work finished.
+                Thread.currentThread().interrupt(); // The work finished.
+                return;
             } catch (SQLException e) {
                 reason = e.getMessage();
             }
@@ -210,9 +211,13 @@ public class ClusterLock {
             try {
                 thread.join();
             } catch (InterruptedException _) {
+                Thread.currentThread().interrupt();
                 interrupted = true;
             }
-            if (interrupted && !fired.get()) {
+            // The caller's thread is not left interrupted by the probe's own interrupt, only by a real one.
+            if (fired.get()) {
+                Thread.interrupted();
+            } else if (interrupted) {
                 worker.interrupt();
             }
         }
