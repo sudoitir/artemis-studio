@@ -124,9 +124,9 @@ class ReadRoutingTest {
                         .single()));
         assertThat(mode).hasValue("on");
 
-        assertThatThrownBy(() -> new ReadRouting(primary, null, MAX_LAG, Optional::empty)
-                        .read(client ->
-                                client.sql("INSERT INTO seen VALUES ('x')").update()))
+        ReadRouting primaryOnly = new ReadRouting(primary, null, MAX_LAG, Optional::empty);
+        assertThatThrownBy(() -> primaryOnly.read(
+                        client -> client.sql("INSERT INTO seen VALUES ('x')").update()))
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("read-only transaction");
     }

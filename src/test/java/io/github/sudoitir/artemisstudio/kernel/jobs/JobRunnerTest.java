@@ -82,7 +82,7 @@ class JobRunnerTest {
 
     private static void sleep(Duration time) {
         try {
-            Thread.sleep(time);
+            new CountDownLatch(1).await(time.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
         }
@@ -147,7 +147,7 @@ class JobRunnerTest {
                         return;
                     }
                     try {
-                        Thread.sleep(LONG);
+                        new CountDownLatch(1).await(LONG.toMillis(), TimeUnit.MILLISECONDS);
                     } catch (InterruptedException _) {
                         interrupted.countDown();
                     }
@@ -215,7 +215,7 @@ class JobRunnerTest {
         runner.schedule(ScheduledJob.fixedDelay(
                 "lost", "test", ScheduledJob.Scope.INSTALLATION, () -> Duration.ofMillis(10), () -> {
                     try {
-                        Thread.sleep(LONG);
+                        new CountDownLatch(1).await(LONG.toMillis(), TimeUnit.MILLISECONDS);
                     } catch (InterruptedException _) {
                         sawInterrupt.set(true);
                     }

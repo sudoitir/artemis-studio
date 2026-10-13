@@ -54,7 +54,7 @@ class ClusterLockFailoverTest {
             lock.runIfHeld(cluster, () -> {
                 holding.countDown();
                 try {
-                    Thread.sleep(Duration.ofSeconds(30));
+                    new CountDownLatch(1).await();
                 } catch (InterruptedException _) {
                     stopped.set(true);
                 }

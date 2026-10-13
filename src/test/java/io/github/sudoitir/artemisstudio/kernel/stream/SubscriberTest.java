@@ -50,7 +50,7 @@ class SubscriberTest {
                     started.countDown();
                     try {
                         release.await();
-                    } catch (InterruptedException e) {
+                    } catch (InterruptedException _) {
                         Thread.currentThread().interrupt();
                         return false;
                     }
@@ -97,7 +97,7 @@ class SubscriberTest {
         release.countDown();
 
         await().atMost(Duration.ofSeconds(2)).until(() -> written.contains("resync"));
-        assertThat(written.size()).isLessThanOrEqualTo(Subscriber.OUTBOUND_CAPACITY);
+        assertThat(written).hasSizeLessThanOrEqualTo(Subscriber.OUTBOUND_CAPACITY);
         assertThat(dropped.get("overflow").get()).isPositive();
     }
 
@@ -113,7 +113,7 @@ class SubscriberTest {
         release.countDown();
 
         await().atMost(Duration.ofSeconds(2)).until(() -> written.contains("resync"));
-        assertThat(written.size()).isLessThan(12);
+        assertThat(written).hasSizeLessThan(12);
     }
 
     @Test

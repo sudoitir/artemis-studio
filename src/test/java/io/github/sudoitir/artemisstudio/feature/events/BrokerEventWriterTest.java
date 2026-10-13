@@ -1,11 +1,13 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -151,17 +153,18 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
                     holding.countDown();
                     try {
                         commit.await();
-                    } catch (InterruptedException e) {
+                    } catch (InterruptedException _) {
                         Thread.currentThread().interrupt();
                     }
                 }));
         assertThat(holding.await(5, TimeUnit.SECONDS)).isTrue();
 
         Thread flushing = Thread.ofVirtual().start(writer::flush);
-        Thread.sleep(500);
-        assertThat(count())
-                .as("rows written while another writer holds the lock")
-                .isZero();
+        await().during(Duration.ofMillis(500))
+                .atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertThat(count())
+                        .as("rows written while another writer holds the lock")
+                        .isZero());
 
         commit.countDown();
         flushing.join(5_000);

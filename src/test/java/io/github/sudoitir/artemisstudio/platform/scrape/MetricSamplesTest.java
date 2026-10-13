@@ -95,7 +95,7 @@ class MetricSamplesTest extends PostgresIntegrationTest {
         Map<String, Double> rates =
                 repository.latestRateBySubject(clusterId, "messagesAdded", base, base.plusSeconds(60));
 
-        assertThat(rates.get("orders")).isEqualTo(15.0); // 10/s on one node + 5/s on the other
+        assertThat(rates).containsEntry("orders", 15.0); // 10/s on one node + 5/s on the other
     }
 
     @Test

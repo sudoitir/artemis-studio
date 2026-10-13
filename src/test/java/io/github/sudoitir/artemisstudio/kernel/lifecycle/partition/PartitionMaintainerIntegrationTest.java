@@ -149,7 +149,7 @@ class PartitionMaintainerIntegrationTest extends PostgresIntegrationTest {
             Health down = health.health();
 
             assertThat(down.getStatus()).isEqualTo(Status.DOWN);
-            assertThat(down.getDetails().get("missing")).isEqualTo(List.of("rr_event"));
+            assertThat(down.getDetails()).containsEntry("missing", List.of("rr_event"));
         } finally {
             maintainer.ensureAhead();
         }

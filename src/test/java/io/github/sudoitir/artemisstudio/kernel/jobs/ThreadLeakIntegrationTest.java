@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.kernel.jobs;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 
 import com.sun.management.HotSpotDiagnosticMXBean;
@@ -92,23 +93,20 @@ class ThreadLeakIntegrationTest extends PostgresIntegrationTest {
             context.close();
         }
 
-        List<String> survivors;
-        long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();
-        do {
-            survivors = survivors(before);
-            Thread.sleep(100);
-        } while (!survivors.isEmpty() && System.nanoTime() < deadline);
-        assertThat(survivors).as("threads that outlived the context").isEmpty();
+        // In the test's own thread: a poller thread of Awaitility's would count as a leak.
+        await().atMost(Duration.ofSeconds(10))
+                .pollInterval(Duration.ofMillis(100))
+                .pollInSameThread()
+                .untilAsserted(() -> assertThat(survivors(before))
+                        .as("threads that outlived the context")
+                        .isEmpty());
     }
 
-    private static void waitFor(Duration within, BooleanSupplier condition) throws InterruptedException {
-        long deadline = System.nanoTime() + within.toNanos();
-        while (!condition.getAsBoolean()) {
-            assertThat(System.nanoTime())
-                    .as("the condition holds within " + within)
-                    .isLessThan(deadline);
-            Thread.sleep(50);
-        }
+    private static void waitFor(Duration within, BooleanSupplier condition) {
+        await().atMost(within)
+                .pollInterval(Duration.ofMillis(50))
+                .pollInSameThread()
+                .until(condition::getAsBoolean);
     }
 
     private static List<String> survivors(Set<Long> before) throws IOException {

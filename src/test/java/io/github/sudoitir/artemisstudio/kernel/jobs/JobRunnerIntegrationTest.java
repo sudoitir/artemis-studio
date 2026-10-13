@@ -10,6 +10,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.sql.DataSource;
 import net.javacrumbs.shedlock.core.DefaultLockingTaskExecutor;
@@ -98,7 +100,7 @@ class JobRunnerIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void aLongRunKeepsItsLockPastItsLifetimeByExtendingIt() throws Exception {
+    void aLongRunKeepsItsLockPastItsLifetimeByExtendingIt() {
         String id = "it-extend-" + System.nanoTime();
         AtomicInteger ran = new AtomicInteger();
         // The lock lives one second; the runner extends it every half second while the run lasts 2.5 s.
@@ -115,7 +117,7 @@ class JobRunnerIntegrationTest extends PostgresIntegrationTest {
                 () -> {
                     ran.incrementAndGet();
                     try {
-                        Thread.sleep(2_500);
+                        new CountDownLatch(1).await(2_500, TimeUnit.MILLISECONDS);
                     } catch (InterruptedException _) {
                         Thread.currentThread().interrupt();
                     }

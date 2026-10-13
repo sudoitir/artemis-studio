@@ -94,7 +94,8 @@ class DynamicTriggersTest {
     void aMalformedCronThrowsSoTheRunnerCanMarkTheScheduleInvalid() {
         Trigger trigger = DynamicTriggers.cron(() -> "not a cron");
 
-        assertThatThrownBy(() -> trigger.nextExecution(contextEndingAt(LAST_RUN)))
-                .isInstanceOf(IllegalArgumentException.class);
+        var context = contextEndingAt(LAST_RUN);
+
+        assertThatThrownBy(() -> trigger.nextExecution(context)).isInstanceOf(IllegalArgumentException.class);
     }
 }
