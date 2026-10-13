@@ -57,7 +57,7 @@ describe('SessionsManager, what follows it', () => {
     answer = sessions(count);
     const { below, loading } = await mounted();
 
-    await screen.findAllByRole('listitem');
+    await screen.findAllByRole('row');
     await settle(() => `${below.getBoundingClientRect().top}`);
 
     expect(Math.abs(below.getBoundingClientRect().top - loading)).toBeLessThanOrEqual(1);

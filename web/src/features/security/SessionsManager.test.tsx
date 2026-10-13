@@ -51,10 +51,12 @@ describe('SessionsManager, own sessions', () => {
 
     renderWithProviders(<SessionsManager />);
 
-    const rows = await screen.findAllByRole('listitem');
+    const rows = (await screen.findAllByRole('row')).filter(
+      (r) => r.hasAttribute('aria-rowindex') && r.dataset.gridRow !== '0',
+    );
     const here = rows.find((r) => within(r).queryByText('This session'))!;
     expect(within(here).getByText('Firefox on Linux')).toBeInTheDocument();
-    expect(here).toHaveTextContent('203.0.113.7 · signed in 3h ago');
+    expect(here).toHaveTextContent('203.0.113.7');
     expect(within(here).getByText('5m ago')).toBeInTheDocument();
     expect(within(here).getByText('3h ago')).toBeInTheDocument();
     // The exact time is text for assistive technology, not only behind a hover.

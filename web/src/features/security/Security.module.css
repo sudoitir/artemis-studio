@@ -119,3 +119,8 @@
   flex-direction: column;
   gap: 0.125rem;
 }
+
+/* The sessions grid holds one height whatever the number of sessions, and scrolls inside it. */
+.sessionList {
+  min-inline-size: 0;
+}
