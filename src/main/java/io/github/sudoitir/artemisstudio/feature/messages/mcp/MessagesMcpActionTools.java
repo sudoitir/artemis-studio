@@ -6,6 +6,7 @@ import io.github.sudoitir.artemisstudio.feature.messages.MessageService.Outcome;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.MessageActionRequest;
 import io.github.sudoitir.artemisstudio.feature.messages.web.MessageRequests.SendMessageRequest;
 import io.github.sudoitir.artemisstudio.platform.broker.Attempt;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageKind;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpArgs;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpErrors;
 import io.github.sudoitir.artemisstudio.platform.mcp.McpViews;
@@ -109,20 +110,20 @@ public class MessagesMcpActionTools {
             @McpToolParam(required = true) String clusterId,
             @McpToolParam(required = true) String queue,
             @McpToolParam(required = true) String body,
-            @McpToolParam(required = false) Integer type,
+            @McpToolParam(required = false) String kind,
             @McpToolParam(required = false) Boolean durable,
             @McpToolParam(required = false) Boolean dryRun) {
         UUID id = McpArgs.uuid("clusterId", clusterId);
         String q = McpArgs.required("queue", queue);
         String payload = McpArgs.required("body", body);
+        MessageKind messageKind = McpArgs.enumOf(MessageKind.class, "kind", kind, MessageKind.TEXT);
         boolean dry = McpArgs.flag(dryRun, true);
         return McpErrors.guard(() -> {
             Attempt<Outcome> attempt = messages.send(
                     id,
                     q,
                     null,
-                    new SendMessageRequest(
-                            type == null ? 3 : type, McpArgs.flag(durable, true), payload, false, Map.of(), Map.of()),
+                    new SendMessageRequest(messageKind, McpArgs.flag(durable, true), payload, Map.of(), Map.of()),
                     dry);
             return outcome("send", q, attempt);
         });

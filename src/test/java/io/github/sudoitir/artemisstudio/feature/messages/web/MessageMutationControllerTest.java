@@ -149,7 +149,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, Q)
                         .param("dryRun", "true")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":3,\"durable\":true,\"body\":\"hi\"}"))
+                        .content("{\"kind\":\"TEXT\",\"durable\":true,\"body\":\"hi\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.affectedCount").value(1))
                 .andExpect(jsonPath("$.cap").exists());
@@ -166,7 +166,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, Q)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":3,\"durable\":true,\"body\":\"hi\",\"properties\":{\"k\":\"v\"}}"))
+                        .content("{\"kind\":\"TEXT\",\"durable\":true,\"body\":\"hi\",\"properties\":{\"k\":\"v\"}}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.affectedCount").value(1));
 
@@ -181,6 +181,15 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, Q)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"durable\":true}"))
+                .andExpect(status().isBadRequest());
+        assertThat(audit.findByClusterIdOrderByTsDesc(clusterId)).isEmpty();
+    }
+
+    @Test
+    void sendOfABytesBodyThatIsNotBase64IsA400WithNoAuditRow() throws Exception {
+        mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, Q)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"BYTES\",\"durable\":true,\"body\":\"not base64!\"}"))
                 .andExpect(status().isBadRequest());
         assertThat(audit.findByClusterIdOrderByTsDesc(clusterId)).isEmpty();
     }
@@ -324,7 +333,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(post("/api/v1/clusters/{c}/queues/{q}/messages", clusterId, Q)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":3,\"durable\":true,\"body\":\"hi\"}"))
+                        .content("{\"kind\":\"TEXT\",\"durable\":true,\"body\":\"hi\"}"))
                 .andExpect(status().is4xxClientError())
                 .andExpect(jsonPath("$.brokerErrorKind").value("CREDENTIALS_REJECTED"));
 

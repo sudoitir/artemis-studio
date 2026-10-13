@@ -4976,11 +4976,10 @@ export interface components {
             error?: string | null;
         };
         SendMessageRequest: {
-            /** Format: int32 */
-            type: number;
+            /** @enum {string} */
+            kind: "TEXT" | "BYTES";
             durable: boolean;
             body?: string;
-            bodyBase64?: boolean;
             headers?: {
                 [key: string]: unknown;
             };

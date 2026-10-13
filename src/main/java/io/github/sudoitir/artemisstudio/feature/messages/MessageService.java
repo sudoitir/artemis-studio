@@ -36,6 +36,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageBrowser.BrowsedMessage;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageKind;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageOperations;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport.BrowseResult;
@@ -53,6 +54,7 @@ import io.github.sudoitir.artemisstudio.platform.governance.MessageContent;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueLocator.QueueLocation;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -185,6 +187,7 @@ public class MessageService {
         // use is, to them, a queue that is not there.
         clusterAccess.requireResource(clusterId, ResourceRef.queue(queueName), Permissions.QUEUE_READ);
         SendNames.validate(req.headers(), req.properties());
+        requireDecodableBody(req);
         ResolvedQueue resolved = resolve(clusterId, queueName, nodeId);
         try {
             clusterAccess.requireResource(
@@ -193,7 +196,12 @@ public class MessageService {
             throw new NotFoundException("queue", queueName);
         }
         AuditEvent event = begin(
-                "SEND_MESSAGE", queueName, clusterId, resolved.node().getId(), Map.of("type", req.type()), dryRun);
+                "SEND_MESSAGE",
+                queueName,
+                clusterId,
+                resolved.node().getId(),
+                Map.of("kind", req.kind().name()),
+                dryRun);
         if (dryRun) {
             audit.succeed(event, 1);
             return new Attempt.Ok<>(new Outcome.DryRun(
@@ -206,19 +214,24 @@ public class MessageService {
             transportFor(clusterId)
                     .send(
                             targetOf(clusterId, queueName, resolved),
-                            new SendSpec(
-                                    req.type(),
-                                    req.durable(),
-                                    req.body(),
-                                    req.bodyBase64(),
-                                    req.headers(),
-                                    req.properties()));
+                            new SendSpec(req.kind(), req.durable(), req.body(), req.headers(), req.properties()));
             audit.succeed(event, 1);
             publishQueuesAfterCommit(clusterId, queueName);
             return new Attempt.Ok<>(new Outcome.Affected(1, resolved.node().getId()));
         } catch (BrokerConnectionException e) {
             audit.fail(event, e.getMessage());
             return new Attempt.Failed<>(e.kind(), e.getMessage());
+        }
+    }
+
+    private static void requireDecodableBody(SendMessageRequest req) {
+        if (req.kind() != MessageKind.BYTES) {
+            return;
+        }
+        try {
+            Base64.getDecoder().decode(req.body());
+        } catch (IllegalArgumentException _) {
+            throw new IllegalArgumentException("The body of a BYTES message must be valid base64.");
         }
     }
 

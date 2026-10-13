@@ -11,7 +11,7 @@ import { DataTable } from '../../ui/table/index.ts';
 import { useClusters } from '../clusters/index.ts';
 import { useAccessCheck, type AccessCheckView } from './api.ts';
 import { accessColumns } from './columns.ts';
-import { KindField } from './KindField.tsx';
+import { KindField } from '../../ui/KindField.tsx';
 import { RoleGrants } from './RoleGrants.tsx';
 import { useScopeLabel } from './scope.ts';
 

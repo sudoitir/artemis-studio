@@ -150,7 +150,7 @@ class MarkupMessageRoundTripRealBrokerTest extends PostgresIntegrationTest {
     void markupInABodyAHeaderAndAQueueNameComesBackByteForByte() throws Exception {
         for (String body : BODIES) {
             Map<String, Object> request = new LinkedHashMap<>();
-            request.put("type", 3);
+            request.put("kind", "TEXT");
             request.put("durable", true);
             request.put("body", body);
             request.put(

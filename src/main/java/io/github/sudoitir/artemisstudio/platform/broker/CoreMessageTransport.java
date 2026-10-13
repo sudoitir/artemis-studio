@@ -186,7 +186,7 @@ public class CoreMessageTransport implements MessageTransport {
                 try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {
                     Session session = jms.session();
                     Queue queue = session.createQueue(target.address());
-                    Message message = spec.bodyBase64()
+                    Message message = spec.kind() == MessageKind.BYTES
                             ? bytesMessage(session, spec.body())
                             : session.createTextMessage(spec.body());
                     applyHeaders(session, message, spec.headers());
