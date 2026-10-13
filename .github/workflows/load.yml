@@ -1,0 +1,99 @@
+name: Load test
+
+# Started by hand, never on a pull request or a push (ADR-0198): it needs a whole runner for several minutes and its
+# result is a measurement, not a verdict. It builds the image of the chosen ref from the Dockerfile, runs `scripts/load.sh` (the same as
+# `just load`) and uploads the report. A figure below the target in docs/sizing.md prints REGRESSION and fails the job.
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Profile in load/profiles (reference measures; smoke only checks the test itself)
+        type: choice
+        options: [reference, smoke]
+        default: reference
+      brokers:
+        description: Artemis brokers (empty keeps the profile's)
+        type: string
+        default: ""
+      clusters:
+        description: Registered clusters
+        type: string
+        default: ""
+      nodes_per_cluster:
+        description: Nodes per cluster
+        type: string
+        default: ""
+      queues:
+        description: Queues per broker
+        type: string
+        default: ""
+      messages:
+        description: Messages per broker
+        type: string
+        default: ""
+      ui_users:
+        description: Concurrent UI users
+        type: string
+        default: ""
+      sse_fast:
+        description: Concurrent event-stream subscribers that read
+        type: string
+        default: ""
+      sse_stalled:
+        description: Concurrent event-stream subscribers that stall
+        type: string
+        default: ""
+      duration:
+        description: Seconds of steady load
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load
+  cancel-in-progress: false
+
+jobs:
+  load:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The report names the version with `git describe`.
+          fetch-depth: 0
+      # Gatling runs on the host through Maven; Studio runs in the image the script builds.
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: load/pom.xml
+      - name: Run the load test
+        env:
+          PROFILE: ${{ inputs.profile }}
+          LOAD_BROKERS: ${{ inputs.brokers }}
+          LOAD_CLUSTERS: ${{ inputs.clusters }}
+          LOAD_NODES_PER_CLUSTER: ${{ inputs.nodes_per_cluster }}
+          LOAD_QUEUES: ${{ inputs.queues }}
+          LOAD_MESSAGES: ${{ inputs.messages }}
+          LOAD_UI_USERS: ${{ inputs.ui_users }}
+          LOAD_SSE_FAST: ${{ inputs.sse_fast }}
+          LOAD_SSE_STALLED: ${{ inputs.sse_stalled }}
+          LOAD_DURATION: ${{ inputs.duration }}
+        run: ./scripts/load.sh "$PROFILE"
+      - name: Show the summary
+        if: always()
+        run: cat load/target/report/summary.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: load-report
+          path: |
+            load/target/report
+            load/target/gatling
+            load/target/scrape
+          if-no-files-found: ignore

@@ -171,6 +171,18 @@ qa-down name:
     docker compose -p artemis-studio-qa-{{name}} down -v --remove-orphans
     rm -rf web/.sweep/auth
 
+# Sizes come from load/profiles/<profile>.env and any LOAD_* variable; LOAD_IMAGE or LOAD_JAR picks the Studio build
+# (else the Dockerfile is built). The stack is project artemis-studio-load on 127.0.0.1:18090, removed with its volumes.
+# Run the load test (ADR-0198, docs/sizing.md) and write load/target/report; REGRESSION marks a figure below its target.
+[group('test')]
+load profile="reference":
+    ./scripts/load.sh {{profile}}
+
+# Run the load test with a tiny profile, to check the test itself works. Not a measurement.
+[group('test')]
+load-smoke:
+    ./scripts/load.sh smoke
+
 # Tail dev stack logs (all services, or `just dev-logs studio`).
 [group('develop')]
 dev-logs *service:
