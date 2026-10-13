@@ -1,8 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence;
 
 import jakarta.persistence.QueryHint;
-import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,39 +48,23 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
             @Param("created") String created,
             @Param("deleted") String deleted);
 
-    /**
-     * What an audit read keeps, in the form both reads share. String filters are optional ({@code null}
-     * drops the predicate); the caller always passes a {@code from}/{@code to} window (widened to sentinels
-     * when unset) — Postgres cannot infer the type of a timestamp parameter used only in an {@code is null}
-     * test.
-     */
+    /** What an audit read keeps, in the form both reads share; {@code :#{#f.x}} reads field {@code x} of the {@link AuditFilter}. */
     String FILTER = """
-            e.clusterId = :clusterId
-              and (:everything = true
-                   or (e.targetType = 'QUEUE' and e.targetName in :queues)
-                   or (e.targetType = 'ADDRESS' and e.targetName in :addresses))
-              and (:username is null or e.username = :username)
-              and (:action is null or e.action = :action)
-              and (:outcome is null or e.outcome = :outcome)
-              and (:parentId is null or e.parentId = :parentId)
-              and e.ts >= :from
-              and e.ts <= :to
+            e.clusterId = :#{#f.clusterId}
+              and (:#{#f.everything} = true
+                   or (e.targetType = 'QUEUE' and e.targetName in :#{#f.queues})
+                   or (e.targetType = 'ADDRESS' and e.targetName in :#{#f.addresses}))
+              and (:#{#f.username} is null or e.username = :#{#f.username})
+              and (:#{#f.action} is null or e.action = :#{#f.action})
+              and (:#{#f.outcome} is null or e.outcome = :#{#f.outcome})
+              and (:#{#f.parentId} is null or e.parentId = :#{#f.parentId})
+              and e.ts >= :#{#f.from}
+              and e.ts <= :#{#f.to}
             """;
 
     /** Filtered, newest-first page for the audit-log screen. */
     @Query("select e from AuditEventEntity e where " + FILTER + " order by e.ts desc")
-    Page<AuditEventEntity> findPage(
-            @Param("clusterId") UUID clusterId,
-            @Param("everything") boolean everything,
-            @Param("queues") Collection<String> queues,
-            @Param("addresses") Collection<String> addresses,
-            @Param("username") String username,
-            @Param("action") String action,
-            @Param("outcome") String outcome,
-            @Param("parentId") Long parentId,
-            @Param("from") Instant from,
-            @Param("to") Instant to,
-            Pageable pageable);
+    Page<AuditEventEntity> findPage(@Param("f") AuditFilter f, Pageable pageable);
 
     /**
      * The same rows as {@link #findPage}, oldest first, as a cursor for an export: the caller closes the stream,
@@ -93,17 +75,7 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
         @QueryHint(name = HibernateHints.HINT_READ_ONLY, value = "true")
     })
     @Query("select e from AuditEventEntity e where " + FILTER + " order by e.ts asc, e.id asc")
-    Stream<AuditEventEntity> streamFiltered(
-            @Param("clusterId") UUID clusterId,
-            @Param("everything") boolean everything,
-            @Param("queues") Collection<String> queues,
-            @Param("addresses") Collection<String> addresses,
-            @Param("username") String username,
-            @Param("action") String action,
-            @Param("outcome") String outcome,
-            @Param("parentId") Long parentId,
-            @Param("from") Instant from,
-            @Param("to") Instant to);
+    Stream<AuditEventEntity> streamFiltered(@Param("f") AuditFilter f);
 
     /** The names of one kind of target the cluster's events are about, for deciding which a reader may see. */
     @Query("select distinct e.targetName from AuditEventEntity e"

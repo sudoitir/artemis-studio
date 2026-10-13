@@ -23,11 +23,11 @@ public final class AuditReceiverFixtures {
     public static final class TestReceiver implements AuditReceiver {
 
         public final List<AuditDelivery> batches = new CopyOnWriteArrayList<>();
-        public volatile Exception failure;
+        public volatile RuntimeException failure;
         public volatile Runnable beforeAnswer = () -> {};
 
         @Override
-        public void receive(AuditDelivery delivery) throws Exception {
+        public void receive(AuditDelivery delivery) {
             batches.add(delivery);
             beforeAnswer.run();
             if (failure != null) {
@@ -55,11 +55,11 @@ public final class AuditReceiverFixtures {
     public static final class TestHold implements AuditRetentionHold {
 
         public volatile List<AuditHold> holds = List.of();
-        public volatile Exception failure;
+        public volatile RuntimeException failure;
         public volatile Runnable beforeAnswer = () -> {};
 
         @Override
-        public List<AuditHold> holds() throws Exception {
+        public List<AuditHold> holds() {
             beforeAnswer.run();
             if (failure != null) {
                 throw failure;

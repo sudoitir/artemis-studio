@@ -15,5 +15,5 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 @PluginApi
 public interface AuditReceiver {
 
-    void receive(AuditDelivery delivery) throws Exception;
+    void receive(AuditDelivery delivery);
 }

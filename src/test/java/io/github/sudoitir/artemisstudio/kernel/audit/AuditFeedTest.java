@@ -68,36 +68,39 @@ class AuditFeedTest extends PostgresIntegrationTest {
     @Test
     void theGuardRefusesChangingWhatTheRecordSays() {
         AuditEvent event = begin(unique());
+        long id = event.getId();
 
-        assertThatThrownBy(() -> jdbc.update("UPDATE audit_event SET action = 'OTHER' WHERE id = ?", event.getId()))
+        assertThatThrownBy(() -> jdbc.update("UPDATE audit_event SET action = 'OTHER' WHERE id = ?", id))
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("only its outcome may be changed");
-        assertThatThrownBy(() -> jdbc.update("UPDATE audit_event SET username = 'x' WHERE id = ?", event.getId()))
+        assertThatThrownBy(() -> jdbc.update("UPDATE audit_event SET username = 'x' WHERE id = ?", id))
                 .isInstanceOf(DataAccessException.class);
     }
 
     @Test
     void theGuardRefusesChangingAFinishedOutcome() {
         AuditEvent event = begin(unique());
+        long id = event.getId();
         audit.succeed(event, 1);
 
-        assertThatThrownBy(() -> jdbc.update("UPDATE audit_event SET outcome = 'FAILURE' WHERE id = ?", event.getId()))
+        assertThatThrownBy(() -> jdbc.update("UPDATE audit_event SET outcome = 'FAILURE' WHERE id = ?", id))
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("final");
-        assertThatThrownBy(() -> jdbc.update("UPDATE audit_event SET affected_count = 9 WHERE id = ?", event.getId()))
+        assertThatThrownBy(() -> jdbc.update("UPDATE audit_event SET affected_count = 9 WHERE id = ?", id))
                 .isInstanceOf(DataAccessException.class);
     }
 
     @Test
     void aRefusalCanStillBeRecounted() {
         AuditEvent event = audit.refused(Actor.system(), unique(), "QUEUE", "orders", null, Map.of(), "no");
+        long id = event.getId();
 
         audit.recount(event, 5);
 
         assertThat(jdbc.queryForObject(
                         "SELECT affected_count FROM audit_event WHERE id = ?", Long.class, event.getId()))
                 .isEqualTo(5L);
-        assertThatThrownBy(() -> jdbc.update("UPDATE audit_event SET error = 'other' WHERE id = ?", event.getId()))
+        assertThatThrownBy(() -> jdbc.update("UPDATE audit_event SET error = 'other' WHERE id = ?", id))
                 .isInstanceOf(DataAccessException.class);
     }
 

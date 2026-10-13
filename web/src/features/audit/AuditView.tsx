@@ -312,6 +312,13 @@ const EXPORT_FORMATS: readonly { format: AuditExportFormat; label: string }[] = 
   { format: 'ndjson', label: 'NDJSON' },
 ];
 
+function exportLabel(total: number | undefined): string {
+  if (total === undefined) {
+    return 'The matching events, oldest first';
+  }
+  return `${total.toLocaleString()} matching ${total === 1 ? 'event' : 'events'}, oldest first`;
+}
+
 /**
  * Downloads what the filters show, oldest first. Each format is a plain link the browser follows, so the file
  * streams to disk and a long export can be cancelled there.
@@ -336,11 +343,7 @@ function ExportMenu({
           </Button>
         </Menu.Target>
         <Menu.Dropdown>
-          <Menu.Label>
-            {total === undefined
-              ? 'The matching events, oldest first'
-              : `${total.toLocaleString()} matching ${total === 1 ? 'event' : 'events'}, oldest first`}
-          </Menu.Label>
+          <Menu.Label>{exportLabel(total)}</Menu.Label>
           {EXPORT_FORMATS.map(({ format, label }) => (
             <Menu.Item key={format} component="a" href={auditExportHref(clusterId, filter, format)} download>
               {label}

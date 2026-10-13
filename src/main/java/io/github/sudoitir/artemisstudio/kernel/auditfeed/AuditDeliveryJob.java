@@ -78,15 +78,15 @@ class AuditDeliveryJob {
         auditGaps();
         List<String> due =
                 jdbc.queryForList("SELECT plugin_id FROM audit_receiver WHERE next_attempt_at <= now()", String.class);
-        List<? extends Future<?>> running = receivers.receivers().stream()
+        List<Future<Void>> running = receivers.receivers().stream()
                 .map(a -> a.handle().id())
                 .filter(due::contains)
                 .map(id -> calls.run(() -> deliver(id)))
                 .toList();
-        for (Future<?> f : running) {
+        for (Future<Void> f : running) {
             try {
                 f.get();
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
                 return;
             } catch (ExecutionException e) {
@@ -126,7 +126,7 @@ class AuditDeliveryJob {
                         return null;
                     },
                     settings.duration(AuditFeedSettings.TIMEOUT));
-        } catch (InterruptedException e) {
+        } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             return false;
         } catch (PluginCalls.Busy _) {

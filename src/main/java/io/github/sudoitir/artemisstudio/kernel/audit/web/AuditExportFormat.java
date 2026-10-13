@@ -19,6 +19,9 @@ enum AuditExportFormat {
     JSON("application/json"),
     NDJSON("application/x-ndjson");
 
+    private static final String PARAMS = "params";
+    private static final String OUTCOME_DETAIL = "outcomeDetail";
+
     private static final List<String> COLUMNS = List.of(
             "id",
             "ts",
@@ -34,8 +37,8 @@ enum AuditExportFormat {
             "requestId",
             "parentId",
             "sourceIp",
-            "params",
-            "outcomeDetail");
+            PARAMS,
+            OUTCOME_DETAIL);
 
     private static final CsvMapper CSV_MAPPER = CsvMapper.builder().build();
     private static final CsvSchema CSV_SCHEMA = CsvSchema.builder()
@@ -100,8 +103,8 @@ enum AuditExportFormat {
     /** Nested JSON for the two JSON formats. */
     private static Map<String, Object> json(AuditExportRow row, ObjectMapper mapper) {
         Map<String, Object> columns = columns(row);
-        columns.put("params", tree(row.event().params(), mapper));
-        columns.put("outcomeDetail", tree(row.outcomeDetail(), mapper));
+        columns.put(PARAMS, tree(row.event().params(), mapper));
+        columns.put(OUTCOME_DETAIL, tree(row.outcomeDetail(), mapper));
         return columns;
     }
 
@@ -139,8 +142,8 @@ enum AuditExportFormat {
         columns.put("requestId", e.requestId());
         columns.put("parentId", e.parentId());
         columns.put("sourceIp", e.sourceIp());
-        columns.put("params", e.params());
-        columns.put("outcomeDetail", row.outcomeDetail());
+        columns.put(PARAMS, e.params());
+        columns.put(OUTCOME_DETAIL, row.outcomeDetail());
         return columns;
     }
 }

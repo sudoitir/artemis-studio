@@ -11,5 +11,5 @@ import java.util.List;
 @PluginApi
 public interface AuditRetentionHold {
 
-    List<AuditHold> holds() throws Exception;
+    List<AuditHold> holds();
 }

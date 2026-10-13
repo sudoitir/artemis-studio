@@ -5,12 +5,17 @@ import io.github.sudoitir.artemisstudio.kernel.audit.AuditPosition;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard.Plan;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard.Purged;
+import java.sql.Array;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.PreparedStatementSetter;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -29,6 +34,30 @@ import org.springframework.transaction.support.TransactionTemplate;
 class AuditStore implements ManagedStore, HousekeepingContributor {
 
     private static final String TABLE = "audit_event";
+
+    /**
+     * Older than the cutoff, and either older than the longest a receiver is waited for, or acknowledged by every
+     * receiver (no floor, or at or below it), and covered by no hold. A hold is one row of the unnest: a null field
+     * matches anything, so a hold with no fields keeps everything and no holds keep nothing back.
+     */
+    private static final String ELIGIBLE = """
+            e.ts < ?
+              AND (e.ts < ? OR ? OR (e.pos_txid, e.pos_seq) <= (?::text::xid8, ?::bigint))
+              AND NOT EXISTS (
+                SELECT 1 FROM unnest(?::timestamptz[], ?::timestamptz[], ?::uuid[], ?::text[], ?::text[], ?::text[], ?::text[])
+                    AS h(f, t, c, u, a, tt, tn)
+                WHERE (h.f IS NULL OR e.ts >= h.f)
+                  AND (h.t IS NULL OR e.ts <= h.t)
+                  AND (h.c IS NULL OR e.cluster_id = h.c)
+                  AND (h.u IS NULL OR e.username = h.u)
+                  AND (h.a IS NULL OR e.action = h.a)
+                  AND (h.tt IS NULL OR e.target_type = h.tt)
+                  AND (h.tn IS NULL OR e.target_name = h.tn))""";
+
+    private static final String COUNT = "SELECT count(*) FROM audit_event e WHERE " + ELIGIBLE;
+
+    private static final String DELETE = "DELETE FROM audit_event WHERE id IN (SELECT e.id FROM audit_event e WHERE "
+            + ELIGIBLE + " ORDER BY e.id LIMIT ?) RETURNING pos_txid::text, pos_seq, ts";
 
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
@@ -58,10 +87,7 @@ class AuditStore implements ManagedStore, HousekeepingContributor {
 
     @Override
     public PurgeEstimate preview(Instant cutoff) {
-        List<Object> args = new ArrayList<>();
-        String where = where(cutoff, guard.plan(), args);
-        Long rows =
-                jdbc.queryForObject("SELECT count(*) FROM " + TABLE + " WHERE " + where, Long.class, args.toArray());
+        Long rows = jdbc.query(COUNT, binder(cutoff, guard.plan(), null), rs -> rs.next() ? rs.getLong(1) : 0L);
         StoreUsage usage = usage();
         long bytesPerRow = usage.rows() > 0 ? usage.bytes() / usage.rows() : 0;
         long n = rows == null ? 0 : rows;
@@ -74,17 +100,14 @@ class AuditStore implements ManagedStore, HousekeepingContributor {
      */
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
-        List<Object> args = new ArrayList<>();
-        String where = where(cutoff, guard.plan(), args);
-        args.add(limit);
+        PreparedStatementSetter binder = binder(cutoff, guard.plan(), limit);
         List<Purged> purged = tx.execute(status -> {
             List<Purged> removed = jdbc.query(
-                    "DELETE FROM " + TABLE + " WHERE id IN (SELECT id FROM " + TABLE + " WHERE " + where
-                            + " ORDER BY id LIMIT ?) RETURNING pos_txid::text, pos_seq, ts",
+                    DELETE,
+                    binder,
                     (rs, i) -> new Purged(
                             new AuditPosition(Long.parseLong(rs.getString(1)), rs.getLong(2)),
-                            rs.getTimestamp(3).toInstant()),
-                    args.toArray());
+                            rs.getTimestamp(3).toInstant()));
             guard.recordPurged(removed);
             return removed;
         });
@@ -92,41 +115,43 @@ class AuditStore implements ManagedStore, HousekeepingContributor {
     }
 
     /**
-     * Older than the cutoff, and either older than the longest a receiver is waited for or acknowledged by
-     * every receiver, and covered by no hold. Values are bound, never written into the SQL.
+     * Binds {@link #ELIGIBLE}: the cutoff, the longest an unacknowledged record is kept, the floor, and the holds as
+     * parallel arrays. Values are only ever bound, never written into the SQL.
      */
-    private static String where(Instant cutoff, Plan plan, List<Object> args) {
-        StringBuilder sql = new StringBuilder("ts < ? AND (ts < ?");
-        args.add(Timestamp.from(cutoff));
-        args.add(Timestamp.from(plan.maxAgeCutoff()));
-        if (plan.floor() == null) {
-            sql.append(" OR TRUE");
-        } else {
-            sql.append(" OR (pos_txid, pos_seq) <= (?::text::xid8, ?)");
-            args.add(Long.toString(plan.floor().txid()));
-            args.add(plan.floor().seq());
-        }
-        sql.append(")");
-        for (AuditHold hold : plan.holds()) {
-            sql.append(" AND NOT (");
-            List<String> conditions = new ArrayList<>();
-            condition(conditions, args, "ts >= ?", hold.from() == null ? null : Timestamp.from(hold.from()));
-            condition(conditions, args, "ts <= ?", hold.to() == null ? null : Timestamp.from(hold.to()));
-            condition(conditions, args, "cluster_id = ?", hold.clusterId());
-            condition(conditions, args, "username = ?", hold.username());
-            condition(conditions, args, "action = ?", hold.action());
-            condition(conditions, args, "target_type = ?", hold.targetType());
-            condition(conditions, args, "target_name = ?", hold.targetName());
-            sql.append(conditions.isEmpty() ? "TRUE" : String.join(" AND ", conditions))
-                    .append(")");
-        }
-        return sql.toString();
+    private static PreparedStatementSetter binder(Instant cutoff, Plan plan, Integer limit) {
+        return ps -> {
+            var connection = ps.getConnection();
+            List<AuditHold> holds = plan.holds();
+            int i = 1;
+            ps.setTimestamp(i++, Timestamp.from(cutoff));
+            ps.setTimestamp(i++, Timestamp.from(plan.maxAgeCutoff()));
+            ps.setBoolean(i++, plan.floor() == null);
+            if (plan.floor() == null) {
+                ps.setNull(i++, Types.VARCHAR);
+                ps.setNull(i++, Types.BIGINT);
+            } else {
+                ps.setString(i++, Long.toString(plan.floor().txid()));
+                ps.setLong(i++, plan.floor().seq());
+            }
+            ps.setArray(
+                    i++,
+                    array(connection, "timestamptz", holds, h -> h.from() == null ? null : Timestamp.from(h.from())));
+            ps.setArray(
+                    i++, array(connection, "timestamptz", holds, h -> h.to() == null ? null : Timestamp.from(h.to())));
+            ps.setArray(i++, array(connection, "uuid", holds, AuditHold::clusterId));
+            ps.setArray(i++, array(connection, "text", holds, AuditHold::username));
+            ps.setArray(i++, array(connection, "text", holds, AuditHold::action));
+            ps.setArray(i++, array(connection, "text", holds, AuditHold::targetType));
+            ps.setArray(i++, array(connection, "text", holds, AuditHold::targetName));
+            if (limit != null) {
+                ps.setInt(i, limit);
+            }
+        };
     }
 
-    private static void condition(List<String> conditions, List<Object> args, String sql, Object value) {
-        if (value != null) {
-            conditions.add(sql);
-            args.add(value);
-        }
+    private static Array array(
+            Connection connection, String type, List<AuditHold> holds, Function<AuditHold, Object> field)
+            throws SQLException {
+        return connection.createArrayOf(type, holds.stream().map(field).toArray());
     }
 }

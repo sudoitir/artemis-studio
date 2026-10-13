@@ -33,23 +33,39 @@ class PluginCalls {
         }
     }
 
-    private final Set<String> running = ConcurrentHashMap.newKeySet();
+    /** A checked failure of the plugin's own call, which {@link PluginHandle#runInPlugin} reports as {@link Exception}. */
+    static final class PluginCallFailed extends RuntimeException {
+
+        PluginCallFailed(Throwable cause) {
+            super(cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage(), cause);
+        }
+    }
+
+    private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
 
     /**
      * Runs {@code call} in the plugin; throws what it threw, or a {@link TimeoutException} after {@code timeout}.
      * A call that ignores its interrupt keeps running, so no second call under the same {@code key} starts
      * until it has really returned: it throws {@link Busy} instead.
      */
-    <T> T call(String key, PluginHandle handle, Callable<T> call, Duration timeout) throws Exception {
-        if (!running.add(key)) {
+    <T> T call(String key, PluginHandle handle, Callable<T> call, Duration timeout)
+            throws Busy, TimeoutException, InterruptedException {
+        if (!inFlight.add(key)) {
             throw new Busy(key);
         }
         Future<T> running = submit(key, handle, call);
         try {
             return running.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
-            throw e.getCause() instanceof Exception cause ? cause : e;
-        } catch (TimeoutException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException unchecked) {
+                throw unchecked;
+            }
+            if (cause instanceof Error error) {
+                throw error;
+            }
+            throw new PluginCallFailed(cause);
+        } catch (TimeoutException _) {
             running.cancel(true);
             throw new TimeoutException("Plugin \"%s\" did not answer within %s".formatted(handle.id(), timeout));
         } catch (InterruptedException e) {
@@ -64,17 +80,17 @@ class PluginCalls {
                 try {
                     return handle.runInPlugin(call);
                 } finally {
-                    this.running.remove(key);
+                    inFlight.remove(key);
                 }
             });
         } catch (RuntimeException e) {
-            this.running.remove(key);
+            inFlight.remove(key);
             throw e;
         }
     }
 
     /** Runs a task of this module's own on a virtual thread. */
-    Future<?> run(Runnable task) {
-        return executor.submit(task);
+    Future<Void> run(Runnable task) {
+        return executor.submit(task, null);
     }
 }

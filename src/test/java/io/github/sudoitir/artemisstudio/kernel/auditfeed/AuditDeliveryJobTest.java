@@ -146,7 +146,7 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
             inside.countDown();
             try {
                 release.await(30, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         };
@@ -168,7 +168,7 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
     @Test
     void aTimeoutCountsAsAFailureAndBacksTheReceiverOff() {
         jdbc.update("UPDATE audit_receiver SET failures = 20 WHERE plugin_id = ?", pluginId);
-        receiver.failure = new java.io.IOException("Bearer abcdefghijklmnop failed");
+        receiver.failure = new IllegalStateException("Bearer abcdefghijklmnop failed");
         write("a");
 
         job.deliver(pluginId);
@@ -273,7 +273,7 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
             while (waiting) {
                 try {
                     waiting = !release.await(30, TimeUnit.SECONDS);
-                } catch (InterruptedException ignored) {
+                } catch (InterruptedException _) {
                     // keeps running, as a stuck plugin does
                 }
             }
@@ -291,11 +291,13 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
 
             release.countDown();
             receiver.beforeAnswer = () -> {};
-            for (int i = 0; i < 50 && receiver.batches.size() < 2; i++) {
-                Thread.sleep(100);
-                job.deliver(pluginId);
-            }
-            assertThat(receiver.batches).hasSizeGreaterThanOrEqualTo(2);
+            // The stuck call returns on its own thread; until it has, the receiver is skipped.
+            org.awaitility.Awaitility.await()
+                    .atMost(java.time.Duration.ofSeconds(10))
+                    .until(() -> {
+                        job.deliver(pluginId);
+                        return receiver.batches.size() >= 2;
+                    });
         } finally {
             release.countDown();
             settings.reset(AuditFeedSettings.TIMEOUT);

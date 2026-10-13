@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.audit;
 
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditFilter;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditEventView;
 import io.github.sudoitir.artemisstudio.kernel.audit.web.AuditViews.AuditExportRow;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
@@ -59,18 +60,8 @@ public class AuditQueryService {
     public PagedView<AuditEventView> page(UUID clusterId, AuditQuery query) {
         clusterAccess.requireVisible(clusterId);
         Scope scope = scope(clusterId);
-        Page<AuditEventEntity> result = events.findPage(
-                clusterId,
-                scope.everything(),
-                scope.queues(),
-                scope.addresses(),
-                blankToNull(query.username()),
-                blankToNull(query.action()),
-                blankToNull(query.outcome()),
-                query.parentId(),
-                from(query),
-                to(query),
-                PageRequest.of(query.page() - 1, query.size()));
+        Page<AuditEventEntity> result =
+                events.findPage(filter(clusterId, scope, query), PageRequest.of(query.page() - 1, query.size()));
         return PagedView.of(result, e -> toView(e, scope.redaction()));
     }
 
@@ -139,17 +130,8 @@ public class AuditQueryService {
         long[] written = {0};
         try {
             transactions.executeWithoutResult(tx -> {
-                try (Stream<AuditEventEntity> rows = events.streamFiltered(
-                        export.clusterId,
-                        export.scope.everything(),
-                        export.scope.queues(),
-                        export.scope.addresses(),
-                        blankToNull(export.query.username()),
-                        blankToNull(export.query.action()),
-                        blankToNull(export.query.outcome()),
-                        export.query.parentId(),
-                        from(export.query),
-                        to(export.query))) {
+                try (Stream<AuditEventEntity> rows =
+                        events.streamFiltered(filter(export.clusterId, export.scope, export.query))) {
                     rows.forEach(e -> {
                         if (!e.getId().equals(export.event.getId())) {
                             sink.accept(new AuditExportRow(
@@ -185,6 +167,20 @@ public class AuditQueryService {
                 everything ? List.of("") : readable(clusterId, "QUEUE", ResourceKind.QUEUE),
                 everything ? List.of("") : readable(clusterId, "ADDRESS", ResourceKind.ADDRESS),
                 everything ? null : redaction(clusterId));
+    }
+
+    private static AuditFilter filter(UUID clusterId, Scope scope, AuditQuery query) {
+        return new AuditFilter(
+                clusterId,
+                scope.everything(),
+                scope.queues(),
+                scope.addresses(),
+                blankToNull(query.username()),
+                blankToNull(query.action()),
+                blankToNull(query.outcome()),
+                query.parentId(),
+                from(query),
+                to(query));
     }
 
     private static Instant from(AuditQuery query) {
