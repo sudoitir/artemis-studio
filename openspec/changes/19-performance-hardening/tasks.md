@@ -35,10 +35,10 @@
 
 ## 6. U5 Database configuration
 
-- [ ] 6.1 HikariCP settings and connection timeouts in `application.yml`; remove `spring.task.scheduling`
-- [ ] 6.2 `SET LOCAL statement_timeout` for SQL console, exports, lifecycle preview, partition maintenance
-- [ ] 6.3 One `deploy/postgres/postgresql.conf` mounted by prod, HA and dev compose; remove the `-c` lists and `postgresql.tuning.conf`; update CLAUDE.md's pointer
-- [ ] 6.4 ADR: connection budget and the shipped Postgres configuration
+- [x] 6.1 HikariCP settings and connection timeouts in `application.yml`; remove `spring.task.scheduling`
+- [x] 6.2 `SET LOCAL statement_timeout` for SQL console, exports, lifecycle preview, partition maintenance
+- [x] 6.3 One `deploy/postgres/postgresql.conf` mounted by prod, HA and dev compose; remove the `-c` lists and `postgresql.tuning.conf`; update CLAUDE.md's pointer
+- [x] 6.4 ADR: connection budget and the shipped Postgres configuration
 
 ## 7. U6 Limits (performance-sizing)
 
