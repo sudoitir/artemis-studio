@@ -466,7 +466,9 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
         List<String> fillerIds = new ArrayList<>();
         int max = Integer.parseInt(
                 jdbc.queryForObject("SHOW max_connections", String.class).trim());
-        int needed = (int) Math.ceil((max * 0.8 - 16) / 3.0) + 1;
+        int core = host.connectionBudget().inUse()
+                - 3 * (int) installs.countByStatus(PluginInstallStatus.ACTIVE.dbValue());
+        int needed = (int) Math.ceil((max * 0.8 - core) / 3.0) + 1;
         try {
             for (int i = 0; i < needed; i++) {
                 String fillerId = uniqueId("budget-filler-" + i);

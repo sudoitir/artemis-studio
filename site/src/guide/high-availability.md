@@ -24,7 +24,9 @@ docker compose -f deploy/compose/compose.ha.yaml --env-file .env up -d
 it kills the replica that owns a cluster, then stops the other gracefully, and checks that no
 request fails during the graceful stop and no stream event is lost. The second replica starts after
 the first is ready, so schema migrations run once. Postgres itself is a single container here: its
-availability is yours to provide (a managed service, Patroni, …).
+availability is yours to provide (a managed service, Patroni, …): see
+[Running Studio on an external PostgreSQL](/reference/external-database) for the failover URL, the privileges
+and the connection budget.
 
 Every replica must use the same `ARTEMIS_STUDIO_SECRET_KEY` and the same database.
 
