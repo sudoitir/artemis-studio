@@ -1,6 +1,7 @@
 # ADR-0144: Password policy, account lockout and sign-in limits
 
 - **Status**: accepted
+- **Amended by**: [ADR-0196](0196-heavy-request-permits-and-limits-are-counted-across-replicas-in-postgresql.md) — the failed sign-in throttle is counted in PostgreSQL, across replicas
 - **Date**: 2026-09-30
 - **Deciders**: Mahdi Amirabdollahi
 

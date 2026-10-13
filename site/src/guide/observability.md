@@ -79,6 +79,7 @@ the same names. `node` is always the broker's `host:port`, never its URL.
 | `studio_job_seconds_{count,sum,max}{job_id,feature,error}` | Job runs. `error` is `none` for a run that succeeded. |
 | `studio_broker_management_seconds_{count,sum,max}{node,outcome,error}` | Jolokia management calls. `outcome` is `SUCCESS` or `ERROR`. The series with `quantile="0.95"` is the 95th percentile. |
 | `studio_broker_requests_total{node}` | Management requests Studio admitted to a node. |
+| `studio_broker_calls_total{kind}` | Management requests Studio sent to brokers, by kind: `single`, `batch` (a batched read), `core` (the Core client) or `transfer`. |
 | `studio_broker_permit_wait_seconds_{count,sum,max}{node}` | Time requests waited for that node's rate ceiling. |
 | `studio_broker_permit_timeouts_total{node}` | Requests refused because the ceiling stayed full for 5 seconds. |
 | `studio_broker_core_seconds_{count,sum,max}{node,operation,error}` | Core transport calls. |
