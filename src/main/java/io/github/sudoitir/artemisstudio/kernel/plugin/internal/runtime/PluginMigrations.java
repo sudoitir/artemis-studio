@@ -39,7 +39,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  *       the same plugin (across a multi-instance deployment sharing one Postgres) without a
  *       schema-qualified lock table;
  *   <li>{@code CREATE SCHEMA IF NOT EXISTS};
- *   <li>Liquibase's own {@code release-locks}, then {@code tag pre-<version>}, then {@code update};
+ *   <li>{@code tag pre-<version>}, then {@code update};
  *   <li>a guard: no new relation in Studio's own schema (the current schema of Studio's connections;
  *       schema conventions non-negotiable — a plugin's own tables live only in its own schema) and no
  *       foreign key from the plugin's schema into it. A violation rolls back to the pre-update tag (best effort) and always

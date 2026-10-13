@@ -729,24 +729,24 @@ class PluginLifecycleIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void staleLiquibaseLockIsReleasedOnTheNextActivation() throws Exception {
-        String id = uniqueId("acme-stalelock");
-        String schema = "plugin_" + id.replace('-', '_');
+    void anActivationWhoseHolderDiedDoesNotBlockTheNextOne() throws Exception {
+        String id = uniqueId("acme-deadholder");
         String shaV1 = upload(lifeJar(id, "1.0.0", true));
         host.activate(shaV1, "tester", false);
         runtimeIds.add(id);
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
-        assertThat(countTables(schema, "life_note")).isEqualTo(1);
 
-        // Simulate an activation that crashed mid-migration, leaving Liquibase's own lock held.
-        jdbc.update(
-                "UPDATE " + quoteIdent(schema)
-                        + ".databasechangeloglock SET locked = true, lockgranted = now(), lockedby = 'stale-test' WHERE id = 1");
+        // An activation that crashed mid-migration held the plugin's session lock; its connection closing frees it.
+        try (var holder = java.sql.DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+            try (var ps = holder.prepareStatement("SELECT pg_advisory_lock(hashtext(?))")) {
+                ps.setString(1, "plugin:" + id);
+                ps.execute();
+            }
+        }
 
         String shaV2 = upload(lifeJar(id, "2.0.0", true));
-        // (2.0.0 has the same single changeset as 1.0.0, already applied — an Instant, no-op
-        // migration step — but PluginMigrations.migrate() still runs release-locks first either way.)
         host.activate(shaV2, "tester", false);
         awaitVersion(id, "2.0.0");
     }
@@ -761,9 +761,5 @@ class PluginLifecycleIntegrationTest extends PostgresIntegrationTest {
                 .isInstanceOf(PluginStoreException.class)
                 .hasMessageContaining("corrupt");
         assertThat(host.status(id)).isEmpty();
-    }
-
-    private static String quoteIdent(String identifier) {
-        return "\"" + identifier.replace("\"", "\"\"") + "\"";
     }
 }
