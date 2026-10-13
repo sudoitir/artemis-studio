@@ -50,9 +50,9 @@
 
 ## 8. U7 Stream (realtime-stream)
 
-- [ ] 8.1 Subscriber bounds (1,000 frames, 1 MiB), signal coalescing, bounded replay hold buffer with resync, drop rule with `reconnect`, `studio.sse.dropped`
-- [ ] 8.2 Verify `broker_event.seq` replay against late commits; switch to `(txid, seq)` if needed
-- [ ] 8.3 ADR: stream backpressure (amends 0018)
+- [x] 8.1 Subscriber bounds (1,000 frames, 1 MiB), signal coalescing, bounded replay hold buffer with resync, drop rule with `reconnect`, `studio.sse.dropped`
+- [x] 8.2 Verify `broker_event.seq` replay against late commits; switch to `(txid, seq)` if needed
+- [x] 8.3 ADR: stream backpressure (amends 0018)
 
 ## 9. U8 Grids (operator-ui)
 
