@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.plugin.internal.host;
 
+import com.zaxxer.hikari.HikariDataSource;
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownPhases;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus;
@@ -854,8 +855,8 @@ public class PluginHost implements SmartLifecycle {
     // ---- connection budget ----------------------------------------------------------------------
 
     /**
-     * design.md §2: 16 core connections plus 3 per active plugin, against 80% of Postgres'
-     * {@code max_connections}.
+     * design.md §2: the core connections (the pool and the listening connection) plus 3 per active
+     * plugin, against 80% of Postgres' {@code max_connections}.
      *
      * @param inUse what the active plugins need now, core included
      * @param limit the most activation may reach
@@ -866,10 +867,18 @@ public class PluginHost implements SmartLifecycle {
         int max = readMaxConnections();
         int active = (int) installs.countByStatus(PluginInstallStatus.ACTIVE.dbValue());
         return new ConnectionBudget(
-                max, CORE_CONNECTIONS + POOL_PER_PLUGIN * active, (int) (max * 0.8), POOL_PER_PLUGIN);
+                max, coreConnections() + POOL_PER_PLUGIN * active, (int) (max * 0.8), POOL_PER_PLUGIN);
     }
 
-    private static final int CORE_CONNECTIONS = 16;
+    /** The configured pool plus the one connection the bus listens on. */
+    private int coreConnections() {
+        try {
+            return dataSource.unwrap(HikariDataSource.class).getMaximumPoolSize() + 1;
+        } catch (SQLException e) {
+            throw new IllegalStateException("The core datasource is not a Hikari pool", e);
+        }
+    }
+
     private static final int POOL_PER_PLUGIN = 3;
 
     // ---- plan ---------------------------------------------------------------------------------
@@ -1734,7 +1743,7 @@ public class PluginHost implements SmartLifecycle {
     }
 
     /**
-     * design.md §2: activation is refused, with the reason, once 16 core connections plus 3 per
+     * design.md §2: activation is refused, with the reason, once the core connections plus 3 per
      * active plugin (counting this one) would exceed 80% of Postgres' own {@code max_connections}.
      */
     private void checkConnectionBudget(String pluginId) {
@@ -1743,14 +1752,15 @@ public class PluginHost implements SmartLifecycle {
                 .map(e -> e.status() == PluginInstallStatus.ACTIVE)
                 .orElse(false);
         long activeInclThis = alreadyActive ? activeCount : activeCount + 1;
-        int needed = CORE_CONNECTIONS + POOL_PER_PLUGIN * (int) activeInclThis;
+        int core = coreConnections();
+        int needed = core + POOL_PER_PLUGIN * (int) activeInclThis;
         int max = readMaxConnections();
         int threshold = (int) (max * 0.8);
         if (needed > threshold) {
             throw new PluginRefusedException(List.of(new Violation(
                     "connection-budget",
-                    "Activating would need %d connections (16 core + 3 x %d active plugins), over 80%% of max_connections=%d (%d)."
-                            .formatted(needed, activeInclThis, max, threshold),
+                    "Activating would need %d connections (%d core + 3 x %d active plugins), over 80%% of max_connections=%d (%d)."
+                            .formatted(needed, core, activeInclThis, max, threshold),
                     "Disable another plugin first, or raise Postgres' max_connections.")));
         }
     }

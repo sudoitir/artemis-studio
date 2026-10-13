@@ -28,6 +28,7 @@ import liquibase.database.DatabaseFactory;
 import liquibase.database.jvm.JdbcConnection;
 import liquibase.parser.ChangeLogParserFactory;
 import liquibase.resource.ZipResourceAccessor;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * Applies a plugin's own {@code db/changelog/plugin/<id>/changelog.xml} into its own schema
@@ -40,9 +41,9 @@ import liquibase.resource.ZipResourceAccessor;
  *       schema-qualified lock table;
  *   <li>{@code CREATE SCHEMA IF NOT EXISTS};
  *   <li>Liquibase's own {@code release-locks}, then {@code tag pre-<version>}, then {@code update};
- *   <li>a guard: no new relation in {@code public} (schema conventions non-negotiable — a plugin's
- *       own tables live only in its own schema) and no foreign key from the plugin's schema into
- *       {@code public}. A violation rolls back to the pre-update tag (best effort) and always
+ *   <li>a guard: no new relation in Studio's own schema (the current schema of Studio's connections;
+ *       schema conventions non-negotiable — a plugin's own tables live only in its own schema) and no
+ *       foreign key from the plugin's schema into it. A violation rolls back to the pre-update tag (best effort) and always
  *       fails the activation with a clear message.
  * </ol>
  *
@@ -53,7 +54,14 @@ import liquibase.resource.ZipResourceAccessor;
  * directly (the spike found this).
  */
 @org.springframework.stereotype.Component
+@lombok.extern.slf4j.Slf4j
 public class PluginMigrations {
+
+    private final JdbcTemplate core;
+
+    public PluginMigrations(JdbcTemplate core) {
+        this.core = core;
+    }
 
     private static final String CHANGELOG_PATH_TEMPLATE = "db/changelog/plugin/%s/changelog.xml";
 
@@ -85,7 +93,8 @@ public class PluginMigrations {
                 executeUpdate(connection, "CREATE SCHEMA IF NOT EXISTS " + quoteIdent(schema));
                 Database database = openDatabase(connection, schema);
                 String tag = "pre-" + version;
-                Set<String> publicBefore = publicRelations(connection);
+                String coreSchema = core.queryForObject("SELECT current_schema()", String.class);
+                Set<String> publicBefore = coreRelations(connection, coreSchema);
 
                 withResourceAccessor(jarPath, accessor -> {
                     releaseLocks(database);
@@ -101,11 +110,11 @@ public class PluginMigrations {
                     return null;
                 });
 
-                Set<String> publicAfter = publicRelations(connection);
+                Set<String> publicAfter = coreRelations(connection, coreSchema);
                 publicAfter.removeAll(publicBefore);
-                List<String> foreignKeysIntoPublic = foreignKeysFromSchemaIntoPublic(connection, schema);
+                List<String> foreignKeysIntoPublic = foreignKeysFromSchemaIntoCore(connection, schema, coreSchema);
                 if (!publicAfter.isEmpty() || !foreignKeysIntoPublic.isEmpty()) {
-                    String reason = violationMessage(publicAfter, foreignKeysIntoPublic);
+                    String reason = violationMessage(coreSchema, publicAfter, foreignKeysIntoPublic);
                     try {
                         rollbackToTag(database, tag, jarPath, pluginId);
                     } catch (Exception rollbackFailure) {
@@ -286,10 +295,16 @@ public class PluginMigrations {
         }
     }
 
-    private void releaseAdvisoryLock(Connection connection, String pluginId) throws java.sql.SQLException {
+    /** A connection that dropped has lost the session lock with it, so a failed release is not an error. */
+    private void releaseAdvisoryLock(Connection connection, String pluginId) {
         try (var ps = connection.prepareStatement("SELECT pg_advisory_unlock(hashtext(?))")) {
             ps.setString(1, "plugin:" + pluginId);
             ps.execute();
+        } catch (java.sql.SQLException e) {
+            log.warn(
+                    "Could not release the activation lock of plugin '{}', the connection is gone: {}",
+                    pluginId,
+                    e.getMessage());
         }
     }
 
@@ -299,24 +314,26 @@ public class PluginMigrations {
         }
     }
 
-    private Set<String> publicRelations(Connection connection) throws java.sql.SQLException {
+    private Set<String> coreRelations(Connection connection, String coreSchema) throws java.sql.SQLException {
         Set<String> relations = new HashSet<>();
-        try (Statement st = connection.createStatement();
-                ResultSet rs = st.executeQuery("""
-                        SELECT c.relname FROM pg_class c
-                        JOIN pg_namespace n ON n.oid = c.relnamespace
-                        WHERE n.nspname = 'public'
-                          AND c.relkind IN ('r', 'v', 'm', 'S')
-                          AND NOT c.relispartition
-                        """)) {
-            while (rs.next()) {
-                relations.add(rs.getString(1));
+        try (var ps = connection.prepareStatement("""
+                SELECT c.relname FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = ?
+                  AND c.relkind IN ('r', 'v', 'm', 'S')
+                  AND NOT c.relispartition
+                """)) {
+            ps.setString(1, coreSchema);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    relations.add(rs.getString(1));
+                }
             }
         }
         return relations;
     }
 
-    private List<String> foreignKeysFromSchemaIntoPublic(Connection connection, String schema)
+    private List<String> foreignKeysFromSchemaIntoCore(Connection connection, String schema, String coreSchema)
             throws java.sql.SQLException {
         List<String> violations = new ArrayList<>();
         try (var ps = connection.prepareStatement("""
@@ -326,9 +343,10 @@ public class PluginMigrations {
                 JOIN pg_namespace clns ON clns.oid = cl.relnamespace
                 JOIN pg_class fcl ON fcl.oid = con.confrelid
                 JOIN pg_namespace fclns ON fclns.oid = fcl.relnamespace
-                WHERE con.contype = 'f' AND clns.nspname = ? AND fclns.nspname = 'public'
+                WHERE con.contype = 'f' AND clns.nspname = ? AND fclns.nspname = ?
                 """)) {
             ps.setString(1, schema);
+            ps.setString(2, coreSchema);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     violations.add(rs.getString(1) + " (on " + rs.getString(2) + ")");
@@ -338,15 +356,16 @@ public class PluginMigrations {
         return violations;
     }
 
-    private String violationMessage(Set<String> newPublicRelations, List<String> foreignKeysIntoPublic) {
+    private String violationMessage(
+            String coreSchema, Set<String> newPublicRelations, List<String> foreignKeysIntoPublic) {
         StringBuilder sb = new StringBuilder("The plugin's changelog violates the schema-confinement rule:");
         if (!newPublicRelations.isEmpty()) {
-            sb.append(" created relation(s) in the shared public schema: ")
+            sb.append(" created relation(s) in Studio's own schema (" + coreSchema + "): ")
                     .append(newPublicRelations)
                     .append('.');
         }
         if (!foreignKeysIntoPublic.isEmpty()) {
-            sb.append(" foreign key(s) reaching from the plugin's schema into public: ")
+            sb.append(" foreign key(s) reaching from the plugin's schema into " + coreSchema + ": ")
                     .append(foreignKeysIntoPublic)
                     .append('.');
         }
