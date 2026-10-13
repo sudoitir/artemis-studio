@@ -2,11 +2,12 @@ package io.github.sudoitir.artemisstudio.kernel.core.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
-import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
+import io.github.sudoitir.artemisstudio.kernel.jobs.JobRunner;
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -16,6 +17,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.CorePool;
 import io.github.sudoitir.artemisstudio.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.artemisstudio.support.ArtemisIntegrationTest;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -29,6 +31,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.web.context.WebApplicationContext;
 import org.yaml.snakeyaml.Yaml;
 import tools.jackson.databind.json.JsonMapper;
@@ -41,7 +45,18 @@ import tools.jackson.databind.json.JsonMapper;
 class ObservabilityAssetsIntegrationTest extends PostgresIntegrationTest {
 
     private static final Path ASSETS = Path.of("deploy/observability");
+    private static final String ASSETS_JOB = "assets-test";
     private static final Pattern METRIC = Pattern.compile("\\b(?:studio|hikaricp|jvm)_\\w+");
+
+    /** A job that runs often, so the {@code studio.job} timer the dashboard queries exists. */
+    @TestConfiguration(proxyBeanMethods = false)
+    static class AssetsJob {
+        @Bean
+        ScheduledJob assetsTestJob() {
+            return ScheduledJob.fixedDelay(
+                    ASSETS_JOB, "assets-test", ScheduledJob.Scope.INSTANCE, () -> Duration.ofMillis(50), () -> {});
+        }
+    }
 
     @Autowired
     WebApplicationContext webContext;
@@ -53,7 +68,10 @@ class ObservabilityAssetsIntegrationTest extends PostgresIntegrationTest {
     CorePool corePool;
 
     @Autowired
-    JobStatuses jobs;
+    JobRunner jobs;
+
+    @Autowired
+    MeterRegistry meters;
 
     @Autowired
     NodeCallLimiter limiter;
@@ -102,10 +120,8 @@ class ObservabilityAssetsIntegrationTest extends PostgresIntegrationTest {
                                 null,
                                 true))
                 .close();
-        String job = "assets-test-" + UUID.randomUUID();
-        jobs.instrument(ScheduledJob.fixedDelay(
-                        job, "assets-test", ScheduledJob.Scope.INSTANCE, () -> Duration.ofMinutes(1), () -> {}))
-                .run();
+        await().atMost(Duration.ofSeconds(10))
+                .until(() -> meters.find("studio.job").tag("job.id", ASSETS_JOB).timer() != null);
         // A permit that cannot come within the wait is the only way a timeout counter exists. The
         // once-a-second refill is a job, so pausing the jobs lets the bucket stay empty for the wait.
         String node = "http://assets-test:8161/console/jolokia";

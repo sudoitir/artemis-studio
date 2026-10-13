@@ -82,7 +82,7 @@ public class MessageIndexCapture {
     }
 
     /**
-     * Registered with {@code JobScheduler}; the tail poller does the actual reading. Only the owner of a
+     * Registered with {@code JobRunner}; the tail poller does the actual reading. Only the owner of a
      * cluster tails it, so a subscription of a cluster this replica does not own is not wanted here and
      * its tail is stopped.
      */

@@ -41,7 +41,7 @@ public class MetricPartitionMaintainer {
         this.transactions = transactions;
     }
 
-    /** Scheduled by {@code JobScheduler} on a settings-driven cron, at a quiet hour. Idempotent. */
+    /** Scheduled by {@code JobRunner} on a settings-driven cron, at a quiet hour. Idempotent. */
     public void maintain() {
         createAhead();
     }

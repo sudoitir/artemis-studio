@@ -111,7 +111,7 @@ public class CaptureReconciler {
         Thread.startVirtualThread(() -> consumers.stopCluster(released.clusterId()));
     }
 
-    /** Registered with {@code JobScheduler}. One pass per owned cluster that captures anything. */
+    /** Registered with {@code JobRunner}. One pass per owned cluster that captures anything. */
     public void reconcile() {
         for (UUID clusterId : capturingClusters()) {
             if (ownership.owns(clusterId)) {

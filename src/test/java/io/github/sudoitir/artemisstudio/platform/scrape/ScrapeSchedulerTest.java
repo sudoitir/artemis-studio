@@ -18,7 +18,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccount;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -117,12 +116,7 @@ class ScrapeSchedulerTest {
                 metrics,
                 new StreamSignals(org.mockito.Mockito.mock(SseHub.class)),
                 coreSubscriptions,
-                eventPublisher,
-                new JobStatuses(
-                        new net.javacrumbs.shedlock.core.DefaultLockingTaskExecutor(
-                                config -> java.util.Optional.of(() -> {})),
-                        io.micrometer.observation.ObservationRegistry.NOOP,
-                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
+                eventPublisher);
     }
 
     @AfterEach

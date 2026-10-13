@@ -108,7 +108,7 @@ public class BrokerEventWriter implements BrokerEventSink {
     }
 
     /**
-     * Scheduled by {@code JobScheduler} on the settings-driven flush interval, and run once
+     * Scheduled by {@code JobRunner} on the settings-driven flush interval, and run once
      * more at shutdown. A batch whose insert fails is put back at the head of the buffer,
      * in order, and the failure is rethrown so the job reports it: a database outage delays
      * events rather than discarding the batch that happened to be in flight. A batch the

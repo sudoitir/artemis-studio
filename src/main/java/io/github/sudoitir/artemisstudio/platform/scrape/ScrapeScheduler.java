@@ -1,7 +1,5 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
-import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
-import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerListOps;
@@ -35,12 +33,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.NestedExceptionUtils;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -73,9 +69,7 @@ import tools.jackson.databind.JsonNode;
 @DependsOn("settingsService")
 @RequiredArgsConstructor
 @Slf4j
-public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBean {
-
-    private static final String FEATURE = "scrape";
+public class ScrapeScheduler implements DisposableBean {
 
     /**
      * How long a tier A pass waits for its probes before it carries on without the ones still
@@ -92,53 +86,6 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
 
     /** Where tier A probes run: one virtual thread each, so a stalled node holds nothing but its own. */
     private final ExecutorService probes = Executors.newVirtualThreadPerTaskExecutor();
-
-    /**
-     * Schedules the tiers as trigger tasks whose {@code nextExecution} re-reads
-     * {@link SettingsService} every fire (ADR-0025), so a cadence change in Settings applies
-     * without a restart. Replaces the SpEL-bound
-     * {@code @Scheduled(fixedDelayString = "#{@settingsService…}")} that resolved once at wiring
-     * time. Fixed-delay semantics are preserved: the trigger reads {@code lastCompletion} (falling
-     * back to {@code lastActualExecution}, then "now") and adds the current interval. They run on
-     * a pool of their own, never the one other scheduled jobs share, so broker I/O never delays
-     * them and they never delay it.
-     */
-    @Override
-    public void afterSingletonsInstantiated() {
-        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        tierScheduler = scheduler;
-        scheduler.setPoolSize(4);
-        scheduler.setThreadNamePrefix("scrape-");
-        scheduler.initialize();
-
-        for (ScheduledJob tier : List.of(
-                ScheduledJob.fixedDelay(
-                        "scrape-tier-a",
-                        FEATURE,
-                        ScheduledJob.Scope.INSTANCE,
-                        () -> settings.duration(ScrapeSettings.TIER_A),
-                        this::tierA),
-                ScheduledJob.fixedDelay(
-                        "scrape-tier-b",
-                        FEATURE,
-                        ScheduledJob.Scope.INSTANCE,
-                        () -> settings.duration(ScrapeSettings.TIER_B),
-                        this::tierB),
-                ScheduledJob.fixedDelay(
-                        "scrape-tier-c",
-                        FEATURE,
-                        ScheduledJob.Scope.INSTALLATION,
-                        () -> settings.duration(ScrapeSettings.TIER_C),
-                        this::tierC),
-                ScheduledJob.fixedDelay(
-                        "scrape-discovery",
-                        FEATURE,
-                        ScheduledJob.Scope.INSTALLATION,
-                        () -> settings.duration(ScrapeSettings.DISCOVERY),
-                        this::discovery))) {
-            scheduler.schedule(jobStatuses.instrument(tier), jobStatuses.trigger(tier));
-        }
-    }
 
     private static final String[] HA_ATTRS = {
         "Active", "Started", "Backup", "ReplicaSync", "NodeID", "Clustered", "Version"
@@ -159,39 +106,15 @@ public class ScrapeScheduler implements SmartInitializingSingleton, DisposableBe
     private final StreamSignals streamSignals;
     private final CoreSubscriptionManager coreSubscriptions;
     private final ApplicationEventPublisher eventPublisher;
-    private final JobStatuses jobStatuses;
-
-    /** The tiers' own pool, built when tasks are configured. */
-    private volatile ThreadPoolTaskScheduler tierScheduler;
 
     private record QueuesPage(List<QueueRow> rows, long count) {}
 
     // ---- tiers -------------------------------------------------------------
 
-    /** Pause the tiers. A tier already running finishes; the broker-call gate refuses what it starts. */
-    public void stopTiers() {
-        ThreadPoolTaskScheduler scheduler = tierScheduler;
-        if (scheduler != null) {
-            scheduler.stop();
-        }
-    }
-
-    /** Resume the tiers after a stopped context has been started. */
-    public void startTiers() {
-        ThreadPoolTaskScheduler scheduler = tierScheduler;
-        if (scheduler != null) {
-            scheduler.start();
-        }
-    }
-
-    /** The pool is not a bean, so nothing else ends its threads when the context closes. */
+    /** The probes' threads are not a bean's, so nothing else ends them when the context closes. */
     @Override
     public void destroy() {
         probes.shutdownNow();
-        ThreadPoolTaskScheduler scheduler = tierScheduler;
-        if (scheduler != null) {
-            scheduler.shutdown();
-        }
     }
 
     /** Tiers A and B visit the clusters this replica owns; C and discovery run once for all (ShedLock). */

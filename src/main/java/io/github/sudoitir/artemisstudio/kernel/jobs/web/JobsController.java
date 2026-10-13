@@ -36,11 +36,29 @@ public class JobsController {
             @Schema(nullable = true) Instant lastStart,
             @Schema(nullable = true) Instant lastEnd,
 
-            @Schema(nullable = true, description = "The most recent run's failure; absent once a later run succeeds.")
+            @Schema(nullable = true, description = "How the most recent run ended; absent until one has.")
+            JobStatus.Outcome lastOutcome,
+
+            @Schema(
+                    nullable = true,
+                    description = "Why the most recent run did not succeed; absent once a later run succeeds.")
             String lastError,
 
             @Schema(requiredMode = REQUIRED) long runs,
-            @Schema(requiredMode = REQUIRED) long failures,
+
+            @Schema(requiredMode = REQUIRED, description = "Runs that did not succeed, for any reason.")
+            long failures,
+
+            @Schema(requiredMode = REQUIRED, description = "Runs interrupted for exceeding the job's timeout.")
+            long timeouts,
+
+            @Schema(
+                    requiredMode = REQUIRED,
+                    description = "Runs interrupted because the installation-wide lock could not be extended.")
+            long lockLost,
+
+            @Schema(requiredMode = REQUIRED, description = "Runs that lasted past the time the next was due.")
+            long overruns,
 
             @Schema(nullable = true, description = "When the scheduler next intends to start it.")
             Instant nextRun,
@@ -51,9 +69,14 @@ public class JobsController {
             Instant lastSkippedElsewhere,
 
             @Schema(
+                    nullable = true,
+                    description = "Why the job's schedule cannot be read; the job does not run until it can.")
+            String invalidSchedule,
+
+            @Schema(
                     requiredMode = REQUIRED,
                     description =
-                            "Whether no run has finished, here or elsewhere, within three of the job's intervals.")
+                            "Whether the schedule is invalid, or no run has finished, here or elsewhere, within three of the job's intervals.")
             boolean degraded) {
 
         static JobStatusView of(JobStatus s, Instant now) {
@@ -63,11 +86,16 @@ public class JobsController {
                     s.scope(),
                     s.lastStart(),
                     s.lastEnd(),
+                    s.lastOutcome(),
                     s.lastError(),
                     s.runs(),
                     s.failures(),
+                    s.timeouts(),
+                    s.lockLost(),
+                    s.overruns(),
                     s.nextRun(),
                     s.lastSkippedElsewhere(),
+                    s.invalidSchedule(),
                     s.degraded(now));
         }
     }

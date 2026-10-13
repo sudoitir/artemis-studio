@@ -25,10 +25,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 public abstract class PostgresIntegrationTest {
 
     /**
-     * The scheduled scrape tiers would otherwise run inside the shared context and call
-     * whichever {@code BrokerConnections} a test has mocked, consuming the canned Jolokia
-     * responses that test queued for its own requests. A mock configures no tasks, so no
-     * tier is scheduled; no test relies on background scraping, and
+     * The scrape tiers would otherwise run inside the shared context and call whichever
+     * {@code BrokerConnections} a test has mocked, consuming the canned Jolokia
+     * responses that test queued for its own requests. The mock's tier methods do nothing, so the
+     * runner's tier jobs run and change nothing; no test relies on background scraping, and
      * {@code ScrapeSchedulerTest} drives the tiers directly.
      */
     @MockitoBean
