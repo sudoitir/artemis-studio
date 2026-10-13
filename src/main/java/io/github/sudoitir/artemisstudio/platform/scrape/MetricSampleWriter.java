@@ -33,13 +33,13 @@ public class MetricSampleWriter {
     private static final String INSERT = """
             INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
             VALUES (now(), :value, 'QUEUE', :subjectName, :metric, :clusterId, :nodeId)
-            ON CONFLICT DO NOTHING
+            ON CONFLICT ON CONSTRAINT uq_metric_sample DO NOTHING
             """;
 
     private static final String PLUGIN_INSERT = """
             INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
             VALUES (now(), :value, 'PLUGIN', :subjectName, :metric, :clusterId, NULL)
-            ON CONFLICT DO NOTHING
+            ON CONFLICT ON CONSTRAINT uq_metric_sample DO NOTHING
             """;
 
     private final NamedParameterJdbcTemplate jdbc;

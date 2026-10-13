@@ -37,7 +37,7 @@ CREATE TABLE queue_snapshot (
 WITH (fillfactor='80', autovacuum_vacuum_scale_factor='0.02', autovacuum_analyze_scale_factor='0.02', autovacuum_vacuum_cost_delay='2');
 
 ALTER TABLE metric_sample
-    ADD CONSTRAINT pk_metric_sample PRIMARY KEY (cluster_id, subject_type, subject_name, metric, ts);
+    ADD CONSTRAINT uq_metric_sample UNIQUE NULLS NOT DISTINCT (cluster_id, subject_type, subject_name, metric, node_id, ts);
 
 ALTER TABLE ONLY queue_snapshot
     ADD CONSTRAINT pk_queue_snapshot PRIMARY KEY (node_id, queue_name);
