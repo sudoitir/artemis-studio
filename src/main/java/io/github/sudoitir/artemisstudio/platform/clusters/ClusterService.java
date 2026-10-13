@@ -123,7 +123,6 @@ public class ClusterService {
     private final BrokerConnections connections;
     private final List<RegistrationCheckContributor> checkContributors;
     private final CapabilityProbe capabilityProbe;
-    private final CapabilityLedger capabilityLedger;
     private final CapabilityAssessments capabilityAssessments;
     private final TopologyDiscovery topologyDiscovery;
     private final HaStateEvaluator evaluator;
@@ -427,15 +426,19 @@ public class ClusterService {
         refuseIfRegistered(identity, () -> refusedAttempt(request));
         TopologyDiscovery.Preview found = topologyDiscovery.preview(survey, inputs.derivation());
 
-        return transactions.execute(status -> saveRegistration(request, inputs, reachable, survey, found));
+        // A cluster not yet registered has no Core subscription and no recorded write, so this is the whole
+        // assessment; it is read here so that no broker call is made inside the registration transaction.
+        BrokerCapabilities capabilities =
+                capabilityProbe.probe(reachable.get(0).client(), new SubscriptionVerdict.NotAttempted());
+        return transactions.execute(status -> saveRegistration(request, inputs, survey, found, capabilities));
     }
 
     private Attempt<ClusterDetail> saveRegistration(
             RegisterClusterRequest request,
             ConnectionInputs inputs,
-            List<Probe> reachable,
             TopologyDiscovery.Survey survey,
-            TopologyDiscovery.Preview found) {
+            TopologyDiscovery.Preview found,
+            BrokerCapabilities capabilities) {
         ClusterIdentity identity = survey.identity();
         ClusterEntity cluster = new ClusterEntity(
                 request.name() != null
@@ -487,10 +490,6 @@ public class ClusterService {
         }
 
         ClusterTopology topology = topologyDiscovery.discover(clusterId, survey, found.proofs());
-        BrokerCapabilities capabilities = capabilityProbe.probe(
-                reachable.get(0).client(),
-                coreSubscriptions.verdictFor(clusterId),
-                capabilityLedger.managementWrite(clusterId));
         if (request.adopts()) {
             adoption.orElseThrow().adopt(clusterId);
         }

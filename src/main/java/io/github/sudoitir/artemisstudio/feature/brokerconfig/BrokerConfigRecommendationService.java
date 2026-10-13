@@ -17,7 +17,6 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The capability probe's recommendations, and the one action that declares them
@@ -41,8 +40,10 @@ public class BrokerConfigRecommendationService {
     private final BrokerConfigService config;
     private final ClusterAccessGuard clusterAccess;
 
-    /** What the probe suggests, seeded from the first readable live node. */
-    @Transactional(readOnly = true)
+    /**
+     * What the probe suggests, seeded from the first readable live node. Not transactional: the node is read
+     * over the network, and no database connection is held while it is.
+     */
     public Recommendations recommend(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         BrokerCapabilities capabilities = clusters.brokerCapabilities(clusterId);
@@ -60,7 +61,6 @@ public class BrokerConfigRecommendationService {
      *     keyed by match — the observed prefill is a starting point, not a decision
      *     Studio gets to make on its own (ADR-0068)
      */
-    @Transactional
     public BrokerConfigService.Declaration declare(
             UUID clusterId, Set<String> capabilities, Map<String, Set<String>> roleOverrides) {
         clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_WRITE);
