@@ -70,8 +70,12 @@ public class HeavyRequests {
     private final UUID replica = Ids.v7();
 
     public HeavyRequests(JdbcTemplate jdbc, DataSource dataSource) {
+        this(jdbc, Math.max(1, poolSize(dataSource) / 4));
+    }
+
+    HeavyRequests(JdbcTemplate jdbc, int installationCap) {
         this.jdbc = jdbc;
-        this.installationCap = Math.max(1, poolSize(dataSource) / 4);
+        this.installationCap = installationCap;
     }
 
     private static int poolSize(DataSource dataSource) {

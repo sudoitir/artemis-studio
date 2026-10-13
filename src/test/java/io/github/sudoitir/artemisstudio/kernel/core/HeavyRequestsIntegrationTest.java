@@ -25,6 +25,9 @@ class HeavyRequestsIntegrationTest extends PostgresIntegrationTest {
     private static final HeavyRequests.Endpoint EXPORTS =
             new HeavyRequests.Endpoint("exports", 2, Duration.ofSeconds(30), 3);
 
+    /** The pool, and so the installation cap, is test-sized; the limits under test are the per-user ones. */
+    private static final int UNCAPPED = 100;
+
     @Autowired
     JdbcTemplate jdbc;
 
@@ -47,8 +50,8 @@ class HeavyRequestsIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aUsersLimitHoldsAcrossReplicas() {
-        HeavyRequests a = new HeavyRequests(jdbc, dataSource);
-        HeavyRequests b = new HeavyRequests(jdbc, dataSource);
+        HeavyRequests a = new HeavyRequests(jdbc, UNCAPPED);
+        HeavyRequests b = new HeavyRequests(jdbc, UNCAPPED);
         String user = "u-" + UUID.randomUUID();
 
         open(a, user);
@@ -67,8 +70,8 @@ class HeavyRequestsIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void closingAPermitFreesItsSlot() {
-        HeavyRequests a = new HeavyRequests(jdbc, dataSource);
-        HeavyRequests b = new HeavyRequests(jdbc, dataSource);
+        HeavyRequests a = new HeavyRequests(jdbc, UNCAPPED);
+        HeavyRequests b = new HeavyRequests(jdbc, UNCAPPED);
         String user = "u-" + UUID.randomUUID();
         HeavyRequests.Run first = open(a, user);
         open(b, user);
@@ -80,7 +83,7 @@ class HeavyRequestsIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aRunThatThrowsStillReleasesItsPermit() {
-        HeavyRequests a = new HeavyRequests(jdbc, dataSource);
+        HeavyRequests a = new HeavyRequests(jdbc, UNCAPPED);
         String user = "u-" + UUID.randomUUID();
 
         assertThatThrownBy(() -> a.run(EXPORTS, user, run -> {
@@ -94,8 +97,8 @@ class HeavyRequestsIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aReplicaThatDiesLosesItsPermitsAfterTheLease() {
-        HeavyRequests dead = new HeavyRequests(jdbc, dataSource);
-        HeavyRequests alive = new HeavyRequests(jdbc, dataSource);
+        HeavyRequests dead = new HeavyRequests(jdbc, UNCAPPED);
+        HeavyRequests alive = new HeavyRequests(jdbc, UNCAPPED);
         String user = "u-" + UUID.randomUUID();
         open(dead, user);
         open(dead, user);
@@ -135,7 +138,7 @@ class HeavyRequestsIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void theRowCapStopsTheRunAndNamesTheBound() {
-        HeavyRequests a = new HeavyRequests(jdbc, dataSource);
+        HeavyRequests a = new HeavyRequests(jdbc, UNCAPPED);
 
         try (HeavyRequests.Run run = open(a, "u-" + UUID.randomUUID())) {
             assertThat(run.admit()).isTrue();
@@ -153,7 +156,7 @@ class HeavyRequestsIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void theTimeBoundStopsTheRunAndNamesTheBound() {
-        HeavyRequests a = new HeavyRequests(jdbc, dataSource);
+        HeavyRequests a = new HeavyRequests(jdbc, UNCAPPED);
         HeavyRequests.Endpoint instant = new HeavyRequests.Endpoint("exports", 1, Duration.ZERO, 10);
 
         try (HeavyRequests.Run run = a.open(instant, "u-" + UUID.randomUUID())) {
