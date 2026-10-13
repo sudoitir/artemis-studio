@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -130,6 +132,41 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
                         Map.of("c", clusterId),
                         String.class))
                 .containsExactly("CONSUMER_CREATED", "SESSION_CREATED");
+    }
+
+    @Test
+    void aFlushWaitsForAnotherWriterSoSeqFollowsCommitOrder() throws Exception {
+        writer.accept(event("QUEUE_CREATED"));
+        CountDownLatch holding = new CountDownLatch(1);
+        CountDownLatch commit = new CountDownLatch(1);
+        Thread other = Thread.ofVirtual()
+                .start(() -> new TransactionTemplate(transactions).executeWithoutResult(s -> {
+                    jdbc.getJdbcOperations()
+                            .query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> {}, BrokerEventWriter.WRITE_LOCK);
+                    holding.countDown();
+                    try {
+                        commit.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }));
+        assertThat(holding.await(5, TimeUnit.SECONDS)).isTrue();
+
+        Thread flushing = Thread.ofVirtual().start(writer::flush);
+        Thread.sleep(500);
+        assertThat(count())
+                .as("rows written while another writer holds the lock")
+                .isZero();
+
+        commit.countDown();
+        flushing.join(5_000);
+        other.join(5_000);
+        assertThat(count()).isEqualTo(1);
+    }
+
+    private int count() {
+        return jdbc.getJdbcOperations()
+                .queryForObject("SELECT count(*) FROM broker_event WHERE cluster_id = ?", Integer.class, clusterId);
     }
 
     @Test
