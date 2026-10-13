@@ -839,6 +839,23 @@ React, Mantine and the SDK's components work as they are. A library of your own 
 (a rich-text editor, a Markdown renderer) is what to check: it stops working here. Pick one that renders
 through React, or show the text as text.
 
+### Moving a plugin from contract 13 to 14
+
+Contract 14 changes how scheduled jobs are described and run. Studio refuses a plugin built for contract 13
+with "built for extension contract 13", so rebuild it and set `<studio.contract>14</studio.contract>` in its
+`pom.xml`:
+
+- **A job has a timeout.** `ScheduledJob` gains a `timeout` component. `ScheduledJob.fixedDelay` and
+  `ScheduledJob.cron` fill it in (the larger of five minutes and three intervals, or one hour for a cron);
+  `withTimeout(...)` sets your own. A run past its timeout is interrupted, so a job must stop when its
+  thread is interrupted. A plugin that called the record's constructor directly passes the timeout too.
+- **Cron expressions are read in UTC**, not in the server's time zone. Move an hour you chose for local
+  time.
+- **A run never overlaps itself and an installation-wide run stops when it loses its lock.** A job that
+  relied on a second run starting while the first was still busy no longer gets one.
+- **`JobStatuses` records runs itself.** Its constructor takes only a `MeterRegistry`, and `instrument(...)`
+  is gone: Studio's job runner records every run, and `all()` reads the statuses.
+
 ### Moving a plugin from contract 12 to 13
 
 Contract 13 changes what an approval provider returns and how a plugin confirms a destructive action.
