@@ -1,0 +1,202 @@
+package io.github.sudoitir.artemisstudio.kernel.auditfeed;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditReceiver;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditRecord;
+import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceiverFixtures.FakeHandle;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceiverFixtures.TestReceiver;
+import io.github.sudoitir.artemisstudio.kernel.security.Actor;
+import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+/** Audit records reach a receiver in commit order, at least once, and a receiver never holds up the audited operation. */
+class AuditDeliveryJobTest extends PostgresIntegrationTest {
+
+    @Autowired
+    AuditDeliveryJob job;
+
+    @Autowired
+    AuditReceivers receivers;
+
+    @Autowired
+    AuditService audit;
+
+    @Autowired
+    JdbcTemplate jdbc;
+
+    private final String pluginId =
+            "audit-receiver-" + UUID.randomUUID().toString().substring(0, 8);
+    private final String prefix =
+            "DELIVERY_TEST_" + UUID.randomUUID().toString().substring(0, 8) + "_";
+    private final TestReceiver receiver = new TestReceiver();
+    private FakeHandle handle;
+
+    @BeforeEach
+    void attach() {
+        handle = new FakeHandle(pluginId, true, false, Map.of(AuditReceiver.class, receiver));
+        receivers.attach(handle);
+        // A new receiver starts at the beginning of the trail; this test cares about its own records only.
+        jdbc.update("""
+                UPDATE audit_receiver SET pos_txid = head.txid, pos_seq = head.seq
+                FROM (SELECT pos_txid AS txid, pos_seq AS seq FROM audit_event
+                      ORDER BY pos_txid DESC, pos_seq DESC LIMIT 1) head
+                WHERE plugin_id = ?""", pluginId);
+    }
+
+    @AfterEach
+    void detach() {
+        receivers.detach(handle);
+        jdbc.update("DELETE FROM audit_receiver WHERE plugin_id = ?", pluginId);
+    }
+
+    private AuditEvent write(String name) {
+        AuditEvent event = audit.begin(Actor.system(), prefix + name, "TEST", name, null, null, Map.of(), false);
+        audit.succeed(event, 1);
+        return event;
+    }
+
+    @Test
+    void aReceiverThatWasDownGetsEverythingInOrderWhenItIsBack() {
+        receiver.failure = new IllegalStateException("down");
+        AuditEvent first = write("a");
+        AuditEvent second = write("b");
+        AuditEvent third = write("c");
+
+        job.deliver(pluginId);
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT failures FROM audit_receiver WHERE plugin_id = ?", Integer.class, pluginId))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                        "SELECT last_error FROM audit_receiver WHERE plugin_id = ?", String.class, pluginId))
+                .isEqualTo("down");
+
+        receiver.failure = null;
+        receiver.batches.clear();
+        job.deliver(pluginId);
+
+        assertThat(receiver.ids(prefix)).containsExactly(first.getId(), second.getId(), third.getId());
+        assertThat(jdbc.queryForObject(
+                        "SELECT failures FROM audit_receiver WHERE plugin_id = ?", Integer.class, pluginId))
+                .isZero();
+        receiver.batches.clear();
+        job.deliver(pluginId);
+        assertThat(receiver.batches).isEmpty();
+    }
+
+    @Test
+    void recordsAfterTheCursorAreDeliveredAgainWithStableIdsWhenTheAcknowledgementIsLost() {
+        receiver.failure = new IllegalStateException("crashed before acknowledging");
+        write("a");
+        write("b");
+
+        job.deliver(pluginId);
+        job.deliver(pluginId);
+
+        assertThat(receiver.batches).hasSizeGreaterThanOrEqualTo(2);
+        assertThat(receiver.records(1, prefix))
+                .isEqualTo(receiver.records(0, prefix))
+                .hasSize(2);
+        assertThat(receiver.records(0, prefix))
+                .extracting(AuditRecord::position)
+                .doesNotHaveDuplicates();
+    }
+
+    @Test
+    void aSlowReceiverDoesNotBlockTheAuditedOperation() throws Exception {
+        CountDownLatch inside = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        receiver.beforeAnswer = () -> {
+            inside.countDown();
+            try {
+                release.await(30, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        };
+        write("a");
+        try (ExecutorService pool = Executors.newSingleThreadExecutor()) {
+            Future<?> delivering = pool.submit(() -> job.deliver(pluginId));
+            assertThat(inside.await(10, TimeUnit.SECONDS)).isTrue();
+
+            AuditEvent during = write("during");
+
+            assertThat(during.getId()).isNotNull();
+            release.countDown();
+            delivering.get(10, TimeUnit.SECONDS);
+        } finally {
+            release.countDown();
+        }
+    }
+
+    @Test
+    void aTimeoutCountsAsAFailureAndBacksTheReceiverOff() {
+        jdbc.update("UPDATE audit_receiver SET failures = 20 WHERE plugin_id = ?", pluginId);
+        receiver.failure = new java.io.IOException("Bearer abcdefghijklmnop failed");
+        write("a");
+
+        job.deliver(pluginId);
+
+        assertThat(jdbc.queryForObject(
+                        "SELECT failures FROM audit_receiver WHERE plugin_id = ?", Integer.class, pluginId))
+                .isEqualTo(21);
+        assertThat(jdbc.queryForObject(
+                        "SELECT last_error FROM audit_receiver WHERE plugin_id = ?", String.class, pluginId))
+                .doesNotContain("abcdefghijklmnop");
+        assertThat(jdbc.queryForObject(
+                        "SELECT next_attempt_at > now() + interval '4 minutes' FROM audit_receiver WHERE plugin_id = ?",
+                        Boolean.class,
+                        pluginId))
+                .isTrue();
+    }
+
+    @Test
+    void aPluginThatProvidesAReceiverWithoutDeclaringItIsRefused() {
+        FakeHandle undeclared =
+                new FakeHandle("undeclared-" + pluginId, false, false, Map.of(AuditReceiver.class, receiver));
+
+        assertThatThrownBy(() -> receivers.attach(undeclared))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("does not declare audit.receive");
+    }
+
+    @Test
+    void aPluginThatDeclaresReceivingWithoutProvidingOneIsRefused() {
+        FakeHandle missing = new FakeHandle("missing-" + pluginId, true, false, Map.of());
+
+        assertThatThrownBy(() -> receivers.attach(missing))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("exactly one AuditReceiver");
+    }
+
+    @Test
+    void theCursorGoesWhenThePluginIsUninstalledButNotWhenItIsDetached() {
+        receivers.detach(handle);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_receiver WHERE plugin_id = ?", Long.class, pluginId))
+                .isEqualTo(1);
+
+        receivers.onStatusChanged(new io.github.sudoitir.artemisstudio.kernel.plugin.PluginStatusChanged(
+                pluginId,
+                io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus.ACTIVE,
+                io.github.sudoitir.artemisstudio.kernel.plugin.PluginInstallStatus.UNINSTALLED,
+                "test"));
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_receiver WHERE plugin_id = ?", Long.class, pluginId))
+                .isZero();
+    }
+}

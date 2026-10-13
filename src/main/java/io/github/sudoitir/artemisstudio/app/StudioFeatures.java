@@ -42,6 +42,7 @@ import io.github.sudoitir.artemisstudio.feature.triage.TriageFeature;
 import io.github.sudoitir.artemisstudio.feature.triage.TriageModule;
 import io.github.sudoitir.artemisstudio.kernel.approval.ApprovalModule;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditModule;
+import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditFeedModule;
 import io.github.sudoitir.artemisstudio.kernel.inbox.InboxModule;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleModule;
 import io.github.sudoitir.artemisstudio.kernel.plugin.FeatureDescriptor;
@@ -96,6 +97,7 @@ public class StudioFeatures {
                 AuditModule.DESCRIPTOR,
                 SettingsModule.DESCRIPTOR,
                 LifecycleModule.DESCRIPTOR,
+                AuditFeedModule.DESCRIPTOR,
                 InboxModule.DESCRIPTOR,
                 ApprovalModule.DESCRIPTOR,
                 StreamModule.DESCRIPTOR,
