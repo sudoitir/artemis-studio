@@ -3949,6 +3949,8 @@ export interface components {
             streamTopics: string[];
             mcpTools: components["schemas"]["PluginMcpToolView"][];
             identityProviders: components["schemas"]["PluginIdentityProviderView"][];
+            auditReceive: boolean;
+            auditRetentionHold: boolean;
         };
         PluginDiffView: {
             permissionsAdded: string[];
@@ -3961,6 +3963,8 @@ export interface components {
             mcpToolsRemoved: string[];
             identityProvidersAdded: string[];
             identityProvidersRemoved: string[];
+            auditAdded: string[];
+            auditRemoved: string[];
         };
         PluginIdentityProviderView: {
             id: string;

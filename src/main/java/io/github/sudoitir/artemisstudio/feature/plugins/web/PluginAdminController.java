@@ -427,7 +427,8 @@ public class PluginAdminController {
                     null,
                     List.of(),
                     false,
-                    new PluginContributionsView(false, List.of(), List.of(), List.of(), List.of(), List.of()));
+                    new PluginContributionsView(
+                            false, List.of(), List.of(), List.of(), List.of(), List.of(), false, false));
         }
         return new PluginInfoView(
                 d.name(),
@@ -455,7 +456,9 @@ public class PluginAdminController {
                                 .toList(),
                         d.identityProviders().stream()
                                 .map(i -> new PluginIdentityProviderView(i.id(), i.label()))
-                                .toList()));
+                                .toList(),
+                        d.audit().receive(),
+                        d.audit().retentionHold()));
     }
 
     private static TrustedKeyView key(PluginTrust.TrustedKey k) {
@@ -491,7 +494,9 @@ public class PluginAdminController {
                         sorted(d.mcpToolsAdded()),
                         sorted(d.mcpToolsRemoved()),
                         sorted(d.identityProvidersAdded()),
-                        sorted(d.identityProvidersRemoved())),
+                        sorted(d.identityProvidersRemoved()),
+                        sorted(d.auditAdded()),
+                        sorted(d.auditRemoved())),
                 p.rolesLosingPermission(),
                 p.compatible(),
                 p.missingRequires(),

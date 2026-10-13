@@ -27614,9 +27614,15 @@
             "items" : {
               "$ref" : "#/components/schemas/PluginIdentityProviderView"
             }
+          },
+          "auditReceive" : {
+            "type" : "boolean"
+          },
+          "auditRetentionHold" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "identityProviders", "mcpTools", "permissions", "settingKeys", "streamTopics", "ui" ]
+        "required" : [ "auditReceive", "auditRetentionHold", "identityProviders", "mcpTools", "permissions", "settingKeys", "streamTopics", "ui" ]
       },
       "PluginDiffView" : {
         "type" : "object",
@@ -27680,9 +27686,21 @@
             "items" : {
               "type" : "string"
             }
+          },
+          "auditAdded" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "auditRemoved" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
           }
         },
-        "required" : [ "identityProvidersAdded", "identityProvidersRemoved", "mcpToolsAdded", "mcpToolsRemoved", "permissionsAdded", "permissionsRemoved", "settingKeysAdded", "settingKeysRemoved", "streamTopicsAdded", "streamTopicsRemoved" ]
+        "required" : [ "auditAdded", "auditRemoved", "identityProvidersAdded", "identityProvidersRemoved", "mcpToolsAdded", "mcpToolsRemoved", "permissionsAdded", "permissionsRemoved", "settingKeysAdded", "settingKeysRemoved", "streamTopicsAdded", "streamTopicsRemoved" ]
       },
       "PluginIdentityProviderView" : {
         "type" : "object",

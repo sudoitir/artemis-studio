@@ -179,7 +179,8 @@ class GateTestKit {
                     List.of(),
                     List.of(),
                     List.of(),
-                    new PluginDescriptor.ApprovalProvider(APPROVER_PERMISSION));
+                    new PluginDescriptor.ApprovalProvider(APPROVER_PERMISSION),
+                    null);
         }
 
         @Override

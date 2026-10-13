@@ -43,6 +43,8 @@ describe('PlanReview', () => {
                 { name: 'notes_purge', posture: 'destructive', description: null },
               ],
               identityProviders: [],
+              auditReceive: false,
+              auditRetentionHold: false,
             },
           }),
         })}
@@ -93,6 +95,8 @@ describe('PlanReview', () => {
               streamTopics: [],
               mcpTools: [],
               identityProviders: [],
+              auditReceive: false,
+              auditRetentionHold: false,
             },
           }),
         })}
@@ -126,6 +130,8 @@ describe('PlanReview', () => {
             mcpToolsRemoved: ['notes_list'],
             identityProvidersAdded: [],
             identityProvidersRemoved: [],
+            auditAdded: [],
+            auditRemoved: [],
           },
           rolesLosingPermission: { 'notes:admin': 1, 'notes:old': 3, 'notes:kept': 0 },
           info: info({ changeNotes: 'Adds sharing.' }),
@@ -348,6 +354,47 @@ describe('InstallDialog trust', () => {
       screen.getByText(/Receive the passwords users type to sign in with Corporate directory/),
     ).toBeInTheDocument();
     expect(screen.getByText('Adds sign-in acme-notes:corp')).toBeInTheDocument();
+  });
+
+  it('says a plugin with audit access receives events, and needs the confirmation', async () => {
+    const audit = trustPlan({
+      acknowledgements: ['audit-access-added'],
+      diff: { ...plan().diff, auditAdded: ['receive', 'retentionHold'] },
+      info: info({ contributions: { ...info().contributions, auditReceive: true, auditRetentionHold: true } }),
+    });
+    server.use(
+      me(),
+      http.get(`*/api/v1/admin/plugins/uploads/${SHA}`, () => HttpResponse.json(audit)),
+    );
+    renderWithProviders(<InstallDialog source={{ kind: 'resume', sha: SHA }} canInstall onClose={() => undefined} />);
+
+    expect(
+      await screen.findByText(
+        'This plugin will receive every audit event, unfiltered and hold audit records back from retention.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Install Notes 1.0.0' })).toBeDisabled();
+  });
+
+  it('lists audit access among what the plugin can do', () => {
+    renderWithProviders(
+      <PlanReview
+        plan={plan({
+          info: info({ contributions: { ...info().contributions, auditReceive: true, auditRetentionHold: true } }),
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Receives every audit event, unfiltered')).toBeInTheDocument();
+    expect(screen.getByText('Can hold audit records back from retention')).toBeInTheDocument();
+  });
+
+  it('lists audit access an update removes', () => {
+    renderWithProviders(
+      <PlanReview plan={plan({ fromVersion: '0.9.0', diff: { ...plan().diff, auditRemoved: ['retentionHold'] } })} />,
+    );
+
+    expect(screen.getByText('Removes audit access hold audit records back from retention')).toBeInTheDocument();
   });
 
   it('trusts the key from the upload, then re-plans so Continue opens', async () => {

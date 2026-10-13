@@ -7,7 +7,7 @@ import { StatusBadge } from '../../ui/StatusBadge.tsx';
 import type { PluginPlanView, PluginViolationView } from './api.ts';
 import { Notice } from '../../ui/Notice.tsx';
 import styles from './Plugins.module.css';
-import { acknowledgementReasons, count, downtime, TRUST_LABEL } from './words.ts';
+import { acknowledgementReasons, AUDIT_ACCESS, count, downtime, TRUST_LABEL } from './words.ts';
 
 /** A titled block of the review, one level below the dialog's title. */
 function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
@@ -183,6 +183,20 @@ function CapabilitiesSection({ plan }: Readonly<{ plan: PluginPlanView }>) {
             , and decide who they are signed in as.
           </List.Item>
         ) : null}
+        {c.auditReceive ? (
+          <List.Item>
+            <Text span fw={700} className={styles.warning}>
+              Receives every audit event, unfiltered
+            </Text>
+          </List.Item>
+        ) : null}
+        {c.auditRetentionHold ? (
+          <List.Item>
+            <Text span fw={700} className={styles.warning}>
+              Can hold audit records back from retention
+            </Text>
+          </List.Item>
+        ) : null}
         {changes > 0 ? (
           <List.Item>
             {plan.fromVersion ? 'Change its own database schema' : 'Create its own database schema'} with{' '}
@@ -222,6 +236,8 @@ function ChangesSection({ plan }: Readonly<{ plan: PluginPlanView }>) {
           ...d.streamTopicsRemoved.map((t) => `Removes live topic ${t}`),
           ...d.identityProvidersAdded.map((i) => `Adds sign-in ${i}`),
           ...d.identityProvidersRemoved.map((i) => `Removes sign-in ${i}`),
+          ...d.auditAdded.map((a) => `Adds audit access ${AUDIT_ACCESS[a] ?? a}`),
+          ...d.auditRemoved.map((a) => `Removes audit access ${AUDIT_ACCESS[a] ?? a}`),
         ].map((line) => (
           <List.Item key={line}>{line}</List.Item>
         ))}

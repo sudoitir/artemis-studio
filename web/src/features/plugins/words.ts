@@ -87,6 +87,12 @@ export const TRUST_LABEL: Record<PluginPlanView['trust']['status'], string> = {
   UNSIGNED: 'Unsigned',
 };
 
+/** What each audit flag in a manifest lets a plugin do, as a verb phrase. */
+export const AUDIT_ACCESS: Record<string, string> = {
+  receive: 'receive every audit event, unfiltered',
+  retentionHold: 'hold audit records back from retention',
+};
+
 /** Why the plan needs an explicit "I understand", one sentence per reason the server listed. */
 export function acknowledgementReasons(plan: PluginPlanView): string[] {
   return plan.acknowledgements.map((reason) => {
@@ -103,6 +109,8 @@ export function acknowledgementReasons(plan: PluginPlanView): string[] {
           .join(', ');
         return `This plugin will receive the passwords users type to sign in with ${labels}.`;
       }
+      case 'audit-access-added':
+        return `This plugin will ${plan.diff.auditAdded.map((a) => AUDIT_ACCESS[a] ?? a).join(' and ')}.`;
       case 'unverified':
         return 'It is unverified: no trusted key vouches for it. An installer allowed unverified plugins.';
       default:

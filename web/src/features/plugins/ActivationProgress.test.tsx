@@ -75,6 +75,8 @@ describe('ActivationProgress', () => {
               streamTopics: [],
               mcpTools: [],
               identityProviders: [],
+              auditReceive: false,
+              auditRetentionHold: false,
             },
           }),
         })}

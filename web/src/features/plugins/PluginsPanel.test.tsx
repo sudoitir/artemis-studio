@@ -39,6 +39,8 @@ const INFO = {
     streamTopics: [],
     mcpTools: [{ name: 'acme_notes_search', posture: 'read', description: null }],
     identityProviders: [],
+    auditReceive: false,
+    auditRetentionHold: false,
   },
 };
 
@@ -107,6 +109,8 @@ const PLAN: PluginPlanView = {
     mcpToolsRemoved: [],
     identityProvidersAdded: [],
     identityProvidersRemoved: [],
+    auditAdded: [],
+    auditRemoved: [],
   },
   rolesLosingPermission: {},
   compatible: true,

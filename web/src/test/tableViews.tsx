@@ -604,6 +604,8 @@ const plugin = (f: Fixture, i: number): PluginView => ({
       streamTopics: [],
       mcpTools: [],
       identityProviders: [],
+      auditReceive: false,
+      auditRetentionHold: false,
     },
   },
 });

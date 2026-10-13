@@ -137,6 +137,15 @@
         "approverPermission": { "type": "string", "description": "A permission the plugin declares under permissions; the users who approve hold it." }
       }
     },
+    "audit": {
+      "type": "object",
+      "description": "Access to the audit log. receive: the plugin is handed every audit event, unfiltered. retentionHold: the plugin may hold audit records back from retention. Each needs an acknowledgement at install.",
+      "additionalProperties": false,
+      "properties": {
+        "receive": { "type": "boolean", "default": false },
+        "retentionHold": { "type": "boolean", "default": false }
+      }
+    },
     "settingKeys": { "type": "array", "items": { "type": "string", "description": "Namespaced <id>.<key>." } },
     "streamTopics": { "type": "array", "items": { "type": "string", "description": "<id> or <id>.<topic>." } },
     "mcpTools": {

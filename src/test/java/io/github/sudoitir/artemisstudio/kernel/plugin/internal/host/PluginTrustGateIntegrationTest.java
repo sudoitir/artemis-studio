@@ -354,6 +354,33 @@ class PluginTrustGateIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aPluginDeclaringAuditAccessNeedsConfirmationAndAnUpdateThatAddsAFlagDoesToo() throws Exception {
+        String id = uniqueId("gate-audit");
+        pluginIds.add(id);
+        String shaV1 = upload(new PluginJarBuilder(id).descriptorField("audit", java.util.Map.of("receive", true)));
+
+        ActivationPlan plan = host.plan(shaV1);
+        assertThat(plan.diff().auditAdded()).containsExactly("receive");
+        assertThat(plan.acknowledgements()).containsExactly("audit-access-added");
+        assertRefused(() -> host.activate(shaV1, "tester", false), "acknowledgement-required");
+
+        host.activate(shaV1, "tester", true);
+        awaitActive(id, shaV1);
+
+        String sameFlags = upload(new PluginJarBuilder(id)
+                .descriptorField("audit", java.util.Map.of("receive", true))
+                .descriptorField("version", "2.0.0"));
+        assertThat(host.plan(sameFlags).acknowledgements()).isEmpty();
+
+        String moreFlags = upload(new PluginJarBuilder(id)
+                .descriptorField("audit", java.util.Map.of("receive", true, "retentionHold", true))
+                .descriptorField("version", "3.0.0"));
+        ActivationPlan update = host.plan(moreFlags);
+        assertThat(update.diff().auditAdded()).containsExactly("retentionHold");
+        assertThat(update.acknowledgements()).containsExactly("audit-access-added");
+    }
+
+    @Test
     void theStudioHealthGroupIncludesThePluginTrustContributor() {
         assertThat(studioGroup.split(",")).contains("pluginTrust");
     }

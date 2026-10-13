@@ -26,7 +26,16 @@ const INFO = {
   updateUrl: null,
   requires: [],
   requiresLicense: false,
-  contributions: { ui: true, permissions: [], settingKeys: [], streamTopics: [], mcpTools: [], identityProviders: [] },
+  contributions: {
+    ui: true,
+    permissions: [],
+    settingKeys: [],
+    streamTopics: [],
+    mcpTools: [],
+    identityProviders: [],
+    auditReceive: false,
+    auditRetentionHold: false,
+  },
 };
 
 function plugin(over: Partial<PluginView> = {}, info: Record<string, unknown> = {}): PluginView {
