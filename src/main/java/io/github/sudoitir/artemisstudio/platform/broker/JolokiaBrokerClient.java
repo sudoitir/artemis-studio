@@ -71,7 +71,7 @@ public class JolokiaBrokerClient {
     static final int OPERATIONS_PER_PERMIT = 50;
 
     public JolokiaBrokerClient(RestClient restClient, String jolokiaUrl, ObjectMapper mapper) {
-        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), null, null, null, BrokerCallGuard.OFF);
+        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), JolokiaClientHooks.NONE);
     }
 
     public JolokiaBrokerClient(
@@ -79,18 +79,15 @@ public class JolokiaBrokerClient {
             String jolokiaUrl,
             ObjectMapper mapper,
             Map<String, String> sharedBrokerObjectNames,
-            ClockOffsetRegistry clockOffsets,
-            NodeCallHealth callHealth,
-            NodeCallLimiter limiter,
-            BrokerCallGuard guard) {
+            JolokiaClientHooks hooks) {
         this.restClient = restClient;
-        this.guard = guard;
+        this.guard = hooks.guard();
         this.jolokiaUrl = jolokiaUrl;
         this.mapper = mapper;
         this.sharedBrokerObjectNames = sharedBrokerObjectNames;
-        this.clockOffsets = clockOffsets;
-        this.callHealth = callHealth;
-        this.limiter = limiter;
+        this.clockOffsets = hooks.clockOffsets();
+        this.callHealth = hooks.callHealth();
+        this.limiter = hooks.limiter();
     }
 
     public String jolokiaUrl() {

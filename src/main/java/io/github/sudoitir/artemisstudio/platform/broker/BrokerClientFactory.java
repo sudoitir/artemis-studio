@@ -118,7 +118,11 @@ public class BrokerClientFactory implements DisposableBean {
             });
         }
         return new JolokiaBrokerClient(
-                builder.build(), jolokiaUrl, mapper, brokerObjectNames, clockOffsets, callHealth, limiter, guard);
+                builder.build(),
+                jolokiaUrl,
+                mapper,
+                brokerObjectNames,
+                new JolokiaClientHooks(clockOffsets, callHealth, limiter, guard));
     }
 
     /**
