@@ -27,11 +27,11 @@
 
 ## 5. U4 Jobs and threads (operational-health)
 
-- [ ] 5.1 `JobRunner`: timer thread, virtual thread per run, next fire after completion, per-job timeout, lock extension with `lockLost`, `invalidSchedule` re-parse, UTC, first-failure logging, counters; replaces `JobScheduler`, the scrape scheduler pool and the plugin job bridge pool
-- [ ] 5.2 `ScheduledJob` optional timeout; status fields in `JobStatus` and the jobs API
-- [ ] 5.3 Fix the SSE drain-thread leak; record interrupted approval executions
-- [ ] 5.4 `ThreadLeakIntegrationTest`
-- [ ] 5.5 ADR: the job runner (amends 0048, supersedes 0125's job list)
+- [x] 5.1 `JobRunner`: timer thread, virtual thread per run, next fire after completion, per-job timeout, lock extension with `lockLost`, `invalidSchedule` re-parse, UTC, first-failure logging, counters; replaces `JobScheduler`, the scrape scheduler pool and the plugin job bridge pool
+- [x] 5.2 `ScheduledJob` optional timeout; status fields in `JobStatus` and the jobs API
+- [x] 5.3 Fix the SSE drain-thread leak; record interrupted approval executions
+- [x] 5.4 `ThreadLeakIntegrationTest`
+- [x] 5.5 ADR: the job runner (amends 0048, supersedes 0125's job list)
 
 ## 6. U5 Database configuration
 
