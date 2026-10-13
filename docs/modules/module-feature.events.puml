@@ -56,6 +56,7 @@ Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datagovernance, ArtemisStu
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datagovernance, ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datagovernance, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datagovernance, ArtemisStudioApplication.ArtemisStudioApplication.Settings, "depends on", $techn="", $tags="", $link="")
+Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, "uses", $techn="", $tags="", $link="")
 Rel(ArtemisStudioApplication.ArtemisStudioApplication.Datalifecycle, ArtemisStudioApplication.ArtemisStudioApplication.Security, "depends on", $techn="", $tags="", $link="")

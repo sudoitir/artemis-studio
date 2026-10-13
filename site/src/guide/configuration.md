@@ -168,6 +168,23 @@ PostgreSQL, with the schema owned by Liquibase and migrated on startup. Studio
 validates the mapping against the migrated schema at boot rather than generating
 DDL, so a schema that has drifted fails loudly instead of quietly.
 
+Studio also runs on a managed or highly available PostgreSQL 18 that it does not administer, in a schema
+of your choosing (`currentSchema` in the JDBC URL), as a role that is not a superuser. At boot it checks the
+version, the privileges and that the connection keeps its session (so a pooler must be in session mode), and
+refuses to start with the fix named when something is missing. The guide
+[Running Studio on an external PostgreSQL](/reference/external-database) covers privileges, TLS, poolers,
+failover URLs (`targetServerType=primary`) and the connection budget.
+
+An optional read replica serves heavy history reads and exports while it is close enough behind the primary,
+and the primary serves them otherwise:
+
+| Property | Default | Notes |
+|---|---|---|
+| `studio.database.read.url` | none | The standby's JDBC URL. Unset means every read uses the primary |
+| `studio.database.read.username` / `.password` | the primary's | The standby's credentials |
+| `studio.database.read.pool-size` | `8` | Connections each Studio replica keeps to the standby |
+| `studio.database.read.max-lag` | `30s` | The most the standby may lag and still serve a read. A response served from it says it may lag |
+
 Postgres owns configuration, users and the audit trail. The broker-derived
 tables — `queue_snapshot`, `metric_sample` — are a **disposable cache**: losing
 them costs you history, never truth.

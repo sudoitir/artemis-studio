@@ -81,6 +81,9 @@ docker run -p 8080:8080 \
 
 </details>
 
+Studio runs on a managed or highly available PostgreSQL 18 too, in a schema of your choosing and as a role that
+is not a superuser: see [Running Studio on an external PostgreSQL](docs/external-database.md).
+
 Every variable, what a reverse proxy needs for the SSE stream, and how to recover a lost
 first login are in the [configuration guide](https://sudoitir.github.io/artemis-studio/guide/configuration).
 
