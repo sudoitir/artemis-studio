@@ -325,9 +325,7 @@ class BulkRunTest extends BulkTestSupport {
                 id);
         jdbc.update("UPDATE bulk_run_item SET status = 'RUNNING' WHERE run_id = ? AND ordinal = 1", id);
         jdbc.update("UPDATE bulk_run_item SET status = 'PENDING' WHERE run_id = ? AND ordinal > 1", id);
-        jdbc.update(
-                "UPDATE audit_event SET outcome = 'PENDING' WHERE id = ?",
-                done.run().auditEventId());
+        reopenAudit(done.run().auditEventId());
 
         recovery.recover();
 
@@ -343,15 +341,27 @@ class BulkRunTest extends BulkTestSupport {
         assertThat(auditOutcome(done.run().auditEventId())).isEqualTo("FAILURE");
     }
 
+    /** What a crash leaves: the record still pending. The audit guard refuses reopening one, so it is off for the rewind. */
+    private void reopenAudit(Long auditEventId) {
+        jdbc.execute("ALTER TABLE audit_event DISABLE TRIGGER tg_audit_event_guard");
+        try {
+            jdbc.update("UPDATE audit_event SET outcome = 'PENDING' WHERE id = ?", auditEventId);
+        } finally {
+            jdbc.execute("ALTER TABLE audit_event ENABLE TRIGGER tg_audit_event_guard");
+        }
+    }
+
     @Test
     void recoveryLeavesALiveReplicasRunAloneAndInterruptsAGoneReplicasRun() {
         fourQueues();
         when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenReturn(ok(NodeStatus.APPLIED));
-        UUID id = execute(preview(BulkOperation.PAUSE, "orders"), false).run().id();
+        BulkRunDetailView done = execute(preview(BulkOperation.PAUSE, "orders"), false);
+        UUID id = done.run().id();
         assertThat(jdbc.queryForObject("SELECT replica_id FROM bulk_run WHERE id = ?", UUID.class, id))
                 .as("the run records the replica that executed it")
                 .isEqualTo(replicas.id());
         jdbc.update("UPDATE bulk_run SET status = 'RUNNING', finished_at = NULL WHERE id = ?", id);
+        reopenAudit(done.run().auditEventId());
 
         recovery.recover();
         assertThat(bulk.get(clusterId, id).run().status()).isEqualTo(BulkRunStatus.RUNNING);

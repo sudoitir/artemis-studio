@@ -9,6 +9,7 @@
 
 _Services_
 
+* `i.g.s.a.k.a.AuditFeed`
 * `i.g.s.a.k.a.AuditQueryService`
 * `i.g.s.a.k.a.AuditService`
 
