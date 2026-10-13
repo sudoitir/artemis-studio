@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,9 +16,12 @@ import org.springframework.stereotype.Component;
  * {@link SettingsService} (design.md, task 6.4). A plugin declares its settings in its own
  * {@code SettingsContribution} bean exactly the way a built-in module does; this bridge is what
  * makes {@link SettingsService#addSettings} and {@link SettingsService#removeSettings}
- * fire on activation and deactivation.
+ * fire on activation and deactivation. It is ordered ahead of every other bridge, which attach in
+ * bean order and detach in reverse, so a bridge that reads a plugin's setting while attaching (a
+ * job's interval, say) finds its keys already registered.
  */
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
 class SettingsPluginBridge implements PluginBridge {
 

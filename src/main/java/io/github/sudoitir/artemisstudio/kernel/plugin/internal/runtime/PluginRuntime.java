@@ -9,6 +9,7 @@ import jakarta.persistence.EntityManagerFactory;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -232,8 +233,9 @@ public final class PluginRuntime implements AutoCloseable {
     }
 
     private void teardown() {
-        for (PluginBridge bridge :
-                mainContext.getBeansOfType(PluginBridge.class).values()) {
+        List<PluginBridge> bridges =
+                mainContext.getBeanProvider(PluginBridge.class).orderedStream().toList();
+        for (PluginBridge bridge : bridges.reversed()) {
             try {
                 bridge.detach(handle);
             } catch (RuntimeException e) {
