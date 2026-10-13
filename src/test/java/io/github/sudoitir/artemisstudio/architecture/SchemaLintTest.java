@@ -40,6 +40,10 @@ class SchemaLintTest extends PostgresIntegrationTest {
     /** Every exception to the rules, each with why. */
     private static final List<Allowed> ALLOWED = List.of(
             new Allowed("databasechangelog", Rule.PRIMARY_KEY, "Liquibase's own history table"),
+            new Allowed(
+                    "metric_sample",
+                    Rule.PRIMARY_KEY,
+                    "natural key includes a nullable node; enforced by uq_metric_sample NULLS NOT DISTINCT"),
             new Allowed("databasechangelog", Rule.COLUMN_TYPE, "Liquibase's own history table"),
             new Allowed("shedlock", Rule.COLUMN_TYPE, "ShedLock's own table, created in the shape its library expects"),
             new Allowed(
@@ -65,9 +69,7 @@ class SchemaLintTest extends PostgresIntegrationTest {
             new Allowed(
                     "upload_window",
                     Rule.UUID_KEY_DEFAULT,
-                    "keyed by the id of the user it counts, which the limiter supplies; it names no row of its own"),
-            new Allowed("message_index", Rule.DEFAULT_PARTITION, "removed by the partition maintainer unit"),
-            new Allowed("metric_sample", Rule.DEFAULT_PARTITION, "removed by the partition maintainer unit"));
+                    "keyed by the id of the user it counts, which the limiter supplies; it names no row of its own"));
 
     private static final String SCHEMA = "n.nspname = current_schema()";
 

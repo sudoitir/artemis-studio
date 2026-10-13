@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.feature.events;
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownPhases;
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownStep;
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionSpec;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +19,11 @@ class EventsJobs {
                 ScheduledJob.Scope.INSTANCE,
                 () -> settings.duration(EventsSettings.FLUSH),
                 writer::flush);
+    }
+
+    @Bean
+    PartitionSpec brokerEventPartitions() {
+        return BrokerEventStore.PARTITIONS;
     }
 
     /**

@@ -1,7 +1,10 @@
 package io.github.sudoitir.artemisstudio.kernel.lifecycle;
 
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionMaintainer;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionSpec;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
+import java.time.Duration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,6 +19,23 @@ class LifecycleJobs {
                 ScheduledJob.Scope.INSTALLATION,
                 () -> settings.value(LifecycleSettings.HOUSEKEEPING_CRON),
                 housekeeper::purgeAll);
+    }
+
+    /** Partitions ahead, closed ones frozen, parents analyzed; the same work runs once at start-up (ADR-0193). */
+    @Bean
+    ScheduledJob partitionsJob(PartitionMaintainer maintainer) {
+        return ScheduledJob.fixedDelay(
+                "partitions",
+                LifecycleModule.ID,
+                ScheduledJob.Scope.INSTALLATION,
+                () -> Duration.ofHours(1),
+                maintainer::maintain);
+    }
+
+    /** The audit trail is partitioned by month (ADR-0190, ADR-0193). */
+    @Bean
+    PartitionSpec auditEventPartitions() {
+        return AuditStore.PARTITIONS;
     }
 
     @Bean

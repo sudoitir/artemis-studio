@@ -166,7 +166,7 @@ management:
         readiness:
           include: readinessState,replica
         studio:
-          include: jobs,brokers,subscriptions,permissions,pluginTrust,pluginLicenses,pluginSignIn,database
+          include: jobs,partitions,brokers,subscriptions,permissions,pluginTrust,pluginLicenses,pluginSignIn,database
           show-details: when-authorized
   info:
     build:
@@ -242,9 +242,6 @@ artemis-studio:
     connect-timeout: 3s
     read-timeout: 10s
     clock-skew-tolerance-ms: 2000  # a broker clock further off than this is called skew (ADR-0053)
-  metric:
-    # Raw metric_sample retention is the "metrics" store's policy (ADR-0134).
-    partition-maintainer-cron: "0 0 3 * * *"  # MetricPartitionMaintainer: creates the days ahead
   mcp:
     # Result caps for the MCP surface (ADR-0045); tighter than REST's on purpose.
     # A mutation ceiling is NOT set here — that inherits safety.bulk-cap below.

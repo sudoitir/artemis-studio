@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
+import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.platform.broker.QueueRow;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +11,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Appends {@code metric_sample} rows for swept queues (ADR-0006 — Studio owns the
@@ -32,18 +33,19 @@ public class MetricSampleWriter {
     private static final String INSERT = """
             INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
             VALUES (now(), :value, 'QUEUE', :subjectName, :metric, :clusterId, :nodeId)
-            ON CONFLICT DO NOTHING
+            ON CONFLICT ON CONSTRAINT uq_metric_sample DO NOTHING
             """;
 
     private static final String PLUGIN_INSERT = """
             INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
             VALUES (now(), :value, 'PLUGIN', :subjectName, :metric, :clusterId, NULL)
-            ON CONFLICT DO NOTHING
+            ON CONFLICT ON CONSTRAINT uq_metric_sample DO NOTHING
             """;
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final TransactionTemplate transactions;
+    private final PartitionProvisioner partitions;
 
-    @Transactional
     public void appendQueueSamples(List<QueueRow> rows) {
         if (rows.isEmpty()) {
             return;
@@ -57,11 +59,10 @@ public class MetricSampleWriter {
             params.add(sample(r, "deliveringCount", r.deliveringCount()));
             params.add(sample(r, "messagesExpired", r.messagesExpired()));
         }
-        jdbc.batchUpdate(INSERT, params.toArray(SqlParameterSource[]::new));
+        write(INSERT, params.toArray(SqlParameterSource[]::new));
     }
 
     /** A plugin metric's values on one cluster (ADR-0113): subject type {@code PLUGIN}, no node. */
-    @Transactional
     public void appendPluginSamples(UUID clusterId, String metric, Map<String, Double> values) {
         if (values.isEmpty()) {
             return;
@@ -73,7 +74,12 @@ public class MetricSampleWriter {
                         .addValue("metric", metric)
                         .addValue("clusterId", clusterId))
                 .toArray(SqlParameterSource[]::new);
-        jdbc.batchUpdate(PLUGIN_INSERT, params);
+        write(PLUGIN_INSERT, params);
+    }
+
+    /** A sample whose day has no partition creates it and is written once more, in a new transaction (ADR-0193). */
+    private void write(String sql, SqlParameterSource[] params) {
+        partitions.retryingNoPartition(() -> transactions.execute(status -> jdbc.batchUpdate(sql, params)));
     }
 
     private static SqlParameterSource sample(QueueRow r, String metric, long value) {

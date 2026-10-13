@@ -7,6 +7,9 @@ import io.github.sudoitir.artemisstudio.kernel.lifecycle.PurgeEstimate;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.StoreDef;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.StoreDef.QuotaUnit;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.StoreUsage;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.Grain;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionDrops;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionSpec;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -15,13 +18,21 @@ import org.springframework.stereotype.Component;
 
 /**
  * The {@code broker_event} history under the data lifecycle (ADR-0028, ADR-0134). Volume follows
- * broker chatter Studio does not control, so retention is what bounds it next to the writer's buffer.
+ * broker chatter Studio does not control, so retention is what bounds it next to the writer's buffer. A batch
+ * drops one daily partition older than the cutoff (ADR-0193).
  */
 @Component
 class BrokerEventStore implements ManagedStore, HousekeepingContributor {
 
     private static final String TABLE = "broker_event";
-    private static final String OLD = "received_at < ?";
+
+    /** Written by the database's clock, never the broker's, so a skewed broker cannot miss a partition. */
+    static final PartitionSpec PARTITIONS = new PartitionSpec(
+            TABLE,
+            "received_at",
+            Grain.DAY,
+            7,
+            "fillfactor=100, autovacuum_vacuum_insert_scale_factor=0, autovacuum_vacuum_insert_threshold=5000");
 
     private static final StoreDef DEF = new StoreDef(
             "broker-events",
@@ -33,9 +44,11 @@ class BrokerEventStore implements ManagedStore, HousekeepingContributor {
             Duration.ofDays(90));
 
     private final JdbcTemplate jdbc;
+    private final PartitionDrops drops;
 
-    BrokerEventStore(JdbcTemplate jdbc) {
+    BrokerEventStore(JdbcTemplate jdbc, PartitionDrops drops) {
         this.jdbc = jdbc;
+        this.drops = drops;
     }
 
     @Override
@@ -55,11 +68,11 @@ class BrokerEventStore implements ManagedStore, HousekeepingContributor {
 
     @Override
     public PurgeEstimate preview(Instant cutoff) {
-        return LifecycleSql.estimate(jdbc, TABLE, OLD, cutoff);
+        return drops.preview(PARTITIONS, cutoff);
     }
 
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
-        return LifecycleSql.deleteBatch(jdbc, TABLE, OLD, cutoff, limit);
+        return drops.dropOldest(PARTITIONS, cutoff);
     }
 }

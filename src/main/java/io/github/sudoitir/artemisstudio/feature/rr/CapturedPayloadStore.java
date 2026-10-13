@@ -67,12 +67,15 @@ class CapturedPayloadStore implements ManagedStore {
                 Timestamp.from(cutoff));
     }
 
-    /** By {@code ctid}, like {@code LifecycleSql.deleteBatch}; an emptied detail becomes null, as it is when recorded. */
+    /**
+     * By primary key, not {@code ctid}: the table is partitioned and a {@code ctid} is only unique within one
+     * partition. An emptied detail becomes null, as it is when recorded.
+     */
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
         return jdbc.update(
-                "UPDATE rr_event SET detail = nullif(" + WITHOUT + ", '{}'::jsonb) WHERE ctid = ANY(ARRAY(SELECT ctid"
-                        + " FROM rr_event WHERE " + OLD + " LIMIT ?))",
+                "UPDATE rr_event SET detail = nullif(" + WITHOUT + ", '{}'::jsonb) WHERE (seq, ts) IN (SELECT seq, ts"
+                        + " FROM rr_event WHERE " + OLD + " LIMIT ?)",
                 Timestamp.from(cutoff),
                 limit);
     }

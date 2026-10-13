@@ -6,6 +6,7 @@
         allowedDependencies = {
             "kernel.jobs",
             "kernel.lifecycle",
+            "kernel.lifecycle::partition",
             "kernel.plugin",
             "kernel.replica",
             "kernel.security",

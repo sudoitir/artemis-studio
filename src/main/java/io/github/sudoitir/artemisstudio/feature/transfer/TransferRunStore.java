@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 /**
  * Transfer runs under the data lifecycle (ADR-0134): a run that is over for good goes once it is
  * older than the retention, and a preview nobody executed goes when it expires, whatever the
- * retention. The copy ledger goes with its run through {@code ON DELETE CASCADE}.
+ * retention. The copy ledger goes first, in bounded batches, and its runs after it, so no statement cascades through an unbounded ledger.
  *
  * <p>Only {@code SUCCEEDED}, {@code PARTIAL} and {@code RETURNED} runs are purged. An active run is
  * never touched, and neither is a resumable one ({@code STOPPED}, {@code INTERRUPTED},
@@ -64,6 +64,7 @@ class TransferRunStore implements ManagedStore, HousekeepingContributor {
 
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
+        LifecycleSql.deleteChildren(jdbc, "transfer_copied", "run_id", RUNS, PREDICATE, cutoff, limit);
         return LifecycleSql.deleteBatch(jdbc, RUNS, PREDICATE, cutoff, limit);
     }
 }

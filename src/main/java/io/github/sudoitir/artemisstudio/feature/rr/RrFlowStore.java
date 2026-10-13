@@ -6,19 +6,31 @@ import io.github.sudoitir.artemisstudio.kernel.lifecycle.PurgeEstimate;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.StoreDef;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.StoreDef.QuotaUnit;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.StoreUsage;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.Grain;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionDrops;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionSpec;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * Request-reply flows under the data lifecycle (ADR-0134). {@code rr_event} rows go with their flow
- * through {@code ON DELETE CASCADE} (fk_rr_event_flow).
+ * Request-reply flows under the data lifecycle (ADR-0134). {@code rr_event} is partitioned by day and has
+ * no foreign key to its flow (ADR-0193): its events go when their day's partition is older than the
+ * cutoff, so an event may outlive its flow by up to a day, and readers reach events through the flow.
  */
 class RrFlowStore implements ManagedStore {
 
     private static final String TABLE = "rr_flow";
     private static final String OLD = "requested_at < ?";
+
+    /** Stamped with the writer's clock, never a broker's, so a skewed broker cannot miss a partition. */
+    static final PartitionSpec EVENT_PARTITIONS = new PartitionSpec(
+            "rr_event",
+            "ts",
+            Grain.DAY,
+            7,
+            "fillfactor=100, autovacuum_vacuum_insert_scale_factor=0, autovacuum_vacuum_insert_threshold=5000");
 
     private static final StoreDef DEF = new StoreDef(
             "rr-flows",
@@ -30,9 +42,11 @@ class RrFlowStore implements ManagedStore {
             Duration.ofDays(90));
 
     private final JdbcTemplate jdbc;
+    private final PartitionDrops drops;
 
-    RrFlowStore(JdbcTemplate jdbc) {
+    RrFlowStore(JdbcTemplate jdbc, PartitionDrops drops) {
         this.jdbc = jdbc;
+        this.drops = drops;
     }
 
     @Override
@@ -47,11 +61,17 @@ class RrFlowStore implements ManagedStore {
 
     @Override
     public PurgeEstimate preview(Instant cutoff) {
-        return LifecycleSql.estimate(jdbc, TABLE, OLD, cutoff);
+        PurgeEstimate flows = LifecycleSql.estimate(jdbc, TABLE, OLD, cutoff);
+        PurgeEstimate events = drops.preview(EVENT_PARTITIONS, cutoff);
+        return new PurgeEstimate(flows.rows() + events.rows(), flows.bytes() + events.bytes());
     }
 
     @Override
     public long purgeBatch(Instant cutoff, int limit) {
+        long events = drops.dropOldest(EVENT_PARTITIONS, cutoff);
+        if (events > 0) {
+            return events;
+        }
         return LifecycleSql.deleteBatch(jdbc, TABLE, OLD, cutoff, limit);
     }
 }

@@ -1,6 +1,7 @@
 package io.github.sudoitir.artemisstudio.feature.sql;
 
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
+import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.platform.governance.ContentSealer;
 import io.github.sudoitir.artemisstudio.platform.governance.GovernedMessage;
 import java.sql.Timestamp;
@@ -55,6 +56,7 @@ public class MessageIndexWriter {
     private final JdbcTemplate jdbc;
     private final SqlGovernance governance;
     private final ContentSealer sealer;
+    private final PartitionProvisioner partitions;
     private final JsonMapper json = JsonMapper.builder().build();
 
     /** A row's governed form and the sealed originals of its masked values (ADR-0075 D4). */
@@ -90,7 +92,8 @@ public class MessageIndexWriter {
         // Governed only once it is known to be new: a re-observation stores nothing but its time.
         Stored stored = stored(clusterId, row);
         GovernedMessage governed = stored.governed();
-        jdbc.update(
+        // observed_at is this instance's clock, so only a missed maintenance run can leave a day without a partition.
+        partitions.retryingNoPartition(() -> jdbc.update(
                 """
                 INSERT INTO message_index (
                     observed_at, last_seen_at, message_id, timestamp_ms, expiration_ms, size_bytes,
@@ -125,7 +128,7 @@ public class MessageIndexWriter {
                 row.bodyTruncated(),
                 row.bodyBase64(),
                 governed.policyVersion(),
-                new SqlParameterValue(Types.BINARY, stored.sealed()));
+                new SqlParameterValue(Types.BINARY, stored.sealed())));
         return true;
     }
 
@@ -166,46 +169,47 @@ public class MessageIndexWriter {
         List<Prepared> prepared = batch.stream()
                 .map(captured -> new Prepared(captured, stored(captured.clusterId(), captured.row())))
                 .toList();
-        jdbc.batchUpdate(CAPTURED_INSERT, prepared, prepared.size(), (statement, entry) -> {
-            Captured captured = entry.captured();
-            Row row = captured.row();
-            GovernedMessage governed = entry.stored().governed();
-            Timestamp at = Timestamp.from(captured.at());
-            int i = 0;
-            statement.setTimestamp(++i, at);
-            statement.setTimestamp(++i, at);
-            statement.setLong(++i, row.messageId());
-            statement.setLong(++i, row.timestamp());
-            statement.setLong(++i, row.expiration());
-            statement.setLong(++i, row.size());
-            statement.setObject(++i, captured.sourceMessageId());
-            statement.setInt(++i, row.priority());
-            statement.setInt(++i, row.messageType());
-            statement.setString(++i, row.queueName());
-            statement.setString(++i, row.address());
-            statement.setString(++i, row.nodeName());
-            statement.setString(++i, governed.headers().get("correlationId"));
-            statement.setString(++i, governed.headers().get("groupId"));
-            statement.setString(++i, governed.headers().get("userId"));
-            statement.setString(++i, governed.headers().get("replyTo"));
-            statement.setString(++i, row.jmsType());
-            statement.setString(++i, governed.body());
-            statement.setString(++i, row.bodyCompression());
-            statement.setString(++i, properties(governed.properties()));
-            statement.setString(++i, captured.origAddress());
-            statement.setObject(++i, captured.clusterId());
-            statement.setObject(++i, row.nodeId());
-            statement.setBoolean(++i, row.durable());
-            statement.setBoolean(++i, row.bodyTruncated());
-            statement.setBoolean(++i, row.bodyBase64());
-            statement.setInt(++i, governed.policyVersion());
-            statement.setObject(++i, entry.stored().sealed(), Types.BINARY);
-            statement.setObject(++i, captured.clusterId());
-            statement.setString(++i, row.queueName());
-            statement.setObject(++i, row.nodeId());
-            statement.setLong(++i, row.messageId());
-            statement.setTimestamp(++i, Timestamp.from(captured.at().minus(REDELIVERY_WINDOW)));
-        });
+        partitions.retryingNoPartition(() ->
+                jdbc.batchUpdate(CAPTURED_INSERT, prepared, prepared.size(), (statement, entry) -> {
+                    Captured captured = entry.captured();
+                    Row row = captured.row();
+                    GovernedMessage governed = entry.stored().governed();
+                    Timestamp at = Timestamp.from(captured.at());
+                    int i = 0;
+                    statement.setTimestamp(++i, at);
+                    statement.setTimestamp(++i, at);
+                    statement.setLong(++i, row.messageId());
+                    statement.setLong(++i, row.timestamp());
+                    statement.setLong(++i, row.expiration());
+                    statement.setLong(++i, row.size());
+                    statement.setObject(++i, captured.sourceMessageId());
+                    statement.setInt(++i, row.priority());
+                    statement.setInt(++i, row.messageType());
+                    statement.setString(++i, row.queueName());
+                    statement.setString(++i, row.address());
+                    statement.setString(++i, row.nodeName());
+                    statement.setString(++i, governed.headers().get("correlationId"));
+                    statement.setString(++i, governed.headers().get("groupId"));
+                    statement.setString(++i, governed.headers().get("userId"));
+                    statement.setString(++i, governed.headers().get("replyTo"));
+                    statement.setString(++i, row.jmsType());
+                    statement.setString(++i, governed.body());
+                    statement.setString(++i, row.bodyCompression());
+                    statement.setString(++i, properties(governed.properties()));
+                    statement.setString(++i, captured.origAddress());
+                    statement.setObject(++i, captured.clusterId());
+                    statement.setObject(++i, row.nodeId());
+                    statement.setBoolean(++i, row.durable());
+                    statement.setBoolean(++i, row.bodyTruncated());
+                    statement.setBoolean(++i, row.bodyBase64());
+                    statement.setInt(++i, governed.policyVersion());
+                    statement.setObject(++i, entry.stored().sealed(), Types.BINARY);
+                    statement.setObject(++i, captured.clusterId());
+                    statement.setString(++i, row.queueName());
+                    statement.setObject(++i, row.nodeId());
+                    statement.setLong(++i, row.messageId());
+                    statement.setTimestamp(++i, Timestamp.from(captured.at().minus(REDELIVERY_WINDOW)));
+                }));
     }
 
     private static final String CAPTURED_INSERT = """
