@@ -67,7 +67,7 @@ public class HeavyRequests {
 
     private final JdbcTemplate jdbc;
     private final int installationCap;
-    private final UUID replica = UUID.randomUUID();
+    private final UUID replica = Ids.v7();
 
     public HeavyRequests(JdbcTemplate jdbc, DataSource dataSource) {
         this.jdbc = jdbc;
