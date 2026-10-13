@@ -32,6 +32,7 @@ class BuiltInRolesCoverageTest extends PostgresIntegrationTest {
             Map.entry("user:admin", "manages users, roles and grants"),
             Map.entry("token:admin", "sees and revokes every user's tokens"),
             Map.entry("diagnostics:bundle", "support bundles carry configuration"),
+            Map.entry("audit:export", "takes the whole audit trail out of Studio as a file"),
             Map.entry("data:write", "changes retention and quotas"),
             Map.entry("environment:write", "changes how clusters are grouped and granted"),
             Map.entry("governance:write", "changes masking rules and findings"),
