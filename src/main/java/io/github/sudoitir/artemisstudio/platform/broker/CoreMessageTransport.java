@@ -103,7 +103,7 @@ public class CoreMessageTransport implements MessageTransport {
             return new BrowseResult(
                     jolokiaFallback.browse(target, page, size, filter).page(), Channel.JOLOKIA);
         }
-        limiter.acquire(permitKey(target), 1);
+        limiter.acquire(permitKey(target), 1, "core");
         List<BrowsedMessage> rows = new ArrayList<>(size);
         try {
             observations.run("browse", target.coreUrl(), () -> {
@@ -180,7 +180,7 @@ public class CoreMessageTransport implements MessageTransport {
 
     @Override
     public void send(TransportTarget target, SendSpec spec) {
-        limiter.acquire(permitKey(target), 1);
+        limiter.acquire(permitKey(target), 1, "core");
         try {
             observations.run("send", target.coreUrl(), () -> {
                 try (PooledSession jms = open(target.clusterId(), target.coreUrl())) {

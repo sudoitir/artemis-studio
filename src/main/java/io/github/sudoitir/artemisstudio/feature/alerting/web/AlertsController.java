@@ -6,6 +6,8 @@ import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFir
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleRequest;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertRuleView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.PluginMetricView;
+import io.github.sudoitir.artemisstudio.kernel.core.Cursor;
+import io.github.sudoitir.artemisstudio.kernel.core.HistoryPage;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import jakarta.validation.Valid;
@@ -41,11 +43,12 @@ public class AlertsController {
     }
 
     @GetMapping("/history")
-    public PagedView<AlertFiringView> history(
+    public HistoryPage<AlertFiringView> history(
             @PathVariable UUID clusterId,
             @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size) {
-        return alerts.history(clusterId, ResourceQuery.ofPage(page, size));
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String after) {
+        return alerts.history(clusterId, ResourceQuery.ofPage(page, size), Cursor.decode(after));
     }
 
     @GetMapping("/rules")

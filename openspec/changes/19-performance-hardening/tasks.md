@@ -5,7 +5,7 @@
 ## 2. U1 Schema (database-schema)
 
 - [x] 2.1 Re-baseline every module changelog to one `changes/0001-baseline.sql` with final shapes: uuid PKs `DEFAULT uuidv7()` (bearer-handle tables without default), PKs for `storage_sample`, `flow_route`, `metric_sample`; `inbox_item.data` jsonb; drop `pgcrypto`; partitioned parents for `broker_event`, `rr_event`, `audit_event` (no default partition, no partitions); storage parameters by class; plugin template SQL on `uuidv7()`
-- [ ] 2.2 UNLOGGED `heavy_permit` and limiter counter tables in their owning modules
+- [x] 2.2 UNLOGGED `heavy_permit` and limiter counter tables in their owning modules
 - [x] 2.3 Delete `SchemaBaselineDiffTest` and `db/reference-schema.sql`; add `SchemaLintTest` with its allow-list
 - [x] 2.4 Liquibase session advisory lock (`liquibase-sessionlock` or a small `LockService`)
 - [x] 2.5 ADR: UUIDv7 keys and the second re-baseline, superseding the "never edit a released changeset" convention until the stable release; update CLAUDE.md non-negotiable 7 and the master changelog comment
@@ -42,11 +42,11 @@
 
 ## 7. U6 Limits (performance-sizing)
 
-- [ ] 7.1 `kernel/core/HeavyRequests` (cross-replica permits, time and row bounds, response names the bound, installation cap pool/4)
-- [ ] 7.2 Apply to audit export and history, alert and event history, bulk and transfer previews, flow and topology reads, SQL console; keyset paging on history
-- [ ] 7.3 Login attempt, upload and in-flight limiters on Postgres counters; node call limiter divided by ready replicas
-- [ ] 7.4 `BrokerListOps.readAll` chunks of 200; `studio.broker.calls{kind}`
-- [ ] 7.5 ADR: heavy-request permits across replicas
+- [x] 7.1 `kernel/core/HeavyRequests` (cross-replica permits, time and row bounds, response names the bound, installation cap pool/4)
+- [x] 7.2 Apply to audit export and history, alert and event history, bulk and transfer previews, flow and topology reads, SQL console; keyset paging on history
+- [x] 7.3 Login attempt, upload and in-flight limiters on Postgres counters; node call limiter divided by ready replicas
+- [x] 7.4 `BrokerListOps.readAll` chunks of 200; `studio.broker.calls{kind}`
+- [x] 7.5 ADR: heavy-request permits across replicas
 
 ## 8. U7 Stream (realtime-stream)
 

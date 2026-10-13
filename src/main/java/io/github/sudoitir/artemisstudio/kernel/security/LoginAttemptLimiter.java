@@ -1,11 +1,14 @@
 package io.github.sudoitir.artemisstudio.kernel.security;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.Ticker;
+import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.time.Instant;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The failed-sign-in throttle (ADR-0144), two keys, both counting unknown usernames too:
@@ -18,10 +21,9 @@ import org.springframework.stereotype.Component;
  *       many accounts. A success does not clear it.
  * </ul>
  *
- * Entries expire and the caches are bounded, so a flood of made-up usernames cannot grow memory.
- *
- * <p>ponytail: per instance. The account lock in the database holds across instances; this is the
- * courtesy layer in front of it, so a shared counter is not worth its cost.
+ * The counts live in the {@code login_attempt} table, so failures that reach different replicas add up
+ * (ADR-0196). Rows expire, and housekeeping removes the ones nobody came back to, so a flood of made-up
+ * usernames cannot grow the table for long.
  */
 @Component
 public class LoginAttemptLimiter {
@@ -29,77 +31,108 @@ public class LoginAttemptLimiter {
     private static final int LOCK_AFTER_FAILURES = 5;
     private static final long BASE_LOCKOUT_SECONDS = 5;
     private static final long MAX_LOCKOUT_SECONDS = 300;
-    /** Longer than the longest backoff, so an entry never expires while its lock is running. */
+    /** Longer than the longest backoff, so a row never expires while its lock is running. */
     private static final Duration ACCOUNT_FORGET_AFTER = Duration.ofMinutes(15);
 
     private static final int PER_SOURCE_FAILURES = 30;
     private static final Duration PER_SOURCE_WINDOW = Duration.ofMinutes(10);
-    private static final long MAX_ENTRIES = 100_000;
 
-    private final Ticker ticker;
+    private static final String IS_LOCKED = """
+            SELECT EXISTS (
+                SELECT 1 FROM login_attempt
+                WHERE expires_at > ?
+                  AND ((key = ? AND failures >= ?) OR (key = ? AND locked_until > ?)))""";
 
-    /** Sliding: every failure rewrites the entry, so it expires after the last failure. */
-    private final Cache<Key, Attempts> byAccount;
+    /** Sliding: every failure moves the expiry, so a row expires after the last failure. */
+    private static final String FAIL_ACCOUNT = """
+            INSERT INTO login_attempt AS a (key, failures, locked_until, expires_at) VALUES (?, 1, NULL, ?)
+            ON CONFLICT (key) DO UPDATE SET
+                failures = CASE WHEN a.expires_at <= ? THEN 1 ELSE a.failures + 1 END,
+                locked_until = CASE
+                    WHEN a.expires_at > ? AND a.failures + 1 >= ?
+                        THEN ?::timestamptz + make_interval(secs => LEAST(?, ? * power(2, LEAST(a.failures + 1 - ?, 10))))
+                    WHEN a.expires_at > ? THEN a.locked_until
+                END,
+                expires_at = EXCLUDED.expires_at""";
 
-    /** Fixed window: the entry is only read after it is created, so it expires from the first failure. */
-    private final Cache<String, AtomicInteger> bySource;
+    /** Fixed window: the expiry is set by the first failure and kept, so the window starts there. */
+    private static final String FAIL_SOURCE = """
+            INSERT INTO login_attempt AS a (key, failures, locked_until, expires_at) VALUES (?, 1, NULL, ?)
+            ON CONFLICT (key) DO UPDATE SET
+                failures = CASE WHEN a.expires_at <= ? THEN 1 ELSE a.failures + 1 END,
+                expires_at = CASE WHEN a.expires_at <= ? THEN EXCLUDED.expires_at ELSE a.expires_at END""";
 
-    public LoginAttemptLimiter() {
-        this(Ticker.systemTicker());
-    }
+    private final JdbcTemplate jdbc;
+    private final Clock clock;
 
-    LoginAttemptLimiter(Ticker ticker) {
-        this.ticker = ticker;
-        this.byAccount = Caffeine.newBuilder()
-                .ticker(ticker)
-                .maximumSize(MAX_ENTRIES)
-                .expireAfterWrite(ACCOUNT_FORGET_AFTER)
-                .build();
-        this.bySource = Caffeine.newBuilder()
-                .ticker(ticker)
-                .maximumSize(MAX_ENTRIES)
-                .expireAfterWrite(PER_SOURCE_WINDOW)
-                .build();
+    /** Writes commit on their own: a failed sign-in rolls its request back, and the failure must stay counted. */
+    private final TransactionTemplate ownTransaction;
+
+    public LoginAttemptLimiter(JdbcTemplate jdbc, Clock clock, PlatformTransactionManager transactions) {
+        this.jdbc = jdbc;
+        this.clock = clock;
+        this.ownTransaction = new TransactionTemplate(transactions);
+        this.ownTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     public boolean isLocked(String username, String sourceIp) {
-        AtomicInteger source = bySource.getIfPresent(source(sourceIp));
-        if (source != null && source.get() >= PER_SOURCE_FAILURES) {
-            return true;
-        }
-        Attempts a = byAccount.getIfPresent(new Key(username, source(sourceIp)));
-        return a != null && a.lockedUntilNanos() != 0 && a.lockedUntilNanos() - ticker.read() > 0;
+        Timestamp now = Timestamp.from(clock.instant());
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+                IS_LOCKED,
+                Boolean.class,
+                now,
+                sourceKey(sourceIp),
+                PER_SOURCE_FAILURES,
+                accountKey(username, sourceIp),
+                now));
     }
 
     public void recordFailure(String username, String sourceIp) {
-        bySource.get(source(sourceIp), k -> new AtomicInteger()).incrementAndGet();
-        byAccount.asMap().compute(new Key(username, source(sourceIp)), (k, existing) -> {
-            int failures = existing == null ? 1 : existing.failures() + 1;
-            long lockedUntil = existing == null ? 0 : existing.lockedUntilNanos();
-            if (failures >= LOCK_AFTER_FAILURES) {
-                long extra = (long) failures - LOCK_AFTER_FAILURES;
-                long seconds = Math.min(MAX_LOCKOUT_SECONDS, BASE_LOCKOUT_SECONDS << Math.min(extra, 10));
-                lockedUntil = ticker.read() + Duration.ofSeconds(seconds).toNanos();
-            }
-            // A new value each time: only a real write restarts the entry's expiry.
-            return new Attempts(failures, lockedUntil);
+        Instant now = clock.instant();
+        Timestamp at = Timestamp.from(now);
+        ownTransaction.executeWithoutResult(_ -> {
+            jdbc.update(FAIL_SOURCE, sourceKey(sourceIp), Timestamp.from(now.plus(PER_SOURCE_WINDOW)), at, at);
+            jdbc.update(
+                    FAIL_ACCOUNT,
+                    accountKey(username, sourceIp),
+                    Timestamp.from(now.plus(ACCOUNT_FORGET_AFTER)),
+                    at,
+                    at,
+                    LOCK_AFTER_FAILURES,
+                    at,
+                    MAX_LOCKOUT_SECONDS,
+                    BASE_LOCKOUT_SECONDS,
+                    LOCK_AFTER_FAILURES,
+                    at);
         });
     }
 
     public void recordSuccess(String username, String sourceIp) {
-        byAccount.invalidate(new Key(username, source(sourceIp)));
+        ownTransaction.executeWithoutResult(
+                _ -> jdbc.update("DELETE FROM login_attempt WHERE key = ?", accountKey(username, sourceIp)));
     }
 
     /** Forget every username-and-source entry of the user, whatever the source; an administrator unlocked them. */
     public void forget(String username) {
-        byAccount.asMap().keySet().removeIf(key -> key.username().equals(username));
+        ownTransaction.executeWithoutResult(
+                _ -> jdbc.update("DELETE FROM login_attempt WHERE starts_with(key, ?)", accountPrefix(username)));
+    }
+
+    /** The username's length leads, so no username can run into the source that follows it. */
+    private static String accountPrefix(String username) {
+        String name = username == null ? "?" : username;
+        return "a:" + name.length() + ":" + name + ":";
+    }
+
+    private static String accountKey(String username, String sourceIp) {
+        return accountPrefix(username) + source(sourceIp);
+    }
+
+    private static String sourceKey(String sourceIp) {
+        return "s:" + source(sourceIp);
     }
 
     private static String source(String sourceIp) {
         return sourceIp == null ? "?" : sourceIp;
     }
-
-    private record Key(String username, String source) {}
-
-    private record Attempts(int failures, long lockedUntilNanos) {}
 }

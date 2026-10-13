@@ -65,7 +65,8 @@ Every error is `application/problem+json` ([RFC 9457](https://www.rfc-editor.org
 | `invalid-api-version` | 400 | The path names a version that does not exist |
 | `not-found` | 404 | No such resource or route |
 | `method-not-allowed`, `not-acceptable`, `unsupported-media-type` | 405, 406, 415 | The method, `Accept` or `Content-Type` is not served |
-| `rate-limited`, `login-throttled`, `too-many-queries` | 429 | Too many requests; wait `Retry-After` seconds |
+| `rate-limited`, `login-throttled`, `too-many-heavy-requests` | 429 | Too many requests; wait `Retry-After` seconds |
+| `heavy-request-timed-out` | 503 | A history read reached its time bound; narrow the time range or the filters |
 | `internal-error` | 500 | Unexpected; the body carries a `requestId` to quote, never the cause |
 
 Modules add types of their own, for example `broker-unreachable`; the document lists what each operation

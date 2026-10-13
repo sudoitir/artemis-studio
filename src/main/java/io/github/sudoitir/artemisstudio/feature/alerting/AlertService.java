@@ -6,16 +6,25 @@ import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.Al
 import io.github.sudoitir.artemisstudio.feature.alerting.internal.persistence.AlertRuleRepository;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.AlertFiringView;
 import io.github.sudoitir.artemisstudio.feature.alerting.web.AlertViews.ClusterFiringCountView;
-import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
+import io.github.sudoitir.artemisstudio.kernel.core.Cursor;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
+import io.github.sudoitir.artemisstudio.kernel.core.HistoryPage;
+import io.github.sudoitir.artemisstudio.kernel.core.ReadRouting;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
+import io.github.sudoitir.artemisstudio.kernel.core.Routed;
+import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.kernel.security.Permissions;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +43,13 @@ public class AlertService {
     private final ClusterAccessGuard clusterAccess;
     private final PermissionResolver perm;
     private final AlertRuleService ruleService;
+    private final ActorResolver actors;
+    private final HeavyRequests heavy;
+    private final ReadRouting routing;
+
+    /** A page of the history: a few at once per user, the page size at most, and the database's 30 s. */
+    static final HeavyRequests.Endpoint HISTORY =
+            new HeavyRequests.Endpoint("alert history reads", 4, Duration.ofSeconds(30), ResourceQuery.MAX_SIZE);
 
     @Transactional(readOnly = true)
     public List<AlertFiringView> firingNow(UUID clusterId) {
@@ -47,18 +63,90 @@ public class AlertService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public PagedView<AlertFiringView> history(UUID clusterId, ResourceQuery query) {
+    /**
+     * The cluster's firings, newest first, resolved and open. By page number for the first
+     * {@value HistoryPage#MAX_OFFSET} rows, with a total; by {@code after} beyond that, which costs the same however
+     * deep it reads and has no total. Read from the replica when there is one and it is current.
+     */
+    public HistoryPage<AlertFiringView> history(UUID clusterId, ResourceQuery paging, Cursor after) {
         clusterAccess.requireCluster(clusterId, AlertPermissions.ALERT_READ);
+        if (after == null) {
+            HistoryPage.requireReachable(paging);
+        }
         boolean everything = clusterAccess.holds(clusterId, Permissions.QUEUE_READ);
-        var result = firingRepo.findVisible(
-                clusterId,
-                perm.can(AlertPermissions.ALERT_READ),
-                everything,
-                visibleRuleIds(clusterId, everything),
-                PageRequest.of(query.page() - 1, query.size()));
-        Map<UUID, String> names = ruleNames(result.getContent());
-        return PagedView.of(result, f -> mapper.firing(f, names.get(f.getRuleId())));
+        boolean installation = perm.can(AlertPermissions.ALERT_READ);
+        List<UUID> ruleIds = visibleRuleIds(clusterId, everything);
+        Routed<Slice> routed = heavy.run(
+                HISTORY,
+                actors.resolve().displayName(),
+                run -> run.read(
+                        routing, client -> slice(client, clusterId, installation, everything, ruleIds, paging, after)));
+        Slice slice = routed.value();
+        boolean more = slice.rows().size() > paging.size();
+        List<AlertFiringView> shown = more ? slice.rows().subList(0, paging.size()) : slice.rows();
+        return new HistoryPage<>(
+                shown,
+                paging.page(),
+                paging.size(),
+                slice.count(),
+                more,
+                more ? new Cursor(shown.getLast().seq(), 0).encode() : null,
+                routed.fromReplica());
+    }
+
+    private record Slice(List<AlertFiringView> rows, Long count) {}
+
+    /** One more row than the page holds, so there is a next page when it comes back; and the total, by page number. */
+    private static Slice slice(
+            JdbcClient client,
+            UUID clusterId,
+            boolean installation,
+            boolean everything,
+            List<UUID> ruleIds,
+            ResourceQuery paging,
+            Cursor after) {
+        StringBuilder visible = new StringBuilder("((f.cluster_id = :cluster");
+        visible.append(everything ? "" : " AND f.rule_id IN (:ruleIds)").append(")");
+        visible.append(installation ? " OR f.cluster_id IS NULL" : "").append(")");
+        JdbcClient.StatementSpec spec = client.sql(
+                        "SELECT f.seq, f.rule_id, f.cluster_id, r.name AS rule_name, f.subject_key, f.severity,"
+                                + " f.value, f.started_at, f.resolved_at FROM alert_firing f"
+                                + " LEFT JOIN alert_rule r ON r.id = f.rule_id WHERE " + visible
+                                + (after == null ? "" : " AND f.seq < :afterSeq")
+                                + " ORDER BY f.seq DESC LIMIT :limit OFFSET :offset")
+                .param("cluster", clusterId)
+                .param("limit", paging.size() + 1)
+                .param("offset", after == null ? paging.offset() : 0);
+        if (!everything) {
+            spec = spec.param("ruleIds", ruleIds);
+        }
+        if (after != null) {
+            spec = spec.param("afterSeq", after.major());
+        }
+        List<AlertFiringView> rows = spec.query(AlertService::row).list();
+        if (after != null) {
+            return new Slice(rows, null);
+        }
+        JdbcClient.StatementSpec count = client.sql("SELECT count(*) FROM alert_firing f WHERE " + visible)
+                .param("cluster", clusterId);
+        if (!everything) {
+            count = count.param("ruleIds", ruleIds);
+        }
+        return new Slice(rows, count.query(Long.class).single());
+    }
+
+    private static AlertFiringView row(ResultSet rs, int i) throws SQLException {
+        OffsetDateTime resolved = rs.getObject("resolved_at", OffsetDateTime.class);
+        return new AlertFiringView(
+                rs.getLong("seq"),
+                rs.getObject("rule_id", UUID.class),
+                rs.getObject("cluster_id", UUID.class),
+                rs.getString("rule_name"),
+                rs.getString("subject_key"),
+                rs.getString("severity"),
+                rs.getObject("value", Double.class),
+                rs.getObject("started_at", OffsetDateTime.class).toInstant(),
+                resolved == null ? null : resolved.toInstant());
     }
 
     /**

@@ -32,8 +32,18 @@ public final class EventViews {
             @Schema(requiredMode = REQUIRED) List<BrokerEventView> data,
             @Schema(requiredMode = REQUIRED) int page,
             @Schema(requiredMode = REQUIRED) int pageSize,
-            @Schema(requiredMode = REQUIRED) long count,
+
+            @Schema(nullable = true, description = "The total; null when the page was reached by cursor.")
+            Long count,
+
             @Schema(requiredMode = REQUIRED) boolean hasNext,
+
+            @Schema(nullable = true, description = "Pass as `after` for the page that follows; null on the last page.")
+            String next,
+
+            @Schema(requiredMode = REQUIRED, description = "Read from a replica that may be a little behind.")
+            boolean mayLag,
+
             @Schema(requiredMode = REQUIRED) long dropped,
             @Schema(nullable = true) Instant oldestRetained) {}
 }

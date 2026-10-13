@@ -5,13 +5,16 @@ import io.github.sudoitir.artemisstudio.feature.bulk.web.BulkViews.BulkExecuteRe
 import io.github.sudoitir.artemisstudio.feature.bulk.web.BulkViews.BulkPreviewRequest;
 import io.github.sudoitir.artemisstudio.feature.bulk.web.BulkViews.BulkRunDetailView;
 import io.github.sudoitir.artemisstudio.feature.bulk.web.BulkViews.BulkRunView;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
 import io.github.sudoitir.artemisstudio.kernel.core.PagedView;
 import io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldResponse;
+import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -36,11 +39,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class BulkController {
 
     private final BulkService bulk;
+    private final HeavyRequests heavy;
+    private final ActorResolver actors;
+
+    /** A preview resolves and plans a whole selection; a few at once per user, the queue cap bounds its rows. */
+    private static final HeavyRequests.Endpoint PREVIEW =
+            new HeavyRequests.Endpoint("bulk previews", 2, Duration.ofSeconds(60), Integer.MAX_VALUE);
 
     @PostMapping("/preview")
     @ResponseStatus(HttpStatus.CREATED)
     public BulkRunDetailView preview(@PathVariable UUID clusterId, @Valid @RequestBody BulkPreviewRequest request) {
-        return bulk.preview(clusterId, request);
+        return heavy.run(PREVIEW, actors.resolve().displayName(), _ -> bulk.preview(clusterId, request));
     }
 
     /** Starts the run, or, when an approval provider holds it, answers 202 with the held request and starts nothing. */

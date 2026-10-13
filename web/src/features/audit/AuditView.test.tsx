@@ -56,6 +56,25 @@ describe('AuditView', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
+  it('says the list was read from a replica that may lag, and only then', async () => {
+    let mayLag = true;
+    server.use(
+      http.get('*/api/v1/clusters/c1/audit', () =>
+        HttpResponse.json({ data: [row()], count: 1, page: 1, pageSize: 100, hasNext: false, mayLag }),
+      ),
+    );
+    const { unmount } = renderWithProviders(<AuditView />);
+
+    expect(await screen.findByText('Read from a replica')).toBeInTheDocument();
+    expect(screen.getByText(/can be a few seconds behind/)).toBeInTheDocument();
+    unmount();
+
+    mayLag = false;
+    renderWithProviders(<AuditView />);
+    expect(await screen.findByText('failure')).toBeInTheDocument();
+    expect(screen.queryByText('Read from a replica')).not.toBeInTheDocument();
+  });
+
   it('renders the outcome word for a failed row and a click puts it in the address', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/audit', () =>

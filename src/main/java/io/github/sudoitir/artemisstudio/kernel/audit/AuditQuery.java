@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.kernel.audit;
 
+import io.github.sudoitir.artemisstudio.kernel.core.Cursor;
 import java.time.Instant;
 
 /**
@@ -13,6 +14,15 @@ import java.time.Instant;
  * @param to latest timestamp, inclusive
  * @param page 1-based page number
  * @param size rows per page, at most 500
+ * @param after where the previous page ended, or null to page by number
  */
 public record AuditQuery(
-        String username, String action, String outcome, Long parentId, Instant from, Instant to, int page, int size) {}
+        String username,
+        String action,
+        String outcome,
+        Long parentId,
+        Instant from,
+        Instant to,
+        int page,
+        int size,
+        Cursor after) {}

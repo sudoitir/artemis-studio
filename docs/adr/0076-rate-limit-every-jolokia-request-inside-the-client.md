@@ -1,6 +1,7 @@
 # ADR-0076: Rate-limit every Jolokia request inside the client
 
 - **Status**: accepted
+- **Amended by**: [ADR-0196](0196-heavy-request-permits-and-limits-are-counted-across-replicas-in-postgresql.md) — the per-node rate is divided between the ready replicas
 - **Date**: 2026-09-14
 - **Deciders**: maintainers
 

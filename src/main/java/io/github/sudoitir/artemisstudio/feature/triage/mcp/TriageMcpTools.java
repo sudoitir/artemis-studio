@@ -178,13 +178,12 @@ public class TriageMcpTools {
                 ? "This queue looks like a dead-letter queue by name."
                 : null;
 
-        List<McpViews.ActivityRow> recent =
-                brokerEvents
-                        .page(clusterId, new BrokerEventQuery(null, null, health.address(), null, null, 1, 10))
-                        .data()
-                        .stream()
-                        .map(TriageMcpTools::toActivity)
-                        .toList();
+        List<McpViews.ActivityRow> recent = brokerEvents
+                .page(clusterId, new BrokerEventQuery(null, null, health.address(), null, null, 1, 10, null))
+                .data()
+                .stream()
+                .map(TriageMcpTools::toActivity)
+                .toList();
 
         return new McpViews.QueueDiagnosis(
                 clusterId,
@@ -246,14 +245,18 @@ public class TriageMcpTools {
                 switch (source) {
                     case BROKER_EVENTS ->
                         brokerEvents
-                                .page(clusterId, new BrokerEventQuery(null, null, filter, null, null, 1, limit + 1))
+                                .page(
+                                        clusterId,
+                                        new BrokerEventQuery(null, null, filter, null, null, 1, limit + 1, null))
                                 .data()
                                 .stream()
                                 .map(TriageMcpTools::toActivity)
                                 .toList();
                     case AUDIT ->
                         auditLog
-                                .page(clusterId, new AuditQuery(null, filter, null, null, null, null, 1, limit + 1))
+                                .page(
+                                        clusterId,
+                                        new AuditQuery(null, filter, null, null, null, null, 1, limit + 1, null))
                                 .data()
                                 .stream()
                                 .map(TriageMcpTools::toActivity)

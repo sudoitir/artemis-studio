@@ -7258,6 +7258,11 @@ export interface components {
             /** Format: int32 */
             limit: number;
             clamped: boolean;
+            /**
+             * @description ROWS when more paths matched than the limit, so some are not drawn.
+             * @enum {string|null}
+             */
+            bound?: "ROWS" | "TIME" | null;
         };
         BrokerEventPageView: {
             data: components["schemas"]["BrokerEventView"][];
@@ -7265,9 +7270,16 @@ export interface components {
             page: number;
             /** Format: int32 */
             pageSize: number;
-            /** Format: int64 */
-            count: number;
+            /**
+             * Format: int64
+             * @description The total; null when the page was reached by cursor.
+             */
+            count?: number | null;
             hasNext: boolean;
+            /** @description Pass as `after` for the page that follows; null on the last page. */
+            next?: string | null;
+            /** @description Read from a replica that may be a little behind. */
+            mayLag: boolean;
             /** Format: int64 */
             dropped: number;
             /** Format: date-time */
@@ -7796,7 +7808,7 @@ export interface components {
             /** Format: uuid */
             nodeId?: string | null;
         };
-        PagedViewAuditEventView: {
+        HistoryPageAuditEventView: {
             data: components["schemas"]["AuditEventView"][];
             /** Format: int32 */
             page: number;
@@ -7804,10 +7816,14 @@ export interface components {
             pageSize: number;
             /**
              * Format: int64
-             * @description The total across all pages; null when it is not known.
+             * @description The total; null when the page was reached by cursor.
              */
             count?: number | null;
             hasNext: boolean;
+            /** @description Pass as `after` for the page that follows; null on the last page. */
+            next?: string | null;
+            /** @description Read from a replica that may be a little behind. */
+            mayLag: boolean;
         };
         PagedViewAlertRuleView: {
             data: components["schemas"]["AlertRuleView"][];
@@ -7861,6 +7877,23 @@ export interface components {
             startedAt: string;
             /** Format: date-time */
             resolvedAt?: string | null;
+        };
+        HistoryPageAlertFiringView: {
+            data: components["schemas"]["AlertFiringView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total; null when the page was reached by cursor.
+             */
+            count?: number | null;
+            hasNext: boolean;
+            /** @description Pass as `after` for the page that follows; null on the last page. */
+            next?: string | null;
+            /** @description Read from a replica that may be a little behind. */
+            mayLag: boolean;
         };
         PagedViewAlertFiringView: {
             data: components["schemas"]["AlertFiringView"][];
@@ -8058,6 +8091,19 @@ export interface components {
             allowedAt?: string | null;
             command: string;
             unreleased: string[];
+        };
+        PagedViewAuditEventView: {
+            data: components["schemas"]["AuditEventView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         TrustedKeysView: {
             keys: components["schemas"]["TrustedKeyView"][];
@@ -20517,6 +20563,7 @@ export interface operations {
                 to?: string;
                 page?: number;
                 size?: number;
+                after?: string;
             };
             header?: never;
             path: {
@@ -21758,6 +21805,7 @@ export interface operations {
                 to?: string;
                 page?: number;
                 size?: number;
+                after?: string;
             };
             header?: never;
             path: {
@@ -21773,7 +21821,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PagedViewAuditEventView"];
+                    "*/*": components["schemas"]["HistoryPageAuditEventView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -22001,6 +22049,7 @@ export interface operations {
             query?: {
                 page?: number;
                 size?: number;
+                after?: string;
             };
             header?: never;
             path: {
@@ -22016,7 +22065,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PagedViewAlertFiringView"];
+                    "*/*": components["schemas"]["HistoryPageAlertFiringView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
