@@ -1,6 +1,6 @@
 # ADR-0048: Every settings-tunable schedule is a trigger task, not a `@Scheduled` annotation
 
-- **Status**: accepted
+- **Status**: accepted; amended by [ADR-0194](0194-one-job-runner-runs-every-job-on-its-own-virtual-thread.md)
 - **Date**: 2026-09-06
 - **Deciders**: maintainers
 

@@ -3,7 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.jobs.internal;
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownPhases;
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownStep;
 import io.github.sudoitir.artemisstudio.kernel.jobs.BackgroundRuns;
-import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
+import io.github.sudoitir.artemisstudio.kernel.jobs.JobRunner;
 import io.github.sudoitir.artemisstudio.kernel.replica.HaProperties;
 import java.time.Duration;
 import org.springframework.context.annotation.Bean;
@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 class JobsShutdownSteps {
 
-    /** Long enough for a normal pass to finish; a stuck one is not allowed to hold shutdown. */
+    /** Long enough for a normal pass to finish; a run still going after it is interrupted and recorded so. */
     private static final Duration IN_FLIGHT_WAIT = Duration.ofSeconds(10);
 
     /** Bulk runs and transfers get the grace to finish, then are stopped and recorded interrupted (ADR-0152). */
@@ -23,7 +23,7 @@ class JobsShutdownSteps {
     }
 
     @Bean
-    ShutdownStep jobsShutdown(JobStatuses jobs) {
+    ShutdownStep jobsShutdown(JobRunner jobs) {
         return new ShutdownStep("jobs", ShutdownPhases.JOBS, () -> jobs.pause(IN_FLIGHT_WAIT), jobs::resume);
     }
 }

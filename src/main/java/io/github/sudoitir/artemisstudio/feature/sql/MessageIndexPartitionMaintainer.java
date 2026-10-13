@@ -62,7 +62,7 @@ public class MessageIndexPartitionMaintainer {
         this.transactions = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
     }
 
-    /** Scheduled by {@code JobScheduler} on the partition-maintenance cron. Idempotent. */
+    /** Scheduled by {@code JobRunner} on the partition-maintenance cron. Idempotent. */
     public void maintain() {
         createAhead();
         expirePerSubscription();

@@ -2,7 +2,7 @@ package io.github.sudoitir.artemisstudio.kernel.jobs;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.function.Supplier;
 import org.springframework.scheduling.Trigger;
 import org.springframework.scheduling.support.CronExpression;
@@ -32,29 +32,29 @@ public final class DynamicTriggers {
                 last = context.lastActualExecution();
             }
             if (last == null) {
-                last = Instant.now();
+                last = context.getClock().instant();
             }
             return last.plus(interval.get());
         };
     }
 
     /**
-     * A cron whose expression is re-parsed each fire. Parsing per fire rather than
-     * caching is deliberate — these fire a few times a day at most, and caching
-     * would need invalidation for the one thing this exists to support.
+     * A cron whose expression is re-parsed each fire, and read in UTC whatever the server's time zone.
+     * Parsing per fire rather than caching is deliberate — these fire a few times a day at most, and
+     * caching would need invalidation for the one thing this exists to support.
      *
-     * <p>A malformed expression cannot reach here: {@code SettingsService} validates
-     * on write and the packaged default is the fallback. If one somehow does, the
-     * task stops rather than falling back to a schedule nobody chose — a reaper that
-     * silently runs on the wrong cron is worse than one that visibly stops.
+     * <p>A malformed expression throws {@link IllegalArgumentException} from the trigger. The runner
+     * marks the job's schedule invalid and asks again a minute later, so a corrected setting runs
+     * again without a restart, and a reaper that cannot read its cron is visibly degraded rather than
+     * silently on a schedule nobody chose.
      */
     public static Trigger cron(Supplier<String> expression) {
         return context -> {
-            Instant last = context.lastCompletion() != null ? context.lastCompletion() : Instant.now();
-            ZoneId zone = ZoneId.systemDefault();
-            var next = CronExpression.parse(expression.get())
-                    .next(last.atZone(zone).toLocalDateTime());
-            return next == null ? null : next.atZone(zone).toInstant();
+            Instant last = context.lastCompletion() != null
+                    ? context.lastCompletion()
+                    : context.getClock().instant();
+            var next = CronExpression.parse(expression.get()).next(last.atZone(ZoneOffset.UTC));
+            return next == null ? null : next.toInstant();
         };
     }
 }

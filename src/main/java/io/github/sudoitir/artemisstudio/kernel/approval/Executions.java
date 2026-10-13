@@ -187,6 +187,12 @@ class Executions {
             refuse(row, e.getMessage());
             return;
         } catch (RuntimeException e) {
+            if (Thread.interrupted() || interrupted(e)) {
+                // Studio is stopping: the replay may have done part of its work, so nobody can say it failed.
+                log.warn("approval-run id={} type={} interrupted", row.id(), row.type());
+                finish(row, HeldState.OUTCOME_UNKNOWN, "Interrupted while running; whether it took effect is unknown.");
+                return;
+            }
             log.warn("approval-run id={} type={} failed", row.id(), row.type(), e);
             finish(row, HeldState.FAILED, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
             return;
@@ -386,6 +392,15 @@ class Executions {
                     store.event(ended.id(), kindOf(to), null, null, detail);
                     notices.ended(ended);
                 }));
+    }
+
+    private static boolean interrupted(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof InterruptedException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static HeldEvent.Kind kindOf(HeldState state) {
