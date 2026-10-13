@@ -36,6 +36,7 @@ public class CoreConnectionFactory {
     }
 
     public ActiveMQConnectionFactory build(CoreConnectionSettings settings, String dialableCoreUrl) {
+        BrokerCallGuard.check();
         // A bounded prefetch: the default 1 MiB per consumer and browser is buffered in Studio
         // whether or not it is read, which a browse of one page or a paused capture drain
         // never needs (core-transport spec).

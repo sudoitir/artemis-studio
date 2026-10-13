@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 /**
@@ -41,12 +42,21 @@ class BrokerConfigRegistrationAdoption implements RegistrationAdoption {
         });
     }
 
+    private record Read(BrokerConfigService.Adoption adoption) implements Reading {}
+
     @Override
-    public void adopt(UUID clusterId) {
-        BrokerConfigService.Adoption adoption = config.adopt(clusterId);
+    public Optional<Reading> read(List<LiveNode> nodes) {
+        if (!permissions.can(BrokerConfigPermissions.CONFIG_WRITE)) {
+            throw new AccessDeniedException("Adopting the running configuration needs permission to declare it.");
+        }
+        return config.previewAdoption(nodes).map(Read::new);
+    }
+
+    @Override
+    public void adopt(UUID clusterId, Reading reading) {
         config.save(
                 clusterId,
-                adoption.document(),
+                ((Read) reading).adoption().document(),
                 null,
                 "Adopted from the running cluster when it was registered",
                 BrokerConfigService.Source.ADOPT);

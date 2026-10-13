@@ -38,7 +38,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -69,7 +68,6 @@ public class PagedListService {
     private final PermissionResolver permissions;
     private final TeamIndex teams;
 
-    @Transactional(readOnly = true)
     public PagedView<AddressView> addresses(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireVisible(clusterId);
         ResourceFilter readable = permissions.filter(clusterId, ADDRESS);
@@ -83,7 +81,6 @@ public class PagedListService {
                                 .orElse(null)));
     }
 
-    @Transactional(readOnly = true)
     public PagedView<ConsumerView> consumers(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireVisible(clusterId);
         List<ConsumerView> rows = readableConsumers(clusterId);
@@ -97,7 +94,6 @@ public class PagedListService {
                 .map(c -> c.withAllowedActions(actions));
     }
 
-    @Transactional(readOnly = true)
     public PagedView<SessionView> sessions(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireVisible(clusterId);
         List<String> actions = connectionActions(clusterId);
@@ -109,7 +105,6 @@ public class PagedListService {
                 .map(s -> s.withAllowedActions(actions));
     }
 
-    @Transactional(readOnly = true)
     public PagedView<ConnectionView> connections(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireVisible(clusterId);
         List<String> actions = connectionActions(clusterId);
@@ -122,7 +117,6 @@ public class PagedListService {
                 .map(c -> c.withAllowedActions(actions));
     }
 
-    @Transactional(readOnly = true)
     public PagedView<ProducerView> producers(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireVisible(clusterId);
         List<ProducerView> rows = readableProducers(clusterId);
