@@ -4,17 +4,17 @@
 
 ## 2. U1 Schema (database-schema)
 
-- [ ] 2.1 Re-baseline every module changelog to one `changes/0001-baseline.sql` with final shapes: uuid PKs `DEFAULT uuidv7()` (bearer-handle tables without default), PKs for `storage_sample`, `flow_route`, `metric_sample`; `inbox_item.data` jsonb; drop `pgcrypto`; partitioned parents for `broker_event`, `rr_event`, `audit_event` (no default partition, no partitions); storage parameters by class; plugin template SQL on `uuidv7()`
+- [x] 2.1 Re-baseline every module changelog to one `changes/0001-baseline.sql` with final shapes: uuid PKs `DEFAULT uuidv7()` (bearer-handle tables without default), PKs for `storage_sample`, `flow_route`, `metric_sample`; `inbox_item.data` jsonb; drop `pgcrypto`; partitioned parents for `broker_event`, `rr_event`, `audit_event` (no default partition, no partitions); storage parameters by class; plugin template SQL on `uuidv7()`
 - [ ] 2.2 UNLOGGED `heavy_permit` and limiter counter tables in their owning modules
-- [ ] 2.3 Delete `SchemaBaselineDiffTest` and `db/reference-schema.sql`; add `SchemaLintTest` with its allow-list
-- [ ] 2.4 Liquibase session advisory lock (`liquibase-sessionlock` or a small `LockService`)
-- [ ] 2.5 ADR: UUIDv7 keys and the second re-baseline, superseding the "never edit a released changeset" convention until the stable release; update CLAUDE.md non-negotiable 7 and the master changelog comment
+- [x] 2.3 Delete `SchemaBaselineDiffTest` and `db/reference-schema.sql`; add `SchemaLintTest` with its allow-list
+- [x] 2.4 Liquibase session advisory lock (`liquibase-sessionlock` or a small `LockService`)
+- [x] 2.5 ADR: UUIDv7 keys and the second re-baseline, superseding the "never edit a released changeset" convention until the stable release; update CLAUDE.md non-negotiable 7 and the master changelog comment
 
 ## 3. U2 Ids
 
 - [ ] 3.1 `kernel/core/Ids.v7()` over Hibernate's `UuidVersion7Strategy`
 - [ ] 3.2 Every entity `@UuidGenerator(style = VERSION_7)`; JDBC inserts `RETURNING id`; replace `HeldStore`'s `SELECT uuidv7()`, `MessageIndexService`, `DiagnosticsService` (stays v4: bearer), `SecretRotations`
-- [ ] 3.3 `metric_sample` writer `ON CONFLICT DO NOTHING`
+- [x] 3.3 `metric_sample` writer `ON CONFLICT DO NOTHING`
 
 ## 4. U3 Partitions (data-lifecycle, audit-log, scrape-scheduling, message-index)
 
