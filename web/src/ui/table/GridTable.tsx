@@ -3,7 +3,6 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useDeferredValue,
   useMemo,
   useRef,
   useState,
@@ -23,8 +22,9 @@ import { defaultRangeExtractor, useVirtualizer, type Range } from '@tanstack/rea
 import { AnchoredMenu } from '../AnchoredMenu.tsx';
 import type { Column } from './columns.ts';
 import type { TableModel } from './DataTable.tsx';
-import { findRows, stepMatch } from './gridFind.ts';
+import { stepMatch } from './gridFind.ts';
 import { GridFind } from './GridFind.tsx';
+import { useGridFind } from './useGridFind.ts';
 import { HeaderCell } from './HeaderCell.tsx';
 import { nextSort, sortingOf } from './sort.ts';
 import { MiddleTruncate } from './MiddleTruncate.tsx';
@@ -623,14 +623,11 @@ export function GridTable<T>({
   // ── Find ───────────────────────────────────────────────────────────────────
   // The browser's find cannot see rows the virtualizer has not rendered, so the grid searches its
   // data itself and scrolls the virtualizer to each match.
-  const [find, setFind] = useState<{ query: string; cursor: number; epoch: number } | null>(null);
-  const query = useDeferredValue(find?.query ?? '');
-  const matches = useMemo(() => findRows(columns, data, query), [columns, data, query]);
-  const cursor = matches.length === 0 ? -1 : Math.min(find?.cursor ?? 0, matches.length - 1);
-  const foundRow = find && cursor >= 0 ? matches[cursor] : -1;
-  useEffect(() => {
-    if (foundRow >= 0) virtualizer.scrollToIndex(foundRow, { align: 'center' });
-  }, [foundRow, virtualizer]);
+  const scrollToFound = useCallback(
+    (row: number) => virtualizer.scrollToIndex(row, { align: 'center' }),
+    [virtualizer],
+  );
+  const { find, setFind, matches, cursor, foundRow } = useGridFind(columns, data, scrollToFound);
 
   const closeFind = () => {
     const row = foundRow;
