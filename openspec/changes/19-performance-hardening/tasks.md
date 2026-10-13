@@ -12,8 +12,8 @@
 
 ## 3. U2 Ids
 
-- [ ] 3.1 `kernel/core/Ids.v7()` over Hibernate's `UuidVersion7Strategy`
-- [ ] 3.2 Every entity `@UuidGenerator(style = VERSION_7)`; JDBC inserts `RETURNING id`; replace `HeldStore`'s `SELECT uuidv7()`, `MessageIndexService`, `DiagnosticsService` (stays v4: bearer), `SecretRotations`
+- [x] 3.1 `kernel/core/Ids.v7()` over Hibernate's `UuidVersion7Strategy`
+- [x] 3.2 Every entity `@UuidGenerator(style = VERSION_7)`; JDBC inserts `RETURNING id`; replace `HeldStore`'s `SELECT uuidv7()`, `MessageIndexService`, `DiagnosticsService` (stays v4: bearer), `SecretRotations`
 - [x] 3.3 `metric_sample` writer `ON CONFLICT DO NOTHING`
 
 ## 4. U3 Partitions (data-lifecycle, audit-log, scrape-scheduling, message-index)
