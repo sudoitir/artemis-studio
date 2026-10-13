@@ -167,6 +167,18 @@ CREATE TABLE user_role (
     CONSTRAINT ck_user_role_scope CHECK ((scope_type = ANY (ARRAY['GLOBAL'::text, 'ENVIRONMENT'::text, 'CLUSTER'::text])))
 );
 
+-- Failed sign-ins by username and source, and by source alone, counted for all replicas (ADR-0196).
+CREATE UNLOGGED TABLE login_attempt (
+    expires_at timestamp with time zone NOT NULL,
+    locked_until timestamp with time zone,
+    failures integer NOT NULL,
+    key text NOT NULL
+)
+WITH (fillfactor='50', autovacuum_vacuum_scale_factor='0.0', autovacuum_vacuum_threshold='50');
+
+ALTER TABLE ONLY login_attempt
+    ADD CONSTRAINT pk_login_attempt PRIMARY KEY (key);
+
 ALTER TABLE access_change_log ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME access_change_log_id_seq
     START WITH 1
@@ -418,6 +430,7 @@ JOIN (VALUES
     ('VIEWER', 'queue:read'),
     ('VIEWER', 'settings:read')
 ) AS p (role_name, action) ON p.role_name = r.name;
+--rollback DROP TABLE IF EXISTS login_attempt CASCADE;
 --rollback DROP TABLE IF EXISTS user_role CASCADE;
 --rollback DROP TABLE IF EXISTS user_group CASCADE;
 --rollback DROP TABLE IF EXISTS team_share CASCADE;
