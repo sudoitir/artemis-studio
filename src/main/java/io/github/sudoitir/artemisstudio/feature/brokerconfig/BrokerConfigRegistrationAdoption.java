@@ -1,12 +1,12 @@
 package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceForbiddenException;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegistrationAdoption;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 /**
@@ -47,7 +47,11 @@ class BrokerConfigRegistrationAdoption implements RegistrationAdoption {
     @Override
     public Optional<Reading> read(List<LiveNode> nodes) {
         if (!permissions.can(BrokerConfigPermissions.CONFIG_WRITE)) {
-            throw new AccessDeniedException("Adopting the running configuration needs permission to declare it.");
+            throw new ResourceForbiddenException(
+                    BrokerConfigPermissions.CONFIG_WRITE,
+                    "cluster",
+                    "being registered",
+                    "Adopting the running configuration needs " + BrokerConfigPermissions.CONFIG_WRITE + ".");
         }
         return config.previewAdoption(nodes).map(Read::new);
     }

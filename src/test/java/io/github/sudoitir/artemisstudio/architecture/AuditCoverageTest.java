@@ -36,12 +36,6 @@ class AuditCoverageTest {
             Map.entry("feature.alerting.AlertDispatcher", "delivers notifications Studio already queued"),
             Map.entry("feature.alerting.AlertEvaluator", "records rule state after a scrape tier"),
             Map.entry(
-                    "feature.brokerconfig.BrokerConfigDriftService",
-                    "records drift findings and never writes to a broker"),
-            Map.entry(
-                    "feature.brokerconfig.BrokerConfigRecommendationService",
-                    "declares through BrokerConfigService.save, which audits"),
-            Map.entry(
                     "feature.bulk.internal.persistence.BulkRunRepository",
                     "run status bookkeeping; BulkService audits the preview and execute calls that use it"),
             Map.entry(

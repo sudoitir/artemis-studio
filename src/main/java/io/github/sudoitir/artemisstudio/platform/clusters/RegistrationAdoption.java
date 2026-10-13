@@ -38,7 +38,7 @@ public interface RegistrationAdoption {
      * Reads what these nodes run, for {@link #adopt}. Reads the nodes and writes nothing, so it runs before
      * the registration transaction opens. Empty when no node could be read.
      *
-     * @throws org.springframework.security.access.AccessDeniedException when the caller may not declare
+     * @throws kernel.core.ResourceForbiddenException when the caller may not declare
      *     configuration
      */
     Optional<Reading> read(List<LiveNode> nodes);
