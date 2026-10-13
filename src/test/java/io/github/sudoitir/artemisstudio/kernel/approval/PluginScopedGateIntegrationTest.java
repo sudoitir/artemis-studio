@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.jayway.jsonpath.JsonPath;
+import io.github.sudoitir.artemisstudio.kernel.gate.ApproverPool;
 import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperationCatalogue;
 import io.github.sudoitir.artemisstudio.kernel.gate.GatedOperationRegistry;
 import io.github.sudoitir.artemisstudio.kernel.gate.HeldState;
@@ -257,6 +258,8 @@ class PluginScopedGateIntegrationTest extends GatedAccessTestBase {
                 .containsExactly("ON_APPROVAL");
         assertThat(pluginApi.context().getBeansOfType(GatedOperationCatalogue.class))
                 .hasSize(1);
+        // A provider asks the pool whether it may start holding, so a plugin must be able to inject it.
+        assertThat(pluginApi.context().getBeansOfType(ApproverPool.class)).hasSize(1);
     }
 
     private static String login(Person person) {

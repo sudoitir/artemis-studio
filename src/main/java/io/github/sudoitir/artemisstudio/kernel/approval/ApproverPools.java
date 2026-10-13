@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.approval;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalProvider;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalProviderRegistry;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApproverPool;
+import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionHolders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
  * directory group counts). It stops counting at a few more than the quorum, which is all anyone asks.
  */
 @Component
+@PluginApi
 @RequiredArgsConstructor
 @Slf4j
 class ApproverPools implements ApproverPool {
