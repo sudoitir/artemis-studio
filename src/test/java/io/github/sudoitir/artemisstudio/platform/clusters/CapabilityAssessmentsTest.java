@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.platform.clusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -18,6 +19,7 @@ import io.github.sudoitir.artemisstudio.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.artemisstudio.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence.BrokerNodeRepository;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -71,7 +73,8 @@ class CapabilityAssessmentsTest {
             List<Future<CapabilityAssessments.Outcome>> reads = java.util.stream.IntStream.range(0, 20)
                     .mapToObj(i -> readers.submit(() -> assessments.outcome(clusterId)))
                     .toList();
-            Thread.sleep(200);
+            // every reader is waiting on the one probe before it is released
+            await().during(Duration.ofMillis(200)).atMost(Duration.ofSeconds(5)).until(() -> probes.get() == 1);
             release.countDown();
             for (Future<CapabilityAssessments.Outcome> read : reads) {
                 assertThat(read.get(5, TimeUnit.SECONDS).orThrow()).isSameAs(result);
@@ -92,10 +95,10 @@ class CapabilityAssessmentsTest {
             throw new BrokerConnectionException(BrokerConnectionException.Kind.UNREACHABLE, "down");
         });
 
-        assertThatThrownBy(() -> assessments.outcome(clusterId).orThrow())
-                .isInstanceOf(BrokerConnectionException.class);
-        assertThatThrownBy(() -> assessments.outcome(clusterId).orThrow())
-                .isInstanceOf(BrokerConnectionException.class);
+        CapabilityAssessments.Outcome first = assessments.outcome(clusterId);
+        assertThatThrownBy(first::orThrow).isInstanceOf(BrokerConnectionException.class);
+        CapabilityAssessments.Outcome second = assessments.outcome(clusterId);
+        assertThatThrownBy(second::orThrow).isInstanceOf(BrokerConnectionException.class);
 
         assertThat(probes).hasValue(1);
     }
