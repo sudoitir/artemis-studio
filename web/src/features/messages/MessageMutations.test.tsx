@@ -376,14 +376,53 @@ describe('SendMessage', () => {
     const user = userEvent.setup();
     open();
 
-    await user.type(screen.getByLabelText(/^Body/), 'hello');
+    await user.type(screen.getByLabelText(/^Content/), 'hello');
     await user.click(screen.getByRole('button', { name: 'Add property' }));
     await user.type(screen.getByLabelText('Key'), ' region ');
     await user.type(screen.getByLabelText('Value'), 'eu');
     await user.click(screen.getByRole('button', { name: 'Send' }));
 
     expect(await screen.findByText('Sent a message to queue "ORDERS"')).toBeInTheDocument();
-    expect(posts).toEqual([{ type: 3, durable: true, body: 'hello', headers: {}, properties: { region: 'eu' } }]);
+    expect(posts).toEqual([{ kind: 'TEXT', durable: true, body: 'hello', headers: {}, properties: { region: 'eu' } }]);
+  });
+
+  it('sends the bytes kind with a base64 body', async () => {
+    const posts: unknown[] = [];
+    server.use(
+      http.post('*/api/v1/clusters/c1/queues/ORDERS/messages', async ({ request }) => {
+        posts.push(await request.json());
+        return HttpResponse.json({ affectedCount: 1, node: 'n1' });
+      }),
+    );
+    const user = userEvent.setup();
+    open();
+
+    await user.click(screen.getByRole('radio', { name: 'Bytes (base64)' }));
+    await user.type(screen.getByLabelText(/^Content/), 'CQgH');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+
+    expect(await screen.findByText('Sent a message to queue "ORDERS"')).toBeInTheDocument();
+    expect(posts).toEqual([{ kind: 'BYTES', durable: true, body: 'CQgH', headers: {}, properties: {} }]);
+  });
+
+  it('refuses a bytes body that is not base64, on the field, and sends nothing', async () => {
+    const posts: unknown[] = [];
+    server.use(
+      http.post('*/api/v1/clusters/c1/queues/ORDERS/messages', async ({ request }) => {
+        posts.push(await request.json());
+        return HttpResponse.json({ affectedCount: 1, node: 'n1' });
+      }),
+    );
+    const user = userEvent.setup();
+    open();
+
+    await user.click(screen.getByRole('radio', { name: 'Bytes (base64)' }));
+    await user.type(screen.getByLabelText(/^Content/), 'not base64!');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+
+    expect(screen.getByLabelText(/^Content/)).toBeInvalid();
+    expect(screen.getByText('Enter the body as base64, or switch the body to text.')).toBeInTheDocument();
+    expect(posts).toHaveLength(0);
   });
 
   it('states the cause and the next step when the broker refuses the message, and keeps what was typed', async () => {
@@ -395,12 +434,12 @@ describe('SendMessage', () => {
     const user = userEvent.setup();
     open();
 
-    await user.type(screen.getByLabelText(/^Body/), 'hello');
+    await user.type(screen.getByLabelText(/^Content/), 'hello');
     await user.click(screen.getByRole('button', { name: 'Send' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not send a message to queue "ORDERS"');
     expect(alert).toHaveTextContent('The address is full. Check the audit log for what ran, then try again.');
-    expect(screen.getByLabelText(/^Body/)).toHaveValue('hello');
+    expect(screen.getByLabelText(/^Content/)).toHaveValue('hello');
   });
 });

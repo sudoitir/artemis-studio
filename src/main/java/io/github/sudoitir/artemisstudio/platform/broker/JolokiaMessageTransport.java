@@ -87,8 +87,17 @@ public class JolokiaMessageTransport implements MessageTransport {
         messageOps.send(
                 client,
                 addressMbean,
-                new MessageOperations.Outgoing(merged, spec.type(), spec.body(), spec.durable()),
+                new MessageOperations.Outgoing(merged, artemisType(spec.kind()), spec.body(), spec.durable()),
                 new MessageOperations.Sender(
                         named ? login.username() : "", named && login.password() != null ? login.password() : ""));
+    }
+
+    /** The Artemis message type ints: the broker writes text for 3 and base64-decodes the body for 4. */
+    private static final int ARTEMIS_TEXT_MESSAGE = 3;
+
+    private static final int ARTEMIS_BYTES_MESSAGE = 4;
+
+    private static int artemisType(MessageKind kind) {
+        return kind == MessageKind.BYTES ? ARTEMIS_BYTES_MESSAGE : ARTEMIS_TEXT_MESSAGE;
     }
 }

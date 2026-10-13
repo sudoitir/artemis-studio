@@ -15,6 +15,7 @@ import io.github.sudoitir.artemisstudio.kernel.plugin.PluginScopedBeans;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreMessageTransport;
+import io.github.sudoitir.artemisstudio.platform.broker.MessageKind;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.SendNames;
 import io.github.sudoitir.artemisstudio.platform.clusters.ClusterDirectory;
@@ -232,12 +233,11 @@ public class PluginMessagingService implements PluginScopedBeans {
                             node.getJolokiaUrl(),
                             node.getCoreUrl()),
                     new MessageTransport.SendSpec(
-                            0,
+                            message.text() ? MessageKind.TEXT : MessageKind.BYTES,
                             message.durable(),
                             message.text()
                                     ? new String(body, java.nio.charset.StandardCharsets.UTF_8)
                                     : Base64.getEncoder().encodeToString(body),
-                            !message.text(),
                             Map.of(),
                             properties));
             audit.succeed(event, 1);

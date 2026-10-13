@@ -1,16 +1,4 @@
-import {
-  ActionIcon,
-  Button,
-  Fieldset,
-  Group,
-  Modal,
-  NumberInput,
-  Stack,
-  Switch,
-  Text,
-  Textarea,
-  TextInput,
-} from '@mantine/core';
+import { ActionIcon, Button, Fieldset, Group, Modal, Stack, Switch, Text, Textarea, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { randomId } from '@mantine/hooks';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
@@ -18,23 +6,32 @@ import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { FieldRow } from '../../ui/FieldRow.tsx';
 import { focusFirstInvalid } from '../../ui/formErrors.ts';
 import { notify } from '../../ui/notify.ts';
-import { useSendMessage } from './api.ts';
+import { KindField } from '../../ui/KindField.tsx';
+import { useSendMessage, type SendMessageRequest } from './api.ts';
 import { announceFailure, VERBS } from './outcomes.ts';
 
 /** A property row; the id keeps it identifiable while rows are added, edited and removed. */
 type Pair = { id: string; k: string; v: string };
 
+type MessageKind = SendMessageRequest['kind'];
+
 interface FormState {
-  type: number | string;
+  kind: MessageKind;
   durable: boolean;
   body: string;
   props: Pair[];
 }
 
-const TYPE_ERROR = 'Enter a whole number: 3 is a text message.';
+const KINDS: { value: MessageKind; label: string }[] = [
+  { value: 'TEXT', label: 'Text' },
+  { value: 'BYTES', label: 'Bytes (base64)' },
+];
+
+/** Base64 as the broker's decoder reads it: whole 4-character groups, no whitespace. */
+const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 /** What is wrong with the form, field by field, keyed by the field's path. An empty result means it can be sent. */
-function check({ type, props }: FormState): Record<string, string> {
+function check({ kind, body, props }: FormState): Record<string, string> {
   const errors: Record<string, string> = {};
   const seen = new Set<string>();
   props.forEach(({ k }, i) => {
@@ -43,12 +40,11 @@ function check({ type, props }: FormState): Record<string, string> {
     else if (seen.has(key)) errors[`props.${i}.k`] = `Another property is already named "${key}".`;
     seen.add(key);
   });
-  const valid = type !== '' && Number.isInteger(Number(type)) && Number(type) >= 0;
-  if (!valid) errors.type = TYPE_ERROR;
+  if (kind === 'BYTES' && !BASE64.test(body)) errors.body = 'Enter the body as base64, or switch the body to text.';
   return errors;
 }
 
-/** Enqueue one message. Over Jolokia the body is text; binary is Phase 4 (non-negotiable #5). */
+/** Enqueue one message, as text or as bytes given in base64. */
 export function SendMessage({
   clusterId,
   queueName,
@@ -64,15 +60,15 @@ export function SendMessage({
 }>) {
   const send = useSendMessage(clusterId, queueName);
   const form = useForm<FormState>({
-    initialValues: { type: 3, durable: true, body: '', props: [] },
+    initialValues: { kind: 'TEXT', durable: true, body: '', props: [] },
     validateInputOnBlur: true,
     validate: check,
   });
 
-  const submit = form.onSubmit(({ type, durable, body, props }) => {
+  const submit = form.onSubmit(({ kind, durable, body, props }) => {
     const properties = Object.fromEntries(props.map((p) => [p.k.trim(), p.v]));
     send.mutate(
-      { body: { type: Number(type), durable, body, headers: {}, properties }, node },
+      { body: { kind, durable, body, headers: {}, properties }, node },
       {
         onSuccess: () => {
           notify.succeeded({ action: VERBS.send, subject: `a message to queue "${queueName}"` });
@@ -98,20 +94,22 @@ export function SendMessage({
       <form onSubmit={submit} noValidate>
         <Stack gap="sm">
           <FieldRow>
-            <NumberInput
-              label="Type"
-              description="3 is a text message"
-              {...form.getInputProps('type')}
-              allowDecimal={false}
-              min={0}
-              size="xs"
-              data-autofocus
+            <KindField
+              label="Body"
+              data={KINDS}
+              value={form.values.kind}
+              onChange={(next) => {
+                form.setFieldValue('kind', next);
+                form.clearFieldError('body');
+              }}
             />
             <Switch label="Durable" {...form.getInputProps('durable', { type: 'checkbox' })} />
           </FieldRow>
           <Textarea
-            label="Body (text)"
-            description="Over Jolokia the body is a string. Faithful binary bodies need the Core client."
+            label="Content"
+            description={
+              form.values.kind === 'BYTES' ? 'The bytes of the message, encoded as base64.' : 'The text of the message.'
+            }
             {...form.getInputProps('body')}
             autosize
             minRows={4}

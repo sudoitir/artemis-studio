@@ -190,7 +190,12 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
     void sendOverCorePlacesABytesMessage() {
         transport.send(
                 target(),
-                new SendSpec(4, true, Base64.getEncoder().encodeToString(new byte[] {9, 9}), true, Map.of(), Map.of()));
+                new SendSpec(
+                        MessageKind.BYTES,
+                        true,
+                        Base64.getEncoder().encodeToString(new byte[] {9, 9}),
+                        Map.of(),
+                        Map.of()));
 
         BrowseResult result = transport.browse(target(), 1, 50, null);
         assertThat(result.page().messages()).hasSize(5);
@@ -201,10 +206,9 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
         transport.send(
                 target(),
                 new SendSpec(
-                        3,
+                        MessageKind.TEXT,
                         true,
                         "hi",
-                        false,
                         Map.of(
                                 "correlationId", "corr-1",
                                 "type", "order",
@@ -269,10 +273,30 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
     @Test
     void aPlainSendOverJolokiaSucceedsOnASecuredBroker() throws Exception {
         jolokiaTransport()
-                .send(jolokiaTarget(), new SendSpec(3, true, "hi", false, Map.of(), Map.of("orderId", "P-1")));
+                .send(jolokiaTarget(), new SendSpec(MessageKind.TEXT, true, "hi", Map.of(), Map.of("orderId", "P-1")));
 
         var received = browseOne("P-1");
         assertThat(((TextMessage) received).getText()).isEqualTo("hi");
+    }
+
+    @Test
+    void aBytesSendOverJolokiaLandsAsABytesMessage() throws Exception {
+        jolokiaTransport()
+                .send(
+                        jolokiaTarget(),
+                        new SendSpec(
+                                MessageKind.BYTES,
+                                true,
+                                Base64.getEncoder().encodeToString(new byte[] {9, 8, 7}),
+                                Map.of(),
+                                Map.of("orderId", "B-1")));
+
+        var received = browseOne("B-1");
+        assertThat(received).isInstanceOf(jakarta.jms.BytesMessage.class);
+        jakarta.jms.BytesMessage bytes = (jakarta.jms.BytesMessage) received;
+        byte[] body = new byte[(int) bytes.getBodyLength()];
+        bytes.readBytes(body);
+        assertThat(body).containsExactly(9, 8, 7);
     }
 
     @Test
@@ -281,10 +305,9 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
                 .send(
                         jolokiaTarget(),
                         new SendSpec(
-                                3,
+                                MessageKind.TEXT,
                                 true,
                                 "hi",
-                                false,
                                 Map.of(
                                         "correlationId", "corr-2",
                                         "type", "order",
@@ -308,10 +331,9 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
                 .send(
                         jolokiaTarget(),
                         new SendSpec(
-                                3,
+                                MessageKind.TEXT,
                                 true,
                                 "hi",
-                                false,
                                 Map.of(),
                                 Map.of(
                                         "orderId",
@@ -338,10 +360,9 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
         transport.send(
                 target(),
                 new SendSpec(
-                        3,
+                        MessageKind.TEXT,
                         true,
                         "hi",
-                        false,
                         Map.of(),
                         Map.of("orderId", "T-2", "anInt", 7, "aLong", 8_000_000_000L, "aDouble", 1.5, "aBool", true)));
 
