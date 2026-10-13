@@ -16,6 +16,7 @@ _Services_
 
 _Event listeners_
 
+* `i.g.s.a.p.c.CapabilityAssessments`
 * `i.g.s.a.p.c.ClusterEnvironmentIndex`
 * `i.g.s.a.p.c.ClusterOwnership`
 
@@ -39,13 +40,13 @@ _Others_
 * `i.g.s.a.k.s.SettingsService` (in Settings)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.p.b.BrokerSessions` (in Broker connectivity)
-* `i.g.s.a.k.s.SecretVault` (in Security)
+* `i.g.s.a.p.b.CapabilityProbe` (in Broker connectivity)
+* `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
 * `i.g.s.a.k.r.StudioBus` (in Replicas)
+* `i.g.s.a.k.s.SecretVault` (in Security)
 * `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
 * `i.g.s.a.k.r.HaProperties` (in Replicas)
 * `i.g.s.a.p.b.BrokerClientFactory` (in Broker connectivity)
-* `i.g.s.a.p.b.CapabilityProbe` (in Broker connectivity)
-* `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreSubscriptionCheck` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreAccountCheck` (in Broker connectivity)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
@@ -55,6 +56,8 @@ _Others_
 * `i.g.s.a.k.c.HeavyRequests` (in Core)
 |Events listened to
 |* `i.g.s.a.k.r.BusResumed` 
+* `i.g.s.a.k.r.BusResumed` 
+* `i.g.s.a.k.r.ReplicaSignal` 
 * `i.g.s.a.k.r.BusResumed` 
 * `i.g.s.a.k.r.ReplicaSignal` 
 * `i.g.s.a.k.r.DrainStarted` 
