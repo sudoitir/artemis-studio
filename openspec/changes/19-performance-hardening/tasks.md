@@ -62,11 +62,11 @@
 
 ## 9b. U11 External database (database-schema)
 
-- [ ] 9b.1 `DatabasePreflight` before Liquibase: version 18+, privileges, session stability (refuse transaction-mode pooling), warnings for connection budget and server timeouts
-- [ ] 9b.2 Non-default schema: no SQL names `public`; integration test migrating and booting in a non-default schema as a restricted, non-superuser role
-- [ ] 9b.3 Failover: multi-host URL support, `LISTEN` reconnect with resync, session advisory lock holders detect a dropped connection and stop their duty; partition maintainer on transaction-scoped locks
-- [ ] 9b.4 Optional read-only pool `studio.database.read.*` with `ReadRouting` (lag check, fall back to primary, response marks possible lag)
-- [ ] 9b.5 `docs/external-database.md`; ADR: Studio on an external PostgreSQL
+- [x] 9b.1 `DatabasePreflight` before Liquibase: version 18+, privileges, session stability (refuse transaction-mode pooling), warnings for connection budget and server timeouts
+- [x] 9b.2 Non-default schema: no SQL names `public`; integration test migrating and booting in a non-default schema as a restricted, non-superuser role
+- [x] 9b.3 Failover: multi-host URL support, `LISTEN` reconnect with resync, session advisory lock holders detect a dropped connection and stop their duty; partition maintainer on transaction-scoped locks
+- [x] 9b.4 Optional read-only pool `studio.database.read.*` with `ReadRouting` (lag check, fall back to primary, response marks possible lag)
+- [x] 9b.5 `docs/external-database.md`; ADR: Studio on an external PostgreSQL
 
 ## 10. U10 Load test and sizing (performance-sizing)
 
