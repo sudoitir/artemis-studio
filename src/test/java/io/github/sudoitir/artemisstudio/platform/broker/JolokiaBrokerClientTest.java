@@ -65,7 +65,14 @@ class JolokiaBrokerClientTest {
         server.expect(requestTo(URL)).andRespond(withSuccess(body("search-broker.json"), MediaType.APPLICATION_JSON));
         server.expect(requestTo(URL)).andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
         JolokiaBrokerClient client = new JolokiaBrokerClient(
-                builder.build(), URL, mapper, new java.util.concurrent.ConcurrentHashMap<>(), null, null, limiter);
+                builder.build(),
+                URL,
+                mapper,
+                new java.util.concurrent.ConcurrentHashMap<>(),
+                null,
+                null,
+                limiter,
+                BrokerCallGuard.OFF);
 
         client.single(JolokiaRequest.search("org.apache.activemq.artemis:*"));
         client.batch(java.util.stream.IntStream.range(0, 120)
