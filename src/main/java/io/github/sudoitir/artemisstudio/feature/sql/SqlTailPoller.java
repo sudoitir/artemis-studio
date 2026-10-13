@@ -329,7 +329,7 @@ public class SqlTailPoller {
         return !Instant.now().isBefore(tail.nextDue) && tail.polling.compareAndSet(false, true);
     }
 
-    /** Registered with {@code JobScheduler} on the configured tail interval. */
+    /** Registered with {@code JobRunner} on the configured tail interval. */
     public void tick() {
         for (Tail tail : tails) {
             if (tail.cancelled()) {

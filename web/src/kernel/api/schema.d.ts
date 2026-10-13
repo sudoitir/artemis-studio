@@ -5882,12 +5882,35 @@ export interface components {
             lastStart?: string | null;
             /** Format: date-time */
             lastEnd?: string | null;
-            /** @description The most recent run's failure; absent once a later run succeeds. */
+            /**
+             * @description How the most recent run ended; absent until one has.
+             * @enum {string|null}
+             */
+            lastOutcome?: "SUCCEEDED" | "FAILED" | "TIMED_OUT" | "LOCK_LOST" | "INTERRUPTED" | null;
+            /** @description Why the most recent run did not succeed; absent once a later run succeeds. */
             lastError?: string | null;
             /** Format: int64 */
             runs: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Runs that did not succeed, for any reason.
+             */
             failures: number;
+            /**
+             * Format: int64
+             * @description Runs interrupted for exceeding the job's timeout.
+             */
+            timeouts: number;
+            /**
+             * Format: int64
+             * @description Runs interrupted because the installation-wide lock could not be extended.
+             */
+            lockLost: number;
+            /**
+             * Format: int64
+             * @description Runs that lasted past the time the next was due.
+             */
+            overruns: number;
             /**
              * Format: date-time
              * @description When the scheduler next intends to start it.
@@ -5898,7 +5921,9 @@ export interface components {
              * @description When this instance last found an installation-wide run held by another instance.
              */
             lastSkippedElsewhere?: string | null;
-            /** @description Whether no run has finished, here or elsewhere, within three of the job's intervals. */
+            /** @description Why the job's schedule cannot be read; the job does not run until it can. */
+            invalidSchedule?: string | null;
+            /** @description Whether the schedule is invalid, or no run has finished, here or elsewhere, within three of the job's intervals. */
             degraded: boolean;
         };
         PagedViewJobStatusView: {

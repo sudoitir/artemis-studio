@@ -71,7 +71,7 @@ public class RrSampler {
     private final Map<UUID, Instant> lastSampledAt = new ConcurrentHashMap<>();
 
     /**
-     * Scheduled by {@code JobScheduler} on {@code rr.sample-interval}. It used to
+     * Scheduled by {@code JobRunner} on {@code rr.sample-interval}. It used to
      * hardcode 5s and ignore the configured value entirely. Samples only the clusters this replica owns.
      */
     public void tick() {

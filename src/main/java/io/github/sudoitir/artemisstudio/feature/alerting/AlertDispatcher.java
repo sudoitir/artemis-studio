@@ -33,7 +33,7 @@ public class AlertDispatcher {
     private final SecretVault vault;
     private final SettingsService settings;
 
-    /** Scheduled by {@code JobScheduler} on {@code alerting.dispatch-interval}. */
+    /** Scheduled by {@code JobRunner} on {@code alerting.dispatch-interval}. */
     @Transactional
     public void dispatch() {
         for (AlertDeliveryEntity delivery : deliveries.claimDue(BATCH_SIZE)) {

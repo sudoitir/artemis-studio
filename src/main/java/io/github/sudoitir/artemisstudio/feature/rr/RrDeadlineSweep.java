@@ -31,7 +31,7 @@ public class RrDeadlineSweep {
     private final TransactionTemplate transactions;
 
     /**
-     * Scheduled by {@code JobScheduler} on {@code rr.sweep-interval}. It used to
+     * Scheduled by {@code JobRunner} on {@code rr.sweep-interval}. It used to
      * hardcode 5s and ignore the configured value entirely.
      */
     public void sweep() {

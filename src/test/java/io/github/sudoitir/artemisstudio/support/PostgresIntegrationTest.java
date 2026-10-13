@@ -4,9 +4,9 @@ import io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeScheduler;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.convention.TestBean;
@@ -28,10 +28,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 public abstract class PostgresIntegrationTest {
 
     /**
-     * The scheduled scrape tiers would otherwise run inside the shared context and call
-     * whichever {@code BrokerConnections} a test has mocked, consuming the canned Jolokia
-     * responses that test queued for its own requests. A mock configures no tasks, so no
-     * tier is scheduled; no test relies on background scraping, and
+     * The scrape tiers would otherwise run inside the shared context and call whichever
+     * {@code BrokerConnections} a test has mocked, consuming the canned Jolokia
+     * responses that test queued for its own requests. The mock's tier methods do nothing, so the
+     * runner's tier jobs run and change nothing; no test relies on background scraping, and
      * {@code ScrapeSchedulerTest} drives the tiers directly.
      */
     @MockitoBean
@@ -73,8 +73,10 @@ public abstract class PostgresIntegrationTest {
 
     /** Rows dated in the past need partitions, which a purge in an earlier test may have dropped (ADR-0193). */
     @BeforeEach
-    void partitionsForPastRows(@Autowired JdbcTemplate jdbc) {
-        TestPartitions.ensureBack(jdbc);
+    void partitionsForPastRows() {
+        // Its own connection: some subclasses start the application themselves, outside the Spring test framework.
+        TestPartitions.ensureBack(new JdbcTemplate(
+                new DriverManagerDataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())));
     }
 
     /** What an application started outside the Spring test framework needs to use the shared database. */

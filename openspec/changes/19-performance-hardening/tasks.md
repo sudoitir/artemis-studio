@@ -12,8 +12,8 @@
 
 ## 3. U2 Ids
 
-- [ ] 3.1 `kernel/core/Ids.v7()` over Hibernate's `UuidVersion7Strategy`
-- [ ] 3.2 Every entity `@UuidGenerator(style = VERSION_7)`; JDBC inserts `RETURNING id`; replace `HeldStore`'s `SELECT uuidv7()`, `MessageIndexService`, `DiagnosticsService` (stays v4: bearer), `SecretRotations`
+- [x] 3.1 `kernel/core/Ids.v7()` over Hibernate's `UuidVersion7Strategy`
+- [x] 3.2 Every entity `@UuidGenerator(style = VERSION_7)`; JDBC inserts `RETURNING id`; replace `HeldStore`'s `SELECT uuidv7()`, `MessageIndexService`, `DiagnosticsService` (stays v4: bearer), `SecretRotations`
 - [x] 3.3 `metric_sample` writer `ON CONFLICT DO NOTHING`
 
 ## 4. U3 Partitions (data-lifecycle, audit-log, scrape-scheduling, message-index)
@@ -27,11 +27,11 @@
 
 ## 5. U4 Jobs and threads (operational-health)
 
-- [ ] 5.1 `JobRunner`: timer thread, virtual thread per run, next fire after completion, per-job timeout, lock extension with `lockLost`, `invalidSchedule` re-parse, UTC, first-failure logging, counters; replaces `JobScheduler`, the scrape scheduler pool and the plugin job bridge pool
-- [ ] 5.2 `ScheduledJob` optional timeout; status fields in `JobStatus` and the jobs API
-- [ ] 5.3 Fix the SSE drain-thread leak; record interrupted approval executions
-- [ ] 5.4 `ThreadLeakIntegrationTest`
-- [ ] 5.5 ADR: the job runner (amends 0048, supersedes 0125's job list)
+- [x] 5.1 `JobRunner`: timer thread, virtual thread per run, next fire after completion, per-job timeout, lock extension with `lockLost`, `invalidSchedule` re-parse, UTC, first-failure logging, counters; replaces `JobScheduler`, the scrape scheduler pool and the plugin job bridge pool
+- [x] 5.2 `ScheduledJob` optional timeout; status fields in `JobStatus` and the jobs API
+- [x] 5.3 Fix the SSE drain-thread leak; record interrupted approval executions
+- [x] 5.4 `ThreadLeakIntegrationTest`
+- [x] 5.5 ADR: the job runner (amends 0048, supersedes 0125's job list)
 
 ## 6. U5 Database configuration
 
@@ -62,11 +62,11 @@
 
 ## 9b. U11 External database (database-schema)
 
-- [ ] 9b.1 `DatabasePreflight` before Liquibase: version 18+, privileges, session stability (refuse transaction-mode pooling), warnings for connection budget and server timeouts
-- [ ] 9b.2 Non-default schema: no SQL names `public`; integration test migrating and booting in a non-default schema as a restricted, non-superuser role
-- [ ] 9b.3 Failover: multi-host URL support, `LISTEN` reconnect with resync, session advisory lock holders detect a dropped connection and stop their duty; partition maintainer on transaction-scoped locks
-- [ ] 9b.4 Optional read-only pool `studio.database.read.*` with `ReadRouting` (lag check, fall back to primary, response marks possible lag)
-- [ ] 9b.5 `docs/external-database.md`; ADR: Studio on an external PostgreSQL
+- [x] 9b.1 `DatabasePreflight` before Liquibase: version 18+, privileges, session stability (refuse transaction-mode pooling), warnings for connection budget and server timeouts
+- [x] 9b.2 Non-default schema: no SQL names `public`; integration test migrating and booting in a non-default schema as a restricted, non-superuser role
+- [x] 9b.3 Failover: multi-host URL support, `LISTEN` reconnect with resync, session advisory lock holders detect a dropped connection and stop their duty; partition maintainer on transaction-scoped locks
+- [x] 9b.4 Optional read-only pool `studio.database.read.*` with `ReadRouting` (lag check, fall back to primary, response marks possible lag)
+- [x] 9b.5 `docs/external-database.md`; ADR: Studio on an external PostgreSQL
 
 ## 10. U10 Load test and sizing (performance-sizing)
 

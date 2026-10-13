@@ -128,6 +128,7 @@ public class DiagnosticsService {
                 section("plugins", "Features and plugins", "plugins.json", () -> json(pluginsSection())),
                 section("threads", "Thread dump", "threads.txt", () -> new ThreadDumpEndpoint().textThreadDump()),
                 section("logs", "Logs", "logs.txt", DiagnosticsService::logs));
+        // A bearer handle: the id is the credential, so it stays a random v4 UUID.
         Snapshot snapshot =
                 new Snapshot(UUID.randomUUID(), actors.resolve().username(), now, now.plus(SNAPSHOT_TTL), sections);
         snapshots.save(snapshot);

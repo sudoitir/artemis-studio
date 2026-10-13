@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.approval;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditScope;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.core.Ids;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalProviderRegistry;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalProviderRegistry.AttachedProvider;
 import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalUnavailableException;
@@ -375,7 +376,7 @@ class GateEngine implements OperationGate, PluginScopedBeans {
         if (open >= bounds.maxOpenPerRequester()) {
             throw new TooManyHeldOperationsException(open);
         }
-        UUID id = store.newId();
+        UUID id = Ids.v7();
         String type = built.type().type();
         byte[] sealed = seals.sealPayload(
                 id,
