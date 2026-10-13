@@ -84,7 +84,11 @@ public class AuditRetentionGuard {
         }
         List<AuditHold> answer;
         try {
-            answer = calls.call(hold.handle(), hold.bean()::holds, settings.duration(AuditFeedSettings.TIMEOUT));
+            answer = calls.call(
+                    "hold:" + pluginId,
+                    hold.handle(),
+                    hold.bean()::holds,
+                    settings.duration(AuditFeedSettings.TIMEOUT));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new AuditPurgeRefused(
@@ -139,23 +143,19 @@ public class AuditRetentionGuard {
         });
     }
 
-    /** Folds into the gap not yet audited or delivered, so a long purge is one gap rather than one per batch. */
+    /** A new row for every call: a row is never changed once a delivery may have read it, so no count is lost to an acknowledgement. */
     private void addGap(String pluginId, List<Purged> behind) {
-        Timestamp first = Timestamp.from(
-                behind.stream().map(Purged::ts).min(Comparator.naturalOrder()).orElseThrow());
-        Timestamp last = Timestamp.from(
-                behind.stream().map(Purged::ts).max(Comparator.naturalOrder()).orElseThrow());
-        int extended = jdbc.update("""
-                UPDATE audit_receiver_gap
-                SET count = count + ?, first_ts = least(first_ts, ?), last_ts = greatest(last_ts, ?)
-                WHERE plugin_id = ? AND audited_at IS NULL AND delivered_at IS NULL""", behind.size(), first, last, pluginId);
-        if (extended == 0) {
-            jdbc.update(
-                    "INSERT INTO audit_receiver_gap (count, first_ts, last_ts, plugin_id) VALUES (?, ?, ?, ?)",
-                    behind.size(),
-                    first,
-                    last,
-                    pluginId);
-        }
+        jdbc.update(
+                "INSERT INTO audit_receiver_gap (count, first_ts, last_ts, plugin_id) VALUES (?, ?, ?, ?)",
+                behind.size(),
+                Timestamp.from(behind.stream()
+                        .map(Purged::ts)
+                        .min(Comparator.naturalOrder())
+                        .orElseThrow()),
+                Timestamp.from(behind.stream()
+                        .map(Purged::ts)
+                        .max(Comparator.naturalOrder())
+                        .orElseThrow()),
+                pluginId);
     }
 }

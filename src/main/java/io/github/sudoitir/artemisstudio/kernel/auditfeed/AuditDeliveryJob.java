@@ -12,7 +12,6 @@ import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceivers.Attached
 import io.github.sudoitir.artemisstudio.kernel.core.SecretRedactor;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -44,7 +43,7 @@ class AuditDeliveryJob {
     private static final int ERROR_LIMIT = 500;
 
     /** A gap not yet delivered, with the id that orders it. */
-    private record Gap(long id, long count, Instant from, Instant to) {}
+    private record Gap(long id, long count, Instant from, Instant to, String pluginId) {}
 
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
@@ -120,6 +119,7 @@ class AuditDeliveryJob {
         try {
             AuditDelivery delivery = new AuditDelivery(records, merge(gaps));
             calls.call(
+                    "receive:" + pluginId,
                     target.handle(),
                     () -> {
                         target.bean().receive(delivery);
@@ -128,6 +128,8 @@ class AuditDeliveryJob {
                     settings.duration(AuditFeedSettings.TIMEOUT));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            return false;
+        } catch (PluginCalls.Busy _) {
             return false;
         } catch (Exception e) {
             fail(pluginId, e);
@@ -188,7 +190,8 @@ class AuditDeliveryJob {
                         rs.getLong(1),
                         rs.getLong(2),
                         rs.getTimestamp(3).toInstant(),
-                        rs.getTimestamp(4).toInstant()),
+                        rs.getTimestamp(4).toInstant(),
+                        pluginId),
                 pluginId);
     }
 
@@ -208,36 +211,46 @@ class AuditDeliveryJob {
      * it is written once.
      */
     private void auditGaps() {
-        List<Map<String, Object>> fresh = jdbc.queryForList(
-                "SELECT id, plugin_id, count, first_ts, last_ts FROM audit_receiver_gap WHERE audited_at IS NULL ORDER BY id");
-        for (Map<String, Object> gap : fresh) {
-            long id = ((Number) gap.get("id")).longValue();
-            if (jdbc.update("UPDATE audit_receiver_gap SET audited_at = now() WHERE id = ? AND audited_at IS NULL", id)
-                    == 0) {
-                continue;
-            }
-            long count = ((Number) gap.get("count")).longValue();
-            try {
-                AuditEvent event = audit.begin(
-                        Actor.system(),
-                        "AUDIT_GAP",
-                        "PLUGIN",
-                        (String) gap.get("plugin_id"),
-                        null,
-                        null,
-                        Map.of(
-                                "count",
-                                count,
-                                "from",
-                                ((Timestamp) gap.get("first_ts")).toInstant().toString(),
-                                "to",
-                                ((Timestamp) gap.get("last_ts")).toInstant().toString()),
-                        false);
-                audit.succeed(event, count);
-            } catch (RuntimeException e) {
-                jdbc.update("UPDATE audit_receiver_gap SET audited_at = NULL WHERE id = ?", id);
-                throw e;
+        for (Long id : jdbc.queryForList(
+                "SELECT id FROM audit_receiver_gap WHERE audited_at IS NULL ORDER BY id", Long.class)) {
+            List<Gap> claimed = jdbc.query(
+                    "UPDATE audit_receiver_gap SET audited_at = now() WHERE id = ? AND audited_at IS NULL RETURNING count, first_ts, last_ts, plugin_id",
+                    (rs, i) -> new Gap(
+                            id,
+                            rs.getLong(1),
+                            rs.getTimestamp(2).toInstant(),
+                            rs.getTimestamp(3).toInstant(),
+                            rs.getString(4)),
+                    id);
+            for (Gap gap : claimed) {
+                writeGapEvent(gap);
             }
         }
+    }
+
+    /** Only a failed {@code begin} gives the claim back; once the event exists, a second one would be a duplicate. */
+    private void writeGapEvent(Gap gap) {
+        AuditEvent event;
+        try {
+            event = audit.begin(
+                    Actor.system(),
+                    "AUDIT_GAP",
+                    "PLUGIN",
+                    gap.pluginId(),
+                    null,
+                    null,
+                    Map.of(
+                            "count",
+                            gap.count(),
+                            "from",
+                            gap.from().toString(),
+                            "to",
+                            gap.to().toString()),
+                    false);
+        } catch (RuntimeException e) {
+            jdbc.update("UPDATE audit_receiver_gap SET audited_at = NULL WHERE id = ?", gap.id());
+            throw e;
+        }
+        audit.succeed(event, gap.count());
     }
 }

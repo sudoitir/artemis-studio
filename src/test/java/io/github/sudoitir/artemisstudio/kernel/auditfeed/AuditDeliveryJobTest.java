@@ -15,6 +15,8 @@ import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceiverFixtures.F
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditReceiverFixtures.TestReceiver;
 import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard.Purged;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
+import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
+import io.github.sudoitir.artemisstudio.support.AdminAuthenticationExtension;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
 import java.time.Instant;
 import java.util.List;
@@ -28,10 +30,12 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /** Audit records reach a receiver in commit order, at least once, and a receiver never holds up the audited operation. */
+@ExtendWith(AdminAuthenticationExtension.class)
 class AuditDeliveryJobTest extends PostgresIntegrationTest {
 
     @Autowired
@@ -48,6 +52,9 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
 
     @Autowired
     AuditFeed feed;
+
+    @Autowired
+    SettingsService settings;
 
     @Autowired
     JdbcTemplate jdbc;
@@ -237,5 +244,63 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
                         pluginId))
                 .isTrue();
         assertThat(feed.retainedFrom()).contains(last);
+    }
+
+    @Test
+    void aGapPurgedAfterADeliveryReadTheEarlierOneIsNotLostToItsAcknowledgement() {
+        Instant ts = Instant.parse("2026-01-01T00:00:00Z");
+        guard.recordPurged(List.of(new Purged(new AuditPosition(Long.MAX_VALUE / 2, 1), ts)));
+        // A delivery has read the first gap when the next purge lands: the new count is its own row.
+        guard.recordPurged(List.of(new Purged(new AuditPosition(Long.MAX_VALUE / 2, 2), ts)));
+        assertThat(jdbc.queryForObject(
+                        "SELECT count(*) FROM audit_receiver_gap WHERE plugin_id = ?", Long.class, pluginId))
+                .isEqualTo(2);
+
+        job.deliver(pluginId);
+        guard.recordPurged(List.of(new Purged(new AuditPosition(Long.MAX_VALUE / 2, 3), ts)));
+
+        assertThat(receiver.batches).extracting(AuditDelivery::gap).contains(new AuditGap(2, ts, ts));
+        assertThat(jdbc.queryForObject(
+                        "SELECT sum(count) FROM audit_receiver_gap WHERE plugin_id = ? AND delivered_at IS NULL",
+                        Long.class,
+                        pluginId))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void aReceiverThatIgnoresItsTimeoutIsNotCalledAgainWhileItIsStillRunning() throws Exception {
+        CountDownLatch release = new CountDownLatch(1);
+        receiver.beforeAnswer = () -> {
+            boolean waiting = true;
+            while (waiting) {
+                try {
+                    waiting = !release.await(30, TimeUnit.SECONDS);
+                } catch (InterruptedException ignored) {
+                    // keeps running, as a stuck plugin does
+                }
+            }
+        };
+        settings.put(AuditFeedSettings.TIMEOUT, "1s");
+        try {
+            write("a");
+            job.deliver(pluginId);
+            job.deliver(pluginId);
+
+            assertThat(receiver.batches).hasSize(1);
+            assertThat(jdbc.queryForObject(
+                            "SELECT failures FROM audit_receiver WHERE plugin_id = ?", Integer.class, pluginId))
+                    .isEqualTo(1);
+
+            release.countDown();
+            receiver.beforeAnswer = () -> {};
+            for (int i = 0; i < 50 && receiver.batches.size() < 2; i++) {
+                Thread.sleep(100);
+                job.deliver(pluginId);
+            }
+            assertThat(receiver.batches).hasSizeGreaterThanOrEqualTo(2);
+        } finally {
+            release.countDown();
+            settings.reset(AuditFeedSettings.TIMEOUT);
+        }
     }
 }

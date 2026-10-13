@@ -132,9 +132,10 @@ public class AuditQueryService {
 
     /**
      * Write the export's rows, oldest first, to {@code sink} and record the outcome: the count on success, how far it
-     * got when the sink fails (the client went away) or the read does. The export's own row is left out.
+     * got when the sink fails (the client went away) or the read does. {@code finish} flushes and closes the sink; it
+     * runs before the outcome, so a file cut short by a failing close is never recorded as complete. The export's own row is left out.
      */
-    public void run(Export export, Consumer<AuditExportRow> sink) {
+    public void run(Export export, Consumer<AuditExportRow> sink, Runnable finish) {
         long[] written = {0};
         try {
             transactions.executeWithoutResult(tx -> {
@@ -160,6 +161,7 @@ public class AuditQueryService {
                     });
                 }
             });
+            finish.run();
         } catch (RuntimeException ex) {
             // A write that fails is the client going away; anything else is the read.
             String how = ex instanceof JacksonIOException ? "cancelled" : "failed";

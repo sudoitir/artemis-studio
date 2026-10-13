@@ -75,7 +75,7 @@ public class AuditController {
                 clusterId, new AuditQuery(user, action, outcome, parentId, from, to, 1, 1), type.extension());
         StreamingResponseBody body = out -> {
             try (AuditExportFormat.Sink sink = type.open(out, mapper)) {
-                audit.run(export, sink::write);
+                audit.run(export, sink::write, sink::close);
             }
         };
         String fileName = "audit-%s-%s.%s"
