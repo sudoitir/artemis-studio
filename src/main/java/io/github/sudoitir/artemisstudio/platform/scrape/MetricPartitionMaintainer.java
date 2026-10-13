@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.platform.scrape;
 
+import io.github.sudoitir.artemisstudio.kernel.core.StatementTimeout;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import lombok.extern.slf4j.Slf4j;
@@ -85,6 +86,7 @@ public class MetricPartitionMaintainer {
                                 autovacuum_analyze_scale_factor = 0.05)
                             """.formatted(name));
             transactions.executeWithoutResult(status -> {
+                jdbc.getJdbcTemplate().execute(StatementTimeout.setLocal(StatementTimeout.LONG));
                 jdbc.getJdbcTemplate().execute("LOCK TABLE metric_sample_default IN EXCLUSIVE MODE");
                 jdbc.getJdbcTemplate().execute(MOVE_DEFAULT_ROWS.formatted(day, next, name));
                 jdbc.getJdbcTemplate()

@@ -11,6 +11,7 @@ description: The environment variables Artemis Studio reads, which are required,
 |---|---|---|
 | `ARTEMIS_STUDIO_DB_URL` | yes | `jdbc:postgresql://host:5432/artemis_studio` |
 | `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | yes | — |
+| `ARTEMIS_STUDIO_DB_POOL_SIZE` | no | Connections each replica keeps open, 16 by default. Every replica together, plus its listening connection and the plugins' pools, must stay under the server's `max_connections`. A request that waits more than 5 s for a connection fails; a query that runs past 30 s is cancelled, except the SQL console, exports and maintenance, which raise it for their own transaction |
 | `ARTEMIS_STUDIO_SECRET_KEY` | with the `env` provider | The key that protects every stored secret. Base64 of **exactly 32 bytes**, or the application will not start: `openssl rand -base64 32`. To hold several versions, see [Secrets and key rotation](#secrets-and-key-rotation) |
 | `ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE` | for capture | The broker role Studio's own broker user holds. Capture queues are restricted to it, and message capture is refused until it is set. Use a dedicated role, not the default `amq` |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | no | Decrypts `{cipher}` values stored in `studio_config_property`. A **different** key from `ARTEMIS_STUDIO_SECRET_KEY` — do not reuse it |

@@ -854,7 +854,7 @@ public class PluginHost implements SmartLifecycle {
     // ---- connection budget ----------------------------------------------------------------------
 
     /**
-     * design.md §2: 10 core connections plus 3 per active plugin, against 80% of Postgres'
+     * design.md §2: 16 core connections plus 3 per active plugin, against 80% of Postgres'
      * {@code max_connections}.
      *
      * @param inUse what the active plugins need now, core included
@@ -869,7 +869,7 @@ public class PluginHost implements SmartLifecycle {
                 max, CORE_CONNECTIONS + POOL_PER_PLUGIN * active, (int) (max * 0.8), POOL_PER_PLUGIN);
     }
 
-    private static final int CORE_CONNECTIONS = 10;
+    private static final int CORE_CONNECTIONS = 16;
     private static final int POOL_PER_PLUGIN = 3;
 
     // ---- plan ---------------------------------------------------------------------------------
@@ -1734,7 +1734,7 @@ public class PluginHost implements SmartLifecycle {
     }
 
     /**
-     * design.md §2: activation is refused, with the reason, once 10 core connections plus 3 per
+     * design.md §2: activation is refused, with the reason, once 16 core connections plus 3 per
      * active plugin (counting this one) would exceed 80% of Postgres' own {@code max_connections}.
      */
     private void checkConnectionBudget(String pluginId) {
@@ -1749,7 +1749,7 @@ public class PluginHost implements SmartLifecycle {
         if (needed > threshold) {
             throw new PluginRefusedException(List.of(new Violation(
                     "connection-budget",
-                    "Activating would need %d connections (10 core + 3 x %d active plugins), over 80%% of max_connections=%d (%d)."
+                    "Activating would need %d connections (16 core + 3 x %d active plugins), over 80%% of max_connections=%d (%d)."
                             .formatted(needed, activeInclThis, max, threshold),
                     "Disable another plugin first, or raise Postgres' max_connections.")));
         }

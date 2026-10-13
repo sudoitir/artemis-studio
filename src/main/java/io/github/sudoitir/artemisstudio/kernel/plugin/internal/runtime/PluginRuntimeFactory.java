@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -211,8 +212,15 @@ public class PluginRuntimeFactory {
         config.setUsername(dataSourceProperties.determineUsername());
         config.setPassword(dataSourceProperties.determinePassword());
         config.setMaximumPoolSize(3);
-        config.setConnectionInitSql(
-                "SET search_path TO " + schema + "; SET lock_timeout='10s'; SET statement_timeout='60s'");
+        config.setConnectionInitSql("SET search_path TO " + schema + "; SET lock_timeout='10s';"
+                + " SET statement_timeout='60s'; SET idle_in_transaction_session_timeout='60s'");
+        // The host pool's limits (application.yml, ADR-0195): fail fast, recycle, and never hang on a dead peer.
+        config.setConnectionTimeout(Duration.ofSeconds(5).toMillis());
+        config.setMaxLifetime(Duration.ofMinutes(30).toMillis());
+        config.setKeepaliveTime(Duration.ofMinutes(2).toMillis());
+        config.addDataSourceProperty("connectTimeout", "5");
+        config.addDataSourceProperty("socketTimeout", "900");
+        config.addDataSourceProperty("tcpKeepAlive", "true");
         config.setPoolName(NAME_PREFIX + pluginId + "-pool");
         return new HikariDataSource(config);
     }

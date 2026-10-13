@@ -10,6 +10,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.QueryPlan.Target;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Bound;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.NodeOutcome;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryResult.Row;
+import io.github.sudoitir.artemisstudio.kernel.core.StatementTimeout;
 import io.github.sudoitir.artemisstudio.platform.governance.ContentSealer;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -109,8 +110,7 @@ public class IndexQueryExecutor {
         sql.append(" LIMIT ?");
         binds.add(plan.effectiveLimit() + 1);
 
-        jdbc.execute("SET LOCAL statement_timeout = "
-                + Math.max(1000, properties.timeout().toMillis()));
+        jdbc.execute(StatementTimeout.setLocal(properties.timeout()));
 
         // Resolved on the caller's thread. Only a caller with clear access has stored originals unsealed; everyone
         // else reads the masked stored row, which the console governs again under the current policy.

@@ -558,4 +558,4 @@ about a cluster go with it through `ON DELETE CASCADE` along those edges.
 
 Columns are ordered by alignment to cut row padding; high-churn tables carry
 `autovacuum`/`fillfactor` storage parameters; `metric_sample` is range-partitioned with
-BRIN on `ts`. Server tuning is in `deploy/postgres/postgresql.tuning.conf`.
+BRIN on `ts`. Server tuning is in `deploy/postgres/postgresql.conf`.

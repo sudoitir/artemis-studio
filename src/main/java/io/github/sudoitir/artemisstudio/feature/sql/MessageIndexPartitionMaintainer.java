@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
+import io.github.sudoitir.artemisstudio.kernel.core.StatementTimeout;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.platform.scrape.MetricPartitionMaintainer;
 import io.github.sudoitir.artemisstudio.platform.scrape.QueueSnapshot;
@@ -109,6 +110,7 @@ public class MessageIndexPartitionMaintainer {
             String attach = "ALTER TABLE message_index ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')"
                     .formatted(name, day, next);
             transactions.executeWithoutResult(status -> {
+                jdbc.getJdbcTemplate().execute(StatementTimeout.setLocal(StatementTimeout.LONG));
                 jdbc.getJdbcTemplate().execute(move);
                 jdbc.getJdbcTemplate().execute(attach);
             });

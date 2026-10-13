@@ -48,7 +48,9 @@ register them in the UI, and nothing here starts one.
 
 ```bash
 base=https://raw.githubusercontent.com/sudoitir/artemis-studio/main/deploy/compose
+mkdir -p studio/compose studio/postgres && cd studio/compose   # the compose file mounts ../postgres
 curl -sO "$base/compose.prod.yaml"
+for f in postgresql.conf 10-pg-stat-statements.sql; do curl -s "${base%/compose}/postgres/$f" -o "../postgres/$f"; done
 curl -s "$base/.env.example" | sed \
   -e "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -base64 32)|" \
   -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$(openssl rand -hex 24)|" > .env

@@ -16,50 +16,14 @@ services:
       POSTGRES_DB: artemis_studio
       POSTGRES_USER: artemis_studio
       POSTGRES_PASSWORD: artemis_studio
-    # Tuning that matters, applied inline. Full reference (and the values Helm
-    # mounts as a file in prod) is deploy/postgres/postgresql.tuning.conf.
-    command:
-      - postgres
-      - -c
-      - shared_buffers=256MB
-      - -c
-      - effective_cache_size=1GB
-      - -c
-      - work_mem=16MB
-      - -c
-      - maintenance_work_mem=128MB
-      - -c
-      - max_wal_size=2GB
-      - -c
-      - min_wal_size=512MB
-      - -c
-      - checkpoint_completion_target=0.9
-      - -c
-      - wal_compression=zstd
-      - -c
-      - random_page_cost=1.1
-      - -c
-      - effective_io_concurrency=64
-      - -c
-      - default_statistics_target=200
-      - -c
-      - autovacuum_naptime=15s
-      - -c
-      - autovacuum_max_workers=4
-      - -c
-      - autovacuum_vacuum_cost_limit=2000
-      - -c
-      - track_io_timing=on
-      - -c
-      - log_min_duration_statement=500ms
-      - -c
-      - log_autovacuum_min_duration=250ms
-      - -c
-      - timezone=UTC
+    # The same server configuration as the production stacks (ADR-0195).
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
+      - ../../postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ../../postgres/10-pg-stat-statements.sql:/docker-entrypoint-initdb.d/10-pg-stat-statements.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U artemis_studio -d artemis_studio"]
       interval: 5s
