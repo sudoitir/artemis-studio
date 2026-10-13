@@ -34,6 +34,7 @@ public class SqlQueryTickets {
 
     /** Valid for a minute: long enough for the browser to open the stream, short enough to be worthless if leaked. */
     public UUID issue(UUID clusterId, String sql, boolean tail, String owner) {
+        // A bearer handle: the id is the credential, so it stays a random v4 UUID.
         UUID id = UUID.randomUUID();
         jdbc.update(
                 "INSERT INTO sql_query_ticket (expires_at, sql, owner, id, cluster_id, tail)"

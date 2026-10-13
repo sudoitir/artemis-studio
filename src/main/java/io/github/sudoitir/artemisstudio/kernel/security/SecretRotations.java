@@ -123,13 +123,13 @@ public class SecretRotations implements SmartInitializingSingleton {
         int fromVersion = from;
         // Honest before the first pass ends: everything under an older version still has to be re-wrapped.
         long remaining = countBelow(to);
-        UUID id = UUID.randomUUID();
+        UUID id;
         try {
-            tx.executeWithoutResult(s -> {
-                jdbc.update(
-                        "INSERT INTO secret_rotation (id, from_version, to_version, status, started_by, started_at,"
-                                + " remaining) VALUES (?, ?, ?, 'RUNNING', ?, now(), ?)",
-                        id,
+            id = tx.execute(s -> {
+                UUID created = jdbc.queryForObject(
+                        "INSERT INTO secret_rotation (from_version, to_version, status, started_by, started_at,"
+                                + " remaining) VALUES (?, ?, 'RUNNING', ?, now(), ?) RETURNING id",
+                        UUID.class,
                         fromVersion,
                         to,
                         startedBy,
@@ -137,6 +137,7 @@ public class SecretRotations implements SmartInitializingSingleton {
                 if (to > current) {
                     jdbc.update("UPDATE secret_key_state SET current_kek_version = ?, updated_at = now()", to);
                 }
+                return created;
             });
         } catch (DuplicateKeyException _) {
             throw new ConflictException("rotation-running", "A key rotation is already running.");

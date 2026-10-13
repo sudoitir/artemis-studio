@@ -2,8 +2,6 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.UUID;
@@ -12,6 +10,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.UuidGenerator;
 
 /**
  * Maps {@code role} (changesets 003, 014, 0004). {@code builtin} roles (ADMIN,
@@ -27,7 +26,7 @@ import lombok.Setter;
 public class RoleEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     @Column(name = "id", nullable = false, updatable = false)
     @EqualsAndHashCode.Include
     private UUID id;

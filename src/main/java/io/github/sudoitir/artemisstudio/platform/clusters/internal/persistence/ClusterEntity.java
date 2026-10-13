@@ -3,8 +3,6 @@ package io.github.sudoitir.artemisstudio.platform.clusters.internal.persistence;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegisteredCluster;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -15,6 +13,7 @@ import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.UuidGenerator;
 
 /** Maps the {@code cluster} table (changeset 002). */
 @Entity
@@ -25,7 +24,7 @@ import lombok.NoArgsConstructor;
 public class ClusterEntity implements RegisteredCluster {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     @Column(name = "id", nullable = false, updatable = false)
     @EqualsAndHashCode.Include
     private UUID id;
