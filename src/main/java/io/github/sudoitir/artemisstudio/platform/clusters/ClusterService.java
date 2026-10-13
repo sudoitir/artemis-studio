@@ -124,6 +124,7 @@ public class ClusterService {
     private final List<RegistrationCheckContributor> checkContributors;
     private final CapabilityProbe capabilityProbe;
     private final CapabilityLedger capabilityLedger;
+    private final CapabilityAssessments capabilityAssessments;
     private final TopologyDiscovery topologyDiscovery;
     private final HaStateEvaluator evaluator;
     private final CoreSubscriptionManager coreSubscriptions;
@@ -612,20 +613,27 @@ public class ClusterService {
         return out;
     }
 
-    @Transactional(readOnly = true)
     public ClusterDetail get(UUID clusterId) {
         clusterAccess.requireVisible(clusterId);
-        ClusterEntity cluster = requireCluster(clusterId);
-        ClusterTopology topology = topologyDiscovery.currentTopology(clusterId);
-        return new ClusterDetail(
-                clusterId,
-                cluster.getName(),
-                cluster.getDescription(),
-                withheld(clusterId, viewMapper.topology(topology)),
-                capabilitiesFor(clusterId, topology),
-                viewMapper.health(healthOf(clusterId, topology.nodes())),
-                cluster.getEnvironmentId(),
-                clusterAccess.holds(clusterId, Permissions.CLUSTER_READ) ? connectionView(clusterId, cluster) : null);
+        requireCluster(clusterId);
+        // The probe is shared and runs on its own thread; no transaction (and no connection) is open while it is
+        // awaited.
+        CapabilityAssessments.Outcome assessed = capabilityAssessments.outcome(clusterId);
+        return transactions.execute(status -> {
+            ClusterEntity cluster = requireCluster(clusterId);
+            ClusterTopology topology = topologyDiscovery.currentTopology(clusterId);
+            return new ClusterDetail(
+                    clusterId,
+                    cluster.getName(),
+                    cluster.getDescription(),
+                    withheld(clusterId, viewMapper.topology(topology)),
+                    capabilitiesFor(clusterId, topology, assessed),
+                    viewMapper.health(healthOf(clusterId, topology.nodes())),
+                    cluster.getEnvironmentId(),
+                    clusterAccess.holds(clusterId, Permissions.CLUSTER_READ)
+                            ? connectionView(clusterId, cluster)
+                            : null);
+        });
     }
 
     /**
@@ -678,14 +686,15 @@ public class ClusterService {
     }
 
     /**
-     * The capabilities, probed live. For a caller who reads the cluster the reasons say what was tried and where;
+     * The capabilities, from the cluster's shared assessment. For a caller who reads the cluster the reasons say what was tried and where;
      * for one who does not, the statuses alone, and a probe that could not connect says only that.
      */
-    private CapabilitiesView capabilitiesFor(UUID clusterId, ClusterTopology topology) {
+    private CapabilitiesView capabilitiesFor(
+            UUID clusterId, ClusterTopology topology, CapabilityAssessments.Outcome assessed) {
         boolean wholeCluster = clusterAccess.holds(clusterId, Permissions.CLUSTER_READ);
         try {
             CapabilitiesView view =
-                    viewMapper.capabilities(assessCapabilities(clusterId), VersionGate.assessAll(endpoints(topology)));
+                    viewMapper.capabilities(assessed.orThrow(), VersionGate.assessAll(endpoints(topology)));
             return wholeCluster ? view : view.withoutConnectionDetails();
         } catch (BrokerConnectionException e) {
             if (wholeCluster) {
@@ -711,53 +720,23 @@ public class ClusterService {
     }
 
     /**
-     * A live probe of the first manageable node, with the recorded management-write
-     * evidence overlaid (ADR-0049 D5). The probe itself never writes, so without
-     * that overlay the write capability could only ever be unknown.
+     * The cluster's shared capability assessment (a probe of its first manageable node, at most one per
+     * {@link CapabilityAssessments#TTL}), with the recorded management-write evidence overlaid (ADR-0049 D5).
+     * The probe itself never writes, so without that overlay the write capability could only ever be unknown.
      */
-    @Transactional(readOnly = true)
     public CapabilitiesView capabilities(UUID clusterId) {
         clusterAccess.requireVisible(clusterId);
-        return capabilitiesFor(clusterId, topologyDiscovery.currentTopology(clusterId));
+        requireCluster(clusterId);
+        CapabilityAssessments.Outcome assessed = capabilityAssessments.outcome(clusterId);
+        return transactions.execute(
+                status -> capabilitiesFor(clusterId, topologyDiscovery.currentTopology(clusterId), assessed));
     }
 
     /** The same assessment as {@link #capabilities}, before it becomes a DTO. */
-    @Transactional(readOnly = true)
     public BrokerCapabilities brokerCapabilities(UUID clusterId) {
-        return assessCapabilities(clusterId);
-    }
-
-    private BrokerCapabilities assessCapabilities(UUID clusterId) {
         clusterAccess.requireVisible(clusterId);
         requireCluster(clusterId);
-        BrokerNodeEntity manageable = manageableNode(clusterId);
-        JolokiaBrokerClient client = connections.forCluster(clusterId, manageable.getJolokiaUrl());
-        return capabilityProbe.probe(
-                client, coreSubscriptions.verdictFor(clusterId), capabilityLedger.managementWrite(clusterId));
-    }
-
-    /**
-     * The node to assess capabilities against: a live one for preference, any
-     * manageable one otherwise. A passive backup answers management reads but
-     * registers no acceptor and no address MBeans, so probing one reports "CORE
-     * acceptor not found" and "activemq.notifications address not found" about a
-     * broker where both are present. Ordering by name alone made that the normal
-     * outcome for any cluster whose backup sorts first.
-     */
-    private BrokerNodeEntity manageableNode(UUID clusterId) {
-        return chooseManageable(nodes.findByClusterIdOrderByNameAsc(clusterId))
-                .orElseThrow(() -> new BrokerConnectionException(
-                        BrokerConnectionException.Kind.UNREACHABLE,
-                        "This cluster has no node with a management URL yet."));
-    }
-
-    static Optional<BrokerNodeEntity> chooseManageable(List<BrokerNodeEntity> nodes) {
-        List<BrokerNodeEntity> manageable =
-                nodes.stream().filter(n -> n.getJolokiaUrl() != null).toList();
-        return manageable.stream()
-                .filter(n -> Boolean.TRUE.equals(n.getActive()) && n.getLastError() == null)
-                .findFirst()
-                .or(() -> manageable.stream().findFirst());
+        return capabilityAssessments.outcome(clusterId).orThrow();
     }
 
     // ---- mutations ------------------------------------------------------------
@@ -870,6 +849,7 @@ public class ClusterService {
             audit.fail(event, e.getMessage());
             throw e;
         }
+        capabilityAssessments.invalidate(clusterId);
         audit.succeed(event, 1);
         return new Attempt.Ok<>(viewMapper.endpoint(nodeMapper.toEndpoint(saved)));
     }
@@ -1038,6 +1018,7 @@ public class ClusterService {
 
         try {
             transactions.executeWithoutResult(status -> saveConnection(clusterId, edited));
+            capabilityAssessments.invalidate(clusterId);
         } catch (RuntimeException e) {
             audit.fail(event, e.getMessage());
             throw e;
@@ -1344,6 +1325,7 @@ public class ClusterService {
         clusters.delete(cluster);
         grants.revoke(CLUSTER, clusterId);
         bus.publish(new ReplicaSignal("cluster-deleted", clusterId.toString()));
+        capabilityAssessments.invalidate(clusterId);
         environmentIndex.invalidate();
         audit.succeed(event, 1);
     }

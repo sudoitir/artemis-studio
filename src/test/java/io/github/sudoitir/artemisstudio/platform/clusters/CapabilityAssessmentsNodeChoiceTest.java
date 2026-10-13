@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
  * one reports "CORE acceptor not found" and "activemq.notifications address not
  * found" about a broker where both are present.
  */
-class ClusterServiceNodeChoiceTest {
+class CapabilityAssessmentsNodeChoiceTest {
 
     private static final UUID CLUSTER = UUID.randomUUID();
 
@@ -36,7 +36,7 @@ class ClusterServiceNodeChoiceTest {
         List<BrokerNodeEntity> nodes =
                 List.of(node("broker-1-backup:61511", false, null), node("broker-1-primary:61510", true, null));
 
-        assertThat(ClusterService.chooseManageable(nodes))
+        assertThat(CapabilityAssessments.chooseManageable(nodes))
                 .map(BrokerNodeEntity::getName)
                 .contains("broker-1-primary:61510");
     }
@@ -45,7 +45,7 @@ class ClusterServiceNodeChoiceTest {
     void skipsALiveNodeThatIsCurrentlyErroring() {
         List<BrokerNodeEntity> nodes = List.of(node("a:1", true, "connect timed out"), node("b:2", true, null));
 
-        assertThat(ClusterService.chooseManageable(nodes))
+        assertThat(CapabilityAssessments.chooseManageable(nodes))
                 .map(BrokerNodeEntity::getName)
                 .contains("b:2");
     }
@@ -54,7 +54,7 @@ class ClusterServiceNodeChoiceTest {
     void fallsBackToAnyManageableNodeWhenNoneIsLive() {
         List<BrokerNodeEntity> nodes = List.of(node("a:1", false, null), node("b:2", false, null));
 
-        assertThat(ClusterService.chooseManageable(nodes))
+        assertThat(CapabilityAssessments.chooseManageable(nodes))
                 .map(BrokerNodeEntity::getName)
                 .contains("a:1");
     }
@@ -63,6 +63,6 @@ class ClusterServiceNodeChoiceTest {
     void aNodeWithoutAManagementUrlIsNeverChosen() {
         BrokerNodeEntity unmanaged = BrokerNodeEntity.fromSeed(CLUSTER, "discovered-only", "PRIMARY", null);
 
-        assertThat(ClusterService.chooseManageable(List.of(unmanaged))).isEmpty();
+        assertThat(CapabilityAssessments.chooseManageable(List.of(unmanaged))).isEmpty();
     }
 }
