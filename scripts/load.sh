@@ -27,9 +27,9 @@ LOAD_PORT=${LOAD_PORT:-18090}
 # reading blocks the server's write after a few kilobytes instead of a few megabytes (the stall profile uses it).
 # A broker holding thousands of queues needs more than 256 MB of heap (it runs out of memory at about 3,000).
 LOAD_BROKER_HEAP=${LOAD_BROKER_HEAP:-256}
-# Studio walks a node's queues one page of 200 per tier-C tick (5 minutes by default), so a node with 1,000 queues
-# is fully known after 25 minutes. The load stack ticks every 15 s so that seeded queues are all known within the
-# run; this makes its broker reads more frequent than a default installation's, never less.
+# Studio walks a node's whole queue list every tier-C tick (5 minutes by default). The load stack ticks every 15 s so
+# that queues seeded after start-up are known within the run; its broker reads are more frequent than a default
+# installation's, never less.
 LOAD_TIER_C=${LOAD_TIER_C:-15s}
 export LOAD_TIER_C
 LOAD_RUNTIME_IMAGE=${LOAD_RUNTIME_IMAGE:-sudoit1/artemis-studio:dev}

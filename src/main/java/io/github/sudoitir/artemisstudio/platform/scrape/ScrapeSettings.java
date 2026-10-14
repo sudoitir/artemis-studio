@@ -49,7 +49,7 @@ public class ScrapeSettings implements SettingsContribution {
                         TIER_C,
                         GROUP_SCRAPE,
                         "Tier C interval",
-                        "Full queue sweep, one page per node per tick.",
+                        "Full queue sweep: every page of every node each tick.",
                         Kind.DURATION,
                         () -> scrape.tierCInterval().toString(),
                         null),

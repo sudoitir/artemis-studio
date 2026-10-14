@@ -49,9 +49,9 @@ import tools.jackson.databind.JsonNode;
  *       pass. It is the only tier that decides whether a node is reachable.
  *   <li><b>Tier B</b> (~15s): the first {@code listQueues} page per node, so the
  *       busiest queues get a fast refresh without waiting for the full sweep.
- *   <li><b>Tier C</b> (~5m): one {@code listQueues} page per node per tick,
- *       walking the whole set over several ticks, then reaping rows the sweep
- *       did not touch.
+ *   <li><b>Tier C</b> (~5m): every {@code listQueues} page per node, one after the
+ *       other in the same tick, then reaping rows the sweep did not touch, so a
+ *       node is fully known one tick after it is registered.
  *   <li><b>Discovery</b> (~1m): re-run topology discovery per cluster, so a broker that
  *       joined after registration appears without anyone asking (ADR-0119).
  * </ul>
@@ -100,7 +100,6 @@ public class ScrapeScheduler implements DisposableBean {
     private final BrokerConnections connections;
     private final ScrapeCycle scrapeCycle;
     private final NodeStateRecorder persist;
-    private final SweepCursor sweepCursor;
     private final QueueSnapshotUpsert upsert;
     private final MetricSampleWriter metrics;
     private final StreamSignals streamSignals;
@@ -235,7 +234,7 @@ public class ScrapeScheduler implements DisposableBean {
         try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
             for (RegisteredCluster cluster : clusters.clusters()) {
                 UUID clusterId = cluster.getId();
-                fanOut(pool, manageableNodes(clusterId), "queue sweep", node -> scrapeSweepPage(clusterId, node));
+                fanOut(pool, manageableNodes(clusterId), "queue sweep", node -> sweepQueues(clusterId, node));
                 eventPublisher.publishEvent(new ScrapeTierCompleted(clusterId, ScrapeTierCompleted.Tier.C));
             }
         }
@@ -292,23 +291,29 @@ public class ScrapeScheduler implements DisposableBean {
         streamSignals.afterQueueScrape(clusterId, page.rows());
     }
 
-    private void scrapeSweepPage(UUID clusterId, ClusterNode node) {
-        int pageNo = sweepCursor.nextPage(node.getId());
-        Instant sweepStart = sweepCursor.sweepStart(node.getId());
-
-        QueuesPage page = listQueues(clusterId, node, BrokerListOps.ALL, pageNo, PAGE_SIZE);
-        upsert.upsertBatch(page.rows());
-        metrics.appendQueueSamples(page.rows());
-        streamSignals.afterQueueScrape(clusterId, page.rows());
-
-        boolean lastPage = (long) pageNo * PAGE_SIZE >= page.count();
-        if (lastPage) {
-            int reaped = upsert.reapStale(node.getId(), sweepStart);
-            if (reaped > 0) {
-                log.info("Sweep of {} complete: reaped {} stale queue rows", node.getName(), reaped);
+    /**
+     * Reads every page of the node's queues, each written as it arrives so memory holds one page, then
+     * reaps the rows the walk did not touch. A walk that fails or is interrupted part way reaps nothing:
+     * the next tick starts over. Each page is one POST through the node's rate limiter.
+     */
+    private void sweepQueues(UUID clusterId, ClusterNode node) {
+        Instant sweepStart = Instant.now();
+        for (int pageNo = 1; ; pageNo++) {
+            if (Thread.currentThread().isInterrupted()) {
+                return;
+            }
+            QueuesPage page = listQueues(clusterId, node, BrokerListOps.ALL, pageNo, PAGE_SIZE);
+            upsert.upsertBatch(page.rows());
+            metrics.appendQueueSamples(page.rows());
+            streamSignals.afterQueueScrape(clusterId, page.rows());
+            if (page.rows().isEmpty() || (long) pageNo * PAGE_SIZE >= page.count()) {
+                break;
             }
         }
-        sweepCursor.advance(node.getId(), lastPage);
+        int reaped = upsert.reapStale(node.getId(), sweepStart);
+        if (reaped > 0) {
+            log.info("Sweep of {} complete: reaped {} stale queue rows", node.getName(), reaped);
+        }
     }
 
     // ---- plumbing -------------------------------------------------------

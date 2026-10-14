@@ -231,7 +231,7 @@ artemis-studio:
     # Tiered polling cadence (ADR-0015).
     tier-a-interval: 5s      # HA state + topology + split-brain corroboration
     tier-b-interval: 15s     # re-read the queues that were busy last sweep
-    tier-c-interval: 5m      # walk the whole queue set, one page per tick
+    tier-c-interval: 5m      # walk the whole queue set each tick
     discovery-interval: 1m   # re-read topology so a broker that joins appears (ADR-0119)
   rate-limit:
     # Per broker node. Conservative default so Studio never becomes the load.

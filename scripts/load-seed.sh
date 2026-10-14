@@ -93,9 +93,9 @@ done
 
 say "waiting for Studio to read the queues"
 want=$LOAD_QUEUES
-# One page of 200 queues per node and tier-C tick (15 s in the load stack).
+# The next tier-C tick (15 s in the load stack) walks every queue of every node.
 tick=${LOAD_TIER_C%s}
-tries=$((((LOAD_QUEUES + 199) / 200) * tick / 3 + 40))
+tries=$((tick * 2 / 3 + 40))
 for id in "${cluster_ids[@]}"; do
   for _ in $(seq 1 "$tries"); do
     have=$(api GET "/clusters/$id/queues?size=1" | json 'd["count"]' 2>/dev/null || echo 0)

@@ -91,7 +91,6 @@ class ScrapeSchedulerTest {
     io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership ownership;
 
     ScrapeCycle scrapeCycle;
-    SweepCursor sweepCursor;
     ScrapeScheduler scheduler;
     ListAppender<ILoggingEvent> logs;
 
@@ -102,7 +101,6 @@ class ScrapeSchedulerTest {
         ((Logger) LoggerFactory.getLogger(ScrapeScheduler.class)).addAppender(logs);
         when(ownership.owns(any())).thenReturn(true);
         scrapeCycle = new ScrapeCycle(persist);
-        sweepCursor = new SweepCursor();
         scheduler = new ScrapeScheduler(
                 settings,
                 clusters,
@@ -111,7 +109,6 @@ class ScrapeSchedulerTest {
                 connections,
                 scrapeCycle,
                 persist,
-                sweepCursor,
                 upsert,
                 metrics,
                 new StreamSignals(org.mockito.Mockito.mock(SseHub.class)),
@@ -503,6 +500,41 @@ class ScrapeSchedulerTest {
         verify(upsert, times(1)).upsertBatch(any());
         verify(metrics, times(1)).appendQueueSamples(any());
         verify(upsert, times(1)).reapStale(any(), any());
+    }
+
+    @Test
+    void tierCWalksEveryPageOfANodeInOneTickThenReaps() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+
+        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        // count=201: two pages of 200, both read in this one tick
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "list-queues-of-201.json", "list-queues-of-201.json"));
+
+        scheduler.tierC();
+
+        verify(upsert, times(2)).upsertBatch(any());
+        verify(upsert, times(1)).reapStale(any(), any());
+    }
+
+    @Test
+    void aWalkThatFailsPartWayReapsNothing() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+
+        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "list-queues-of-201.json", "list-queues-failed.json"));
+
+        scheduler.tierC();
+
+        verify(upsert, times(1)).upsertBatch(any());
+        verify(upsert, never()).reapStale(any(), any());
     }
 
     // The trigger itself — that a changed interval is honoured without a restart —

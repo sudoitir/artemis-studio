@@ -74,6 +74,7 @@
 - [x] 10.2 Run it on the reference profile; write `docs/sizing.md`
 - [x] 10.3 README hardware section (minimum and recommended, single and HA)
 - [x] 10.4 ADR: the Gatling load test
+- [x] 10.5 Tier C walks every queue page of a node in each tick; the sweep cursor goes (ADR-0200)
 
 ## 11. Finish
 

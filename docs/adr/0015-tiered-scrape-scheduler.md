@@ -1,6 +1,6 @@
 # ADR-0015: Tiered scrape scheduler; the refresh cycle counter is scheduler-owned per cluster
 
-- **Status**: accepted
+- **Status**: accepted; amended by [ADR-0200](0200-tier-c-walks-every-queue-page-each-tick.md): tier C walks every page of a node in each tick
 - **Date**: 2026-09-03
 - **Deciders**: Mahdi Amirabdollahi
 

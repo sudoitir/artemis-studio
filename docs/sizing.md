@@ -15,9 +15,9 @@ version and the date it was measured on. The decision behind the test is
   `2026.10.47` plus the 58 commits of change 19 (`perf/19-performance-hardening` at `ae41c24a`), 2026-10-14.
 - **Brokers:** Artemis 2.57, one container per node, 256 MB of heap (more where a run says so). Studio refuses
   to register one broker in two clusters, so the brokers are `clusters x nodes per cluster`.
-- **Scrape cadence:** the load stack walks queues every 15 s instead of the default 5 minutes, so that the
-  seeded queues are all known within a run. Its broker reads are more frequent than a default installation's,
-  never less. See [the queue walk](#the-queue-walk-takes-minutes-by-design).
+- **Scrape cadence:** the load stack walks queues every 15 s instead of the default 5 minutes, so that queues
+  seeded after start-up are known within a run. Its broker reads are more frequent than a default installation's,
+  never less. See [the queue walk](#the-queue-walk).
 
 ### Profiles
 
@@ -100,13 +100,13 @@ a second (41 KB reached 30 sockets in 150 s), so even a 4 KB buffer does not fil
 for 30 s) is exercised by Studio's own tests, not by this load. Frames that were coalesced in place are counted
 in `studio.sse.dropped{reason="coalesced"}`, never `overflow` or `blocked`, in any run.
 
-### The queue walk takes minutes, by design
+### The queue walk
 
-Studio reads a node's whole queue list one page of 200 per tier-C tick, every 5 minutes by default. A node with
-`Q` queues is fully known to Studio after `ceil(Q / 200) x 5 minutes`: 25 minutes for 1,000, 75 for 3,000, over
-four hours for 10,000. Queues that are busy are re-read every 15 s, so what an operator watches stays fresh, but
-a queue created on the broker may take that long to appear in a list of a large node. This is the interval
-`artemis-studio.scrape.tier-c-interval`; lowering it spends broker calls (node limit 25/s) for earlier discovery.
+The runs measured here read a node's queue list one page of 200 per tier-C tick, so a node with 1,000 queues took
+25 minutes to be fully known at the default 5-minute interval and 10,000 over four hours. Change 19 fixes that
+after these runs: each tier-C tick now reads every page of every node, one POST of 200 queues at a time through
+the node's rate limiter (25 calls/s), so a node is fully known one tick after it is registered. Queues that are
+busy are still re-read every 15 s by tier B. The interval is `artemis-studio.scrape.tier-c-interval`.
 
 ### Database
 
@@ -134,7 +134,7 @@ Measured on the reference profile and reported, not tuned.
    pending) and job lag reaches 27 s. A deployment that restarts and has all its browsers sign in again hits this.
 4. **The SQL console** takes 4 to 5 s at the 95th percentile for a `SELECT *` over 2,000 queues with
    `LIMIT 100`, and 38 s at 20,000 queues.
-5. **Queue discovery** of a large node takes hours at the default tier-C interval (above).
+5. **Queue discovery** of a large node took hours at the default tier-C interval; fixed since (see [the queue walk](#the-queue-walk)).
 6. **Large clusters are unstable on 4 vCPUs:** the 6-node cluster gave 1.1 s and 6.2 s on light reads in two
    identical runs. Other containers on the host were running during the series (variance is the point).
 
