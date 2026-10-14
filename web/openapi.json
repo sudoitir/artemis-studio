@@ -32792,6 +32792,48 @@
           }
         }
       },
+      "RahdarHealth" : {
+        "type" : "object",
+        "properties" : {
+          "jobs" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/JobHealth"
+            }
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeHealth"
+            }
+          },
+          "replicas" : {
+            "type" : "array",
+            "description" : "Every replica seen in the last ten minutes, including stopped and gone ones.",
+            "items" : {
+              "$ref" : "#/components/schemas/ReplicaHealth"
+            }
+          },
+          "answeringReplica" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "The replica that answered; node figures are its view."
+          },
+          "dbPool" : {
+            "$ref" : "#/components/schemas/PoolHealth"
+          },
+          "streamClients" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "description" : "Event stream clients connected to this instance."
+          },
+          "degraded" : {
+            "type" : "boolean",
+            "description" : "Any job, node or replica is degraded."
+          }
+        },
+        "required" : [ "answeringReplica", "dbPool", "degraded", "jobs", "nodes", "replicas" ]
+      },
       "ReplicaHealth" : {
         "type" : "object",
         "properties" : {
@@ -32835,48 +32877,6 @@
           }
         },
         "required" : [ "degraded", "heartbeatAgeMillis", "host", "id", "ownedClusters", "self", "startedAt", "state", "version" ]
-      },
-      "RahdarHealth" : {
-        "type" : "object",
-        "properties" : {
-          "jobs" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/JobHealth"
-            }
-          },
-          "nodes" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/NodeHealth"
-            }
-          },
-          "replicas" : {
-            "type" : "array",
-            "description" : "Every replica seen in the last ten minutes, including stopped and gone ones.",
-            "items" : {
-              "$ref" : "#/components/schemas/ReplicaHealth"
-            }
-          },
-          "answeringReplica" : {
-            "type" : "string",
-            "format" : "uuid",
-            "description" : "The replica that answered; node figures are its view."
-          },
-          "dbPool" : {
-            "$ref" : "#/components/schemas/PoolHealth"
-          },
-          "streamClients" : {
-            "type" : [ "integer", "null" ],
-            "format" : "int32",
-            "description" : "Event stream clients connected to this instance."
-          },
-          "degraded" : {
-            "type" : "boolean",
-            "description" : "Any job, node or replica is degraded."
-          }
-        },
-        "required" : [ "answeringReplica", "dbPool", "degraded", "jobs", "nodes", "replicas" ]
       },
       "SseEmitter" : {
         "type" : "object",
@@ -35651,7 +35651,7 @@
             }
           }
         },
-        "required" : [ "bypassed", "stale", "rahdar" ]
+        "required" : [ "bypassed", "rahdar", "stale" ]
       },
       "FlowFocusView" : {
         "type" : "object",

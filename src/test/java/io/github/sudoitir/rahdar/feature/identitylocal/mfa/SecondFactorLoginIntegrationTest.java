@@ -557,8 +557,8 @@ class SecondFactorLoginIntegrationTest extends PostgresIntegrationTest {
         String uri = JsonPath.read(start.body(), "$.otpauthUri");
         String secret = JsonPath.read(start.body(), "$.secret");
         assertThat(uri)
-                .isEqualTo("otpauth://totp/Artemis%20Rahdar:sf-required?secret=" + secret
-                        + "&issuer=Artemis%20Rahdar&algorithm=SHA1&digits=6&period=30");
+                .isEqualTo("otpauth://totp/Rahdar:sf-required?secret=" + secret
+                        + "&issuer=Rahdar&algorithm=SHA1&digits=6&period=30");
         var wrong = browser.post("/api/v1/auth/mfa/totp/confirm", "{\"code\":\"000000\"}");
         assertThat(wrong.statusCode()).isEqualTo(400);
         assertThat(browser.status("GET", CONSOLE)).as("still restricted").isEqualTo(423);

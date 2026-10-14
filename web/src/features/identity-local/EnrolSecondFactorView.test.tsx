@@ -64,7 +64,7 @@ const status = (webauthn: { available: boolean; reason?: string | null } = { ava
 const totp = http.post('*/api/v1/auth/mfa/totp', () =>
   HttpResponse.json({
     secret: SECRET,
-    otpauthUri: `otpauth://totp/Artemis%20Rahdar:alice?secret=${SECRET}&issuer=Artemis%20Rahdar`,
+    otpauthUri: `otpauth://totp/Rahdar:alice?secret=${SECRET}&issuer=Rahdar`,
   }),
 );
 

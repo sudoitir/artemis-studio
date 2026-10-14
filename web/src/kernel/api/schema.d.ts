@@ -5995,6 +5995,25 @@ export interface components {
             /** Format: int32 */
             pending?: number | null;
         };
+        RahdarHealth: {
+            jobs: components["schemas"]["JobHealth"][];
+            nodes: components["schemas"]["NodeHealth"][];
+            /** @description Every replica seen in the last ten minutes, including stopped and gone ones. */
+            replicas: components["schemas"]["ReplicaHealth"][];
+            /**
+             * Format: uuid
+             * @description The replica that answered; node figures are its view.
+             */
+            answeringReplica: string;
+            dbPool: components["schemas"]["PoolHealth"];
+            /**
+             * Format: int32
+             * @description Event stream clients connected to this instance.
+             */
+            streamClients?: number | null;
+            /** @description Any job, node or replica is degraded. */
+            degraded: boolean;
+        };
         ReplicaHealth: {
             /** Format: uuid */
             id: string;
@@ -6014,25 +6033,6 @@ export interface components {
             /** @description The replica answering this request. */
             self: boolean;
             /** @description The replica is gone or draining. */
-            degraded: boolean;
-        };
-        RahdarHealth: {
-            jobs: components["schemas"]["JobHealth"][];
-            nodes: components["schemas"]["NodeHealth"][];
-            /** @description Every replica seen in the last ten minutes, including stopped and gone ones. */
-            replicas: components["schemas"]["ReplicaHealth"][];
-            /**
-             * Format: uuid
-             * @description The replica that answered; node figures are its view.
-             */
-            answeringReplica: string;
-            dbPool: components["schemas"]["PoolHealth"];
-            /**
-             * Format: int32
-             * @description Event stream clients connected to this instance.
-             */
-            streamClients?: number | null;
-            /** @description Any job, node or replica is degraded. */
             degraded: boolean;
         };
         SseEmitter: {
