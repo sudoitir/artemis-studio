@@ -87,6 +87,25 @@ is not a superuser: see [Running Studio on an external PostgreSQL](docs/external
 Every variable, what a reverse proxy needs for the SSE stream, and how to recover a lost
 first login are in the [configuration guide](https://sudoitir.github.io/artemis-studio/guide/configuration).
 
+## Hardware requirements
+
+Measured with a load test on a 4 vCPU / 8 GB machine, Postgres on the same host ([sizing guide](docs/sizing.md),
+which also lists what each size carries and what degrades first). Sizes per host:
+
+| | Minimum | Recommended |
+| --- | --- | --- |
+| **Studio node** (single instance, or each replica of a replicated deployment) | 2 vCPU, 2 GB | 4 vCPU, 4 GB |
+| **PostgreSQL 18** (single instance, or the shared server of a replicated deployment) | 2 vCPU, 2 GB, SSD | 4 vCPU, 4 GB, SSD |
+
+A replicated deployment runs two or more Studio nodes of that size on one Postgres of that size. The minimum is the observed peak (a Studio
+replica 1.3 GiB and about 1.2 cores, Postgres 0.6 GB and one core) with little headroom, derived from the runs on the
+reference machine rather than measured on a smaller one. It carries a few clusters of up to four nodes with around a thousand queues per node, a few dozen browsers and
+about a hundred event-stream subscribers; the recommended size keeps interactive reads under a second
+at 3,000 queues per node and absorbs a burst of sign-ins. CPU is what runs out first, not memory. Postgres
+needs about 0.6 GB of its memory for the shipped configuration (`deploy/postgres/postgresql.conf`); how much
+disk depends on how long you keep history. The server requirements and settings of an existing PostgreSQL are in
+[Running Studio on an external PostgreSQL](docs/external-database.md).
+
 ## Why
 
 It's 3 a.m. and `ORDERS.DLQ` is backing up somewhere in your cluster. The console that
