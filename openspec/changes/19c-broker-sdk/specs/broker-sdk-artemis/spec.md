@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Artemis is a driver of the SDK
-All Artemis-specific transport code (Jolokia, the Core protocol client, MBean names, notifications, relay and broker.xml remedy snippets) SHALL live in `<sdk>-artemis`. No other module SHALL import the Artemis client or Jolokia types; build-time architecture tests SHALL enforce this.
+All Artemis-specific transport code (Jolokia, the Core protocol client, MBean names, notifications, relay and broker.xml remedy snippets) SHALL live in `openbroker-artemis`. No other module SHALL import the Artemis client or Jolokia types; build-time architecture tests SHALL enforce this.
 
 #### Scenario: A feature needs an Artemis-only function
 - **WHEN** Studio's broker.xml configuration needs Artemis management

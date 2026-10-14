@@ -3,7 +3,7 @@ This change states the requirements and a settled design (`design.md`). Run it i
 
 1. `git fetch`, then create a git worktree for this change on a new branch off `origin/main` (`.claude/rules/00-workflow.md`). Work only there, and remove it after the merge.
 2. Read this proposal, `design.md`, its specs, the capabilities it names in `openspec/specs/`, and the ADRs they cite.
-3. Check that the SDK's name has been written in (`<sdk>` must not remain). If it has not, stop and ask the user. Check libraries with ctx7. Brainstorm only what the design leaves open; ask the user only what is really theirs to decide.
+3. Check libraries with ctx7. Brainstorm only what the design leaves open; ask the user only what is really theirs to decide.
 4. `/opsx:update`: sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one in `broker-connectivity`, `broker-capabilities`, `database-schema` and the feature capabilities) and refine `tasks.md`.
 5. `/opsx:apply` with the harness under **Execution**, task group by task group; each group leaves a working product. New decisions get an ADR.
 6. Verify: the narrow checks per group; the full suite on CI; `just demo`, including HA.
@@ -13,7 +13,7 @@ This change states the requirements and a settled design (`design.md`). Run it i
 Studio can manage only Apache ActiveMQ Artemis, and Artemis reaches into every layer: 18 files import the Artemis client, 13 modules send raw MBean operations through `JolokiaBrokerClient`, and the data model uses Artemis nouns. Studio is to manage Kafka, RabbitMQ and ActiveMQ Classic too, in one estate view. That needs a broker-neutral abstraction with Artemis behind it. The abstraction is worth shipping on its own: a framework-free broker SDK with a driver SPI and a conformance kit, which other tools for other brokers can adopt.
 
 ## What Changes
-- **BREAKING** The repository becomes a Maven reactor: the SDK artifacts (`<sdk>-api`, `-support`, `-tck`, `-bom`), the Artemis driver (`<sdk>-artemis`) and the app under `studio/`. The SDK has its own SemVer, `0.x` until Studio's stable release.
+- **BREAKING** The repository becomes a Maven reactor: the SDK artifacts (`openbroker-api`, `-support`, `-tck`, `-bom`), the Artemis driver (`openbroker-artemis`) and the app under `studio/`. The SDK has its own SemVer, `0.x` until Studio's stable release.
 - A broker-neutral SDK: a typed resource graph (open driver-defined kinds over closed neutral roles), facets per concern (`Nodes`, `Resources`, `Operations`, `Messages`, `Transport`, `Events`, `Access`), operation preview with preconditions, partitions and shards, conditions, and errors on gRPC canonical codes.
 - The Artemis driver holds all Jolokia, Core protocol, MBean, notification and relay code. Studio's per-call controls (rate limiter, call guard, call health, observations, clock offset) plug in through the SDK's `CallInterceptor`.
 - Every Studio feature runs on the SDK facets, with identical behaviour, wire traffic and load on Artemis. The proof is recorded golden files of the broker traffic plus the TCK.

@@ -6,12 +6,12 @@
 - [ ] 2.1 A recording HTTP proxy in front of a Testcontainers broker; golden files (bodies, headers, per-node batch counts) for scrape tier A, browse, purge, bulk move, the capability probe and staging
 
 ## 3. SDK
-- [ ] 3.1 `<sdk>-api`: model, facets, SPI, errors, `module-info.java`, with unit tests
-- [ ] 3.2 `<sdk>-support`: the `<sdk>.match` evaluator, the polling watch helper, rate and counter-reset logic
-- [ ] 3.3 `<sdk>-tck` skeleton and `<sdk>-bom`; japicmp on `<sdk>-api`; release and SemVer wiring
+- [ ] 3.1 `openbroker-api`: model, facets, SPI, errors, `module-info.java`, with unit tests
+- [ ] 3.2 `openbroker-support`: the `openbroker.match` evaluator, the polling watch helper, rate and counter-reset logic
+- [ ] 3.3 `openbroker-tck` skeleton and `openbroker-bom`; japicmp on `openbroker-api`; release and SemVer wiring
 
 ## 4. Artemis driver
-- [ ] 4.1 Move the Jolokia, Core, MBean, notification and relay code into `<sdk>-artemis` unchanged, behind the SPI; `CallInterceptor` replaces the direct cross-cutting calls
+- [ ] 4.1 Move the Jolokia, Core, MBean, notification and relay code into `openbroker-artemis` unchanged, behind the SPI; `CallInterceptor` replaces the direct cross-cutting calls
 - [ ] 4.2 Spring `RestClient` to JDK `HttpClient`, keeping auth, error mapping, observation names and tags, SSL eviction, HTTP/1.1 and timeouts; golden files and a meter-name test green
 - [ ] 4.3 The TCK runs in the driver's integration tests
 

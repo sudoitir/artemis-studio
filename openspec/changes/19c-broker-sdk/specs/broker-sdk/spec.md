@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
 ### Requirement: The SDK is a framework-free library with a driver SPI
-The SDK SHALL ship as `<sdk>-api` (consumer API and driver SPI in separate packages, with a `module-info.java`), `<sdk>-support`, `<sdk>-tck` and `<sdk>-bom`, targeting Java 25. `<sdk>-api` SHALL depend on nothing except nullness annotations. Drivers SHALL be found through `ServiceLoader`. The SDK SHALL carry no Studio type and no product brand.
+The SDK SHALL ship as `openbroker-api` (consumer API and driver SPI in separate packages, with a `module-info.java`), `openbroker-support`, `openbroker-tck` and `openbroker-bom`, targeting Java 25. `openbroker-api` SHALL depend on nothing except nullness annotations. Drivers SHALL be found through `ServiceLoader`. The SDK SHALL carry no Studio type and no product brand.
 
 #### Scenario: An outside project adopts the SDK
-- **WHEN** a project with no Spring and no Studio dependency adds `<sdk>-api` and a driver
+- **WHEN** a project with no Spring and no Studio dependency adds `openbroker-api` and a driver
 - **THEN** it can connect to a cluster and use every facet the driver offers
 
 #### Scenario: A driver is discovered
@@ -48,14 +48,14 @@ Operations SHALL be a closed set of commands: create, update (a merge patch of w
 - **THEN** the purge affects only that subscription, and the truncate is reported as affecting every subscription of the destination
 
 ### Requirement: Positions, totals and filters are honest
-Positions SHALL be earliest, latest, per-shard offsets, a time, or after a cursor. Totals SHALL say whether they are exact, an estimate, or unavailable. A filter SHALL name its dialect; the portable `<sdk>.match` dialect SHALL work on every system, evaluated client side by `<sdk>-support` where the broker cannot.
+Positions SHALL be earliest, latest, per-shard offsets, a time, or after a cursor. Totals SHALL say whether they are exact, an estimate, or unavailable. A filter SHALL name its dialect; the portable `openbroker.match` dialect SHALL work on every system, evaluated client side by `openbroker-support` where the broker cannot.
 
 #### Scenario: A lag-based total
 - **WHEN** a driver can only derive a backlog from offset distances
 - **THEN** the total is reported as an estimate, never as exact
 
 #### Scenario: A portable filter on a broker without selectors
-- **WHEN** a consumer counts a subscription's messages with an `<sdk>.match` filter on a system without server-side filtering
+- **WHEN** a consumer counts a subscription's messages with an `openbroker.match` filter on a system without server-side filtering
 - **THEN** the count is computed client side and is correct
 
 ### Requirement: Transport separates settlement from transactions

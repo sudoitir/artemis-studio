@@ -13,7 +13,7 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 RabbitMQ is the most widely run AMQP broker, and its routing model differs from both Artemis and Kafka: virtual hosts, exchanges that route to queues by binding, classic, quorum and stream queues, shovels and federation. A RabbitMQ driver brings Studio's estate view to RabbitMQ estates. It is the second test of the SDK before the stable release.
 
 ## What Changes
-- A driver, `<sdk>-rabbitmq`, implementing the SDK for RabbitMQ through its management HTTP API, AMQP 0-9-1 and the stream protocol
+- A driver, `openbroker-rabbitmq`, implementing the SDK for RabbitMQ through its management HTTP API, AMQP 0-9-1 and the stream protocol
 - The driver passes the TCK for every capability it declares, and declares unavailable what the system cannot do
 - Studio registers clusters of this system and shows them in the estate view; system-only screens come from a `system/rabbitmq` module
 - Virtual hosts are namespaces, exchanges are destinations, queues are subscriptions, and bindings, exchange-to-exchange bindings, shovels and federation links are routes; policies and permissions are policies and access rules
