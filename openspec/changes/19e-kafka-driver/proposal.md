@@ -13,7 +13,7 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 Kafka is the most widely run streaming platform, and its model is the furthest from Artemis: a partitioned log, consumer groups with committed offsets, no per-message delete, retention instead of acknowledgement. A Kafka driver brings Studio's estate view to Kafka estates. It is also the strongest test of the SDK, and it runs before the stable release, while a gap it finds can still be fixed with a breaking change.
 
 ## What Changes
-- A driver, `<sdk>-kafka`, implementing the SDK for Apache Kafka through the Admin and Consumer and Producer clients
+- A driver, `openbroker-kafka`, implementing the SDK for Apache Kafka through the Admin and Consumer and Producer clients
 - The driver passes the TCK for every capability it declares, and declares unavailable what the system cannot do
 - Studio registers clusters of this system and shows them in the estate view; system-only screens come from a `system/kafka` module
 - Topics are destinations, partitions are partitions, consumer groups are consumer groups, and a group on a topic is a subscription whose backlog is the lag, reported as an estimate

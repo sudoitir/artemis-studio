@@ -11,15 +11,16 @@ that other projects, with other brokers, can adopt. This change builds that SDK,
 it as its first driver, and makes Studio's domain and data model broker-neutral, **with no behaviour
 change for Artemis**.
 
-`<sdk>` stands for the SDK's own neutral name. It is chosen before this change runs and written in with
-`/opsx:update`. It is deliberately not the product's brand, so tools for other brokers can depend on it.
+The SDK is called **OpenBroker** (artifacts `openbroker-*`, packages `io.github.sudoitir.openbroker…`). The
+name is deliberately not the product's brand, so tools for other brokers can depend on it, as R2DBC,
+OpenFeature and OpenTelemetry show.
 
 ## Goals / Non-goals
 
 Goals:
-- A broker-neutral SDK (`<sdk>-api`, `-support`, `-tck`, `-bom`) with a driver SPI, good enough for
+- A broker-neutral SDK (`openbroker-api`, `-support`, `-tck`, `-bom`) with a driver SPI, good enough for
   outside adoption.
-- The Artemis driver (`<sdk>-artemis`), holding every line of Artemis-specific transport code.
+- The Artemis driver (`openbroker-artemis`), holding every line of Artemis-specific transport code.
 - Every Studio feature on the SDK's facets, with the same behaviour, wire traffic and load on Artemis.
 - A broker-neutral data model.
 
@@ -55,17 +56,16 @@ Prior-art reviews shaped every name below. The ADRs written during apply cite th
 
 ## 1. Artifacts and layout
 
-`<sdk>` below is the SDK's name, chosen in the naming brainstorm (see the open decision). The Studio
-repo becomes a Maven reactor with a `pom`-packaged root:
+The Studio repo becomes a Maven reactor with a `pom`-packaged root:
 
 | Module | Contents | Depends on |
 |---|---|---|
-| `<sdk>-api` | Consumers and drivers share these types, as in JDBC, R2DBC, SLF4J and OpenFeature. Two packages: `io.github.sudoitir.<sdk>` (the consumer API) and `.spi` (`BrokerDriver`, `DriverContext`, `CallInterceptor`). Java 25. `module-info.java` with `uses`/`provides`. No dependencies except JSpecify. | – |
-| `<sdk>-tck` | The driver conformance kit: abstract JUnit 5 contract tests. The driver supplies the broker. | api, JUnit |
-| `<sdk>-artemis` (driver, R2DBC-style name) | All Jolokia, Core, MBean, notification, relay and broker.xml-snippet code, moved out of Studio. Its tests move with it, without Spring, and the TCK runs in its integration tests. | api, artemis-jakarta-client, Jackson |
-| `<sdk>-support` | Shared implementation code for drivers and consumers, so `-api` stays interface-only (the OTel api/sdk reason): the portable `<sdk>.match` filter evaluator, the polling watch helper (Kubernetes informer: diff successive `read`s into events, with `Gap` on a missed cycle), and rate and counter-reset logic moved out of Studio. | api |
-| `<sdk>-bom` | Version alignment for adopters. | – |
-| `studio/` (with `web/`) | The app, artifactId unchanged. | api, support, `<sdk>-artemis` |
+| `openbroker-api` | Consumers and drivers share these types, as in JDBC, R2DBC, SLF4J and OpenFeature. Two packages: `io.github.sudoitir.openbroker` (the consumer API) and `.spi` (`BrokerDriver`, `DriverContext`, `CallInterceptor`). Java 25. `module-info.java` with `uses`/`provides`. No dependencies except JSpecify. | – |
+| `openbroker-tck` | The driver conformance kit: abstract JUnit 5 contract tests. The driver supplies the broker. | api, JUnit |
+| `openbroker-artemis` (driver, R2DBC-style name) | All Jolokia, Core, MBean, notification, relay and broker.xml-snippet code, moved out of Studio. Its tests move with it, without Spring, and the TCK runs in its integration tests. | api, artemis-jakarta-client, Jackson |
+| `openbroker-support` | Shared implementation code for drivers and consumers, so `-api` stays interface-only (the OTel api/sdk reason): the portable `openbroker.match` filter evaluator, the polling watch helper (Kubernetes informer: diff successive `read`s into events, with `Gap` on a missed cycle), and rate and counter-reset logic moved out of Studio. | api |
+| `openbroker-bom` | Version alignment for adopters. | – |
+| `studio/` (with `web/`) | The app, artifactId unchanged. | api, support, `openbroker-artemis` |
 
 - The SDK artifacts are published to Central when they change, with their own SemVer (`0.x` until stable).
 - These follow the move:
@@ -73,19 +73,19 @@ repo becomes a Maven reactor with a `pom`-packaged root:
   - `ci.yml`, `frontend-maven-plugin` paths, osv-scanner and Dependabot;
   - Sonar (`sonar.sources` and tests per module) and JaCoCo `report-aggregate`.
 - japicmp:
-  - On `<sdk>-api`, all public API (the first release tolerates having no previous version).
+  - On `openbroker-api`, all public API (the first release tolerates having no previous version).
   - On the app, the `@PluginApi` include.
   - `BrokerCommands` and `BrokerClientFactory` lose `@PluginApi`, because they expose Jolokia. That is a
     contract break, so `Contract.VERSION` is bumped in 19c.
 - ArchUnit:
   - No `org.apache.activemq..` or `org.jolokia..` outside the driver.
-  - Studio never imports `io.github.sudoitir.<sdk>.artemis..`, and only the gateway imports
-    `io.github.sudoitir.<sdk>.spi`. Packages: `io.github.sudoitir.<sdk>` (API), `.spi`, `.support`, `.tck`,
+  - Studio never imports `io.github.sudoitir.openbroker.artemis..`, and only the gateway imports
+    `io.github.sudoitir.openbroker.spi`. Packages: `io.github.sudoitir.openbroker` (API), `.spi`, `.support`, `.tck`,
     `.artemis`.
   - `unwrap(...)` is used only inside `system/artemis`.
   - `PluginValidator` builds its deny-list from driver-declared native packages.
 
-## 2. The SDK (`<sdk>-api`)
+## 2. The SDK (`openbroker-api`)
 
 Prior art behind each choice:
 - JDBC and R2DBC: the driver bridge, `unwrap`, and connection options with a `sensitive` flag.
@@ -212,7 +212,7 @@ ClusterConnection extends AutoCloseable (thread-safe):
   - `extensions`, keyed by namespace in the CloudEvents style: `jms` (body type, for verbatim relay),
     `artemis`, later `kafka` and `amqp`.
 - `MessageFilter(dialect, expression)`. The dialect is driver-declared (`artemis.core-filter`). The SDK also
-  defines one portable dialect, `<sdk>.match` (exact and prefix matching over headers and properties, as in
+  defines one portable dialect, `openbroker.match` (exact and prefix matching over headers and properties, as in
   the CloudEvents Subscriptions filter dialects). `-support` evaluates it client side when a driver has no
   server-side support, so DLQ triage works on every system.
 - `Transport` (the NServiceBus and MassTransit term for this layer):
@@ -356,7 +356,3 @@ ClusterConnection extends AutoCloseable (thread-safe):
   release, while breaking changes are still free.
 - **A larger build** (a reactor, five SDK artifacts). Accepted: it is what makes the SDK adoptable and
   lets the compiler enforce the dependency direction.
-
-## Open decision
-
-- The SDK's name (`<sdk>`), chosen before this change runs. Nothing else is open.

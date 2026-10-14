@@ -13,7 +13,7 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 ActiveMQ Classic still runs in many estates next to Artemis. Its model is closest to Artemis (queues, topics, durable subscribers, virtual topics, networks of brokers), so a driver brings those estates into Studio with the least strain on the SDK. It is additive, so it runs after the stable release.
 
 ## What Changes
-- A driver, `<sdk>-activemq-classic`, implementing the SDK for Apache ActiveMQ Classic through Jolokia and OpenWire
+- A driver, `openbroker-activemq-classic`, implementing the SDK for Apache ActiveMQ Classic through Jolokia and OpenWire
 - The driver passes the TCK for every capability it declares, and declares unavailable what the system cannot do
 - Studio registers clusters of this system and shows them in the estate view; system-only screens come from a `system/activemq-classic` module
 - Queues and topics are destinations, queues and durable subscribers are subscriptions, and virtual topics, composite destinations and network connectors are routes; destination policies and authorization entries are policies and access rules
