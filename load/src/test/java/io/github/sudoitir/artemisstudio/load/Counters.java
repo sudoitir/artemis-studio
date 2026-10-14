@@ -23,7 +23,7 @@ final class Counters {
                 Params.REPORT.resolve("simulation-counts.json"),
                 """
                 {"exportAccepted":%d,"exportRefused429":%d,"sqlAccepted":%d,"sqlRefused429":%d,"sqlErrorFrames":%d,\
-                "stalledOpened":%d,"stalledClosedByServer":%d}
+                "stalledOpened":%d,"stalledClosedByServer":%d,"stalledUnreadBytes":%d}
                 """
                         .formatted(
                                 ACCEPTED_EXPORT.get(),
@@ -32,6 +32,7 @@ final class Counters {
                                 REFUSED_SQL.get(),
                                 SQL_ERROR_FRAMES.get(),
                                 StalledStreams.opened(),
-                                StalledStreams.closedByServer()));
+                                StalledStreams.closedByServer(),
+                                StalledStreams.unreadBytes()));
     }
 }

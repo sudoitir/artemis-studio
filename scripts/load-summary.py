@@ -26,7 +26,8 @@ WANTED = [
     ("hikari_pending", re.compile(r"^hikaricp_connections_pending\b")),
     ("hikari_acquire_seconds_max", re.compile(r"^hikaricp_connections_acquire_seconds_max\b")),
     ("cpu_usage", re.compile(r"^process_cpu_usage\b")),
-    ("sse_dropped", re.compile(r"^studio_sse_dropped")),
+    ("sse_dropped", re.compile(r"^studio_sse_dropped_total\{[^}]*reason=\"(overflow|blocked|replay)\"")),
+    ("sse_coalesced", re.compile(r"^studio_sse_dropped_total\{[^}]*reason=\"coalesced\"")),
     ("stream_clients", re.compile(r"^studio_stream_clients")),
     ("job_lag_seconds_max", re.compile(r"^studio_job_lag_seconds(_max)?\b")),
     ("job_overruns", re.compile(r"^studio_job_overruns")),
@@ -132,6 +133,16 @@ for replica in after:
         delta[k] = delta.get(k, 0.0) + a.get(k, 0.0) - b.get(k, 0.0)
 
 figures = {}
+# Reads that are lists and counters (light) apart from the three that aggregate across the whole cluster.
+LIGHT = ("ui.clusters.list", "ui.cluster.topology", "ui.cluster.health", "ui.queues.page", "ui.queues.search", "ui.metrics.queue")
+HEAVY = ("ui.cluster.get", "ui.addresses.page", "ui.metrics.cluster")
+if any(n in requests for n in LIGHT):
+    figures["ui_light_p95_ms"] = max(requests[n]["p95_ms"] for n in LIGHT if n in requests)
+if any(n in requests for n in HEAVY):
+    figures["ui_aggregate_p95_ms"] = max(requests[n]["p95_ms"] for n in HEAVY if n in requests)
+if "auth.login" in requests:
+    figures["login_p95_ms"] = requests["auth.login"]["p95_ms"]
+    figures["login_failed_percent"] = round(100.0 * requests["auth.login"]["failed"] / max(1, requests["auth.login"]["count"]), 2)
 if families["ui"]:
     figures["ui_read_p95_ms"] = families["ui"]["p95_ms"]
     figures["ui_read_failed_percent"] = families["ui"]["failed_percent"]
@@ -147,6 +158,8 @@ if growth:
     figures["heap_growth_mb"] = round(max(growth.values()), 1)
 if "job_lag_seconds_max" in peaks:
     figures["job_lag_max_s"] = peaks["job_lag_seconds_max"]
+if "sse_dropped" in peaks or "sse_coalesced" in peaks:
+    figures["sse_dropped_subscribers_frames"] = peaks.get("sse_dropped", 0.0)
 if "heap_used_bytes" in peaks:
     figures["heap_peak_mb"] = round(peaks["heap_used_bytes"] / 1048576, 1)
 if "cpu_usage" in peaks:

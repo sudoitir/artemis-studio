@@ -23,6 +23,8 @@ profile=${1:-reference}
 # A broker belongs to one cluster (Studio refuses to register it twice), so the clusters need distinct brokers.
 LOAD_BROKERS=$((LOAD_CLUSTERS * LOAD_NODES_PER_CLUSTER))
 LOAD_PORT=${LOAD_PORT:-18090}
+# LOAD_TCP_WMEM="4096 4096 4096" shrinks the Studio containers' TCP send buffers, so that a subscriber that stops
+# reading blocks the server's write after a few kilobytes instead of a few megabytes (the stall profile uses it).
 # A broker holding thousands of queues needs more than 256 MB of heap (it runs out of memory at about 3,000).
 LOAD_BROKER_HEAP=${LOAD_BROKER_HEAP:-256}
 # Studio walks a node's queues one page of 200 per tier-C tick (5 minutes by default), so a node with 1,000 queues
@@ -108,13 +110,17 @@ services:
     ports: !override
       - "127.0.0.1:$LOAD_PORT:8080"
 YAML
+  [ -z "${LOAD_TCP_WMEM:-}" ] || printf '    sysctls:\n      net.ipv4.tcp_wmem: "%s"\n' "$LOAD_TCP_WMEM"
   for s in studio-1 studio-2; do
-    printf '  %s:\n    environment:\n      ARTEMIS_STUDIO_SCRAPE_TIER_C_INTERVAL: %s\n    depends_on:\n' "$s" "$LOAD_TIER_C"
+    printf '  %s:\n    environment:\n      ARTEMIS_STUDIO_SCRAPE_TIER_C_INTERVAL: %s\n' "$s" "$LOAD_TIER_C"
+    [ -z "${LOAD_TIER_AB:-}" ] || printf '      ARTEMIS_STUDIO_SCRAPE_TIER_A_INTERVAL: %s\n      ARTEMIS_STUDIO_SCRAPE_TIER_B_INTERVAL: %s\n' "$LOAD_TIER_AB" "$LOAD_TIER_AB"
+    printf '    depends_on:\n'
     i=0
     while [ "$i" -lt "$LOAD_BROKERS" ]; do
       printf '      broker-%d:\n        condition: service_healthy\n' "$i"
       i=$((i + 1))
     done
+    [ -z "${LOAD_TCP_WMEM:-}" ] || printf '    sysctls:\n      net.ipv4.tcp_wmem: "%s"\n' "$LOAD_TCP_WMEM"
     [ -z "$volumes" ] || printf '%s\n' "$volumes"
   done
   i=0
@@ -179,13 +185,18 @@ sample_loop() {
 # Messages keep arriving during the run (LOAD_CHURN producers in parallel), so the streams carry queue and event
 # frames and a stalled subscriber's socket really fills.
 churn_loop() {
-  local i
+  local i q
   while :; do
     i=0
     while [ "$i" -lt "$LOAD_BROKERS" ]; do
-      $COMPOSE exec -T -e 'JAVA_ARGS_APPEND=-Xms16m -Xmx64m -XX:+UseSerialGC' "broker-$i" /var/lib/artemis-instance/bin/artemis producer \
-        --url tcp://localhost:61616 --user artemis --password artemis --destination "queue://load.churn.$i" \
-        --message-count 300 --message-size 4096 >/dev/null 2>&1 || true
+      # Ten queues in turn, so that many queues change at once and the streams carry many change signals.
+      q=0
+      while [ "$q" -lt 10 ] && [ "$q" -lt "$LOAD_QUEUES" ]; do
+        $COMPOSE exec -T -e 'JAVA_ARGS_APPEND=-Xms16m -Xmx64m -XX:+UseSerialGC' "broker-$i" /var/lib/artemis-instance/bin/artemis producer \
+          --url tcp://localhost:61616 --user artemis --password artemis --destination "queue://load.q.$q" \
+          --message-count 100 --message-size 512 >/dev/null 2>&1 || true
+        q=$((q + 1))
+      done
       i=$((i + 1))
     done
   done

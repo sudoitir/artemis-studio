@@ -20,6 +20,7 @@ final class StalledStreams {
 
     private static final List<java.net.Socket> SOCKETS = new ArrayList<>();
     private static int opened;
+    private static long unreadBytes;
 
     private StalledStreams() {}
 
@@ -46,6 +47,11 @@ final class StalledStreams {
         return opened;
     }
 
+    /** Bytes that reached the stalled sockets and were never read, counted by the last {@link #closedByServer}. */
+    static synchronized long unreadBytes() {
+        return unreadBytes;
+    }
+
     /** Sockets the server has closed by now: a read that returns end-of-stream without blocking. */
     static synchronized int closedByServer() {
         int closed = 0;
@@ -57,6 +63,7 @@ final class StalledStreams {
                 int read;
                 do {
                     read = socket.getInputStream().read(sink);
+                    unreadBytes += Math.max(read, 0);
                 } while (read > 0);
                 if (read < 0) {
                     closed++;
