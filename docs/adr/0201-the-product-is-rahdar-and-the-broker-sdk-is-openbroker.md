@@ -37,7 +37,8 @@ keeps every route open and safe. The broker SDK is **OpenBroker**.
 4. The documentation site moves from `https://sudoitir.github.io/artemis-studio/` to the apex of
    `https://rahdar.dev/` (superseding ADR-0061 D6): `base` is `/`, a `CNAME` binds GitHub Pages, and
    Search Console verifies the domain by DNS, so no verification file ships with the site.
-5. The README and its translations explain the name in one line under the title.
+5. The README and its translations explain the name in one line under the title, and the mark is
+   redrawn for the name (see Consequences).
 6. The SDK's artifacts are `io.github.sudoitir:openbroker-api`, `-support`, `-tck`, `-bom` and one
    `openbroker-<broker>` driver per broker, under the package root `io.github.sudoitir.openbroker`.
 7. The product name still lives only in `Branding.java` and `web/src/branding.ts` where code shows it
@@ -50,7 +51,10 @@ keeps every route open and safe. The broker SDK is **OpenBroker**.
   start from an empty database; plugins are rebuilt for contract 15. The release note lists all of it.
 - Old GitHub URLs redirect; old site URLs under `sudoitir.github.io/artemis-studio/` do not.
 - Past ADRs and released changelog files keep the old name: they are records of what was true then.
-- The mark (`web/public/favicon.svg`) still draws Artemis' crescent bow; a mark of its own is future work.
+- The mark is new: **Kept Road**, one road cut through a tile as a lowercase r that runs on past two
+  edges, the way kept open. It replaces Artemis' crescent bow. `web/public/favicon.svg` is the single
+  master the app, the site and the README use; `brand/` holds the lockups, the constructed wordmark, the
+  icon set and the usage guide (`brand/guidelines.md`). A trademark and reverse-image search is still due.
 
 ## Alternatives considered
 

@@ -38,11 +38,13 @@ export default defineConfig({
   // exception is the address Rahdar itself listens on, which is not ours to reach.
   ignoreDeadLinks: [/^http:\/\/localhost:8080/],
   head: [
+    ['link', { rel: 'icon', href: `${BASE}favicon.ico`, sizes: '48x48' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${BASE}favicon.svg` }],
+    ['link', { rel: 'apple-touch-icon', href: `${BASE}apple-touch-icon.png` }],
     ['meta', { name: 'theme-color', content: '#0b7285' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'Rahdar' }],
-    ['meta', { property: 'og:image', content: `${ORIGIN}img/topology.png` }],
+    ['meta', { property: 'og:image', content: `${ORIGIN}img/og-image.png` }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
   ],
 
