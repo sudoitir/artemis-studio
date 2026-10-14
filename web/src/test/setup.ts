@@ -33,7 +33,7 @@ export const server = setupServer(
 configure({ asyncUtilTimeout: 8_000 });
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' });
+  server.listen({ onUnhandledFrame: 'error' });
   // A press-and-hold confirmation reads its length from this token; a test holds for a few milliseconds, not 1.5 s.
   document.documentElement.style.setProperty('--as-hold-duration', '40ms');
 });
