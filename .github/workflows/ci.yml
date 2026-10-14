@@ -123,8 +123,9 @@ jobs:
 
   # Backend and frontend are coupled through the OpenAPI snapshot (web/openapi.json,
   # written by a backend test) and the schema generated from it, so a change on
-  # either side runs both. The suite runs as three shards on separate runners, once against each
-  # end of the supported Artemis range (ADR-0142). BrokerVersionTest keeps this list and
+  # either side runs both. The whole suite runs as three shards on separate runners against the
+  # newest tested Artemis, and a fourth runner runs only the tests that start a real broker against
+  # the oldest supported one (ADR-0142). BrokerVersionTest keeps the two images and
   # BrokerVersion.MINIMUM / LATEST_TESTED in step.
   backend:
     needs: changes
@@ -136,8 +137,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2]
-        artemis: ["apache/activemq-artemis:2.33.0", "apache/artemis:2.57.0"]
+        include:
+          - { shard: "0", artemis: "apache/artemis:2.57.0" }
+          - { shard: "1", artemis: "apache/artemis:2.57.0" }
+          - { shard: "2", artemis: "apache/artemis:2.57.0" }
+          - { shard: broker, artemis: "apache/activemq-artemis:2.33.0" }
     name: backend (${{ matrix.artemis }}, shard ${{ matrix.shard }})
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -150,15 +154,24 @@ jobs:
           cache: maven
       # Round-robin over the sorted paths of every class Surefire would run by default, so each
       # shard gets a third and neighbouring heavy suites (Transfer*) land on different runners.
+      # The `broker` shard is every class that starts a real broker (through ArtemisIntegrationTest
+      # or ArtemisBrokers); nothing else depends on the broker's version.
       # The shard goes in as -Dtest, which replaces the pom's includes; an includesFile would be
       # appended to them and every shard would run the whole suite.
       # ponytail: count-balanced, not time-balanced; weigh by surefire report times if a shard lags.
-      - name: Pick shard ${{ matrix.shard }} of 3
+      - name: Pick shard ${{ matrix.shard }}
+        env:
+          SHARD: ${{ matrix.shard }}
         run: |
           find src/test/java -type f \
             \( -name '*Test.java' -o -name '*Tests.java' -o -name 'Test*.java' -o -name '*TestCase.java' \) \
-            | sed 's|^src/test/java/||; s|\.java$||; s|/|.|g' | sort \
-            | awk -v n=3 -v i=${{ matrix.shard }} 'NR % n == i' > "$RUNNER_TEMP/shard.txt"
+            | sort > "$RUNNER_TEMP/tests.txt"
+          if [ "$SHARD" = broker ]; then
+            xargs grep -l -e ArtemisIntegrationTest -e ArtemisBrokers < "$RUNNER_TEMP/tests.txt" > "$RUNNER_TEMP/picked.txt"
+          else
+            awk -v n=3 -v i="$SHARD" 'NR % n == i' "$RUNNER_TEMP/tests.txt" > "$RUNNER_TEMP/picked.txt"
+          fi
+          sed 's|^src/test/java/||; s|\.java$||; s|/|.|g' "$RUNNER_TEMP/picked.txt" > "$RUNNER_TEMP/shard.txt"
           echo "$(wc -l < "$RUNNER_TEMP/shard.txt") test classes in this shard"
       - name: Verify (Spotless check, Liquibase vs Testcontainers Postgres, tests)
         run: ./mvnw -B verify -Dtest="$(paste -sd, "$RUNNER_TEMP/shard.txt")" -Dsurefire.failIfNoSpecifiedTests=false -Dartemis.image="${{ matrix.artemis }}"
@@ -514,8 +527,6 @@ jobs:
             check rules /rules/studio-alerts.yml
           jq empty deploy/observability/grafana/studio-overview.json
 
-  # The one required status check. A job skipped by its path filter counts as passed; a failed
-  # or cancelled one does not. Requiring this instead of each job keeps path filtering safe.
   # The backend shards' coverage as one report: merged with the JaCoCo CLI (resolved through Maven,
   # so its checksum is verified) against the compiled classes. Informational (ADR-0128).
   coverage:
@@ -643,6 +654,8 @@ jobs:
           ./mvnw -B -DskipTests -Dspotless.apply.skip test-compile sonar:sonar
           -Dsonar.qualitygate.wait=true
 
+  # The one required status check. A job skipped by its path filter counts as passed; a failed
+  # or cancelled one does not. Requiring this instead of each job keeps path filtering safe.
   ci-ok:
     if: always()
     needs: [changes, backend, coverage, frontend, sonar, api-compat, client-java, plugin-template, image, site, osv, osv-gate, actionlint, observability]
