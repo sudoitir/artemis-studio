@@ -121,6 +121,10 @@ a queue created on the broker may take that long to appear in a list of a large 
 
 ## Findings below target
 
+> `GET /clusters/{id}` (finding 1 and the aggregate column) was measured before the capability cache landed on the
+> session branch, which removes a live broker probe from every read. Those figures are stale and need a rerun.
+> The runs also shared the machine with other containers and, for the first reference run, with CI test runs.
+
 Measured on the reference profile and reported, not tuned.
 
 1. **`GET /clusters/{id}`** has a 95th percentile of 2.3 s with 10 UI users (p50 over 1 s), against a goal of
