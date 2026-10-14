@@ -79,5 +79,5 @@
 ## 11. Finish
 
 - [x] 11.1 `openspec validate 19-performance-hardening --strict`
-- [ ] 11.2 Narrow tests per unit green; push; CI `ci-ok` and Sonar gate green; PR merged
-- [ ] 11.3 `/opsx:archive`; tick `ROADMAP.md`; worktrees and branches removed
+- [x] 11.2 Narrow tests per unit green; push; CI `ci-ok` and Sonar gate green; PR merged
+- [x] 11.3 `/opsx:archive`; tick `ROADMAP.md`; worktrees and branches removed
