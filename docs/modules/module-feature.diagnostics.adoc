@@ -5,17 +5,17 @@
 |Spring components
 |_Services_
 
-* `i.g.s.a.f.d.DiagnosticsService`
+* `i.g.s.r.f.d.DiagnosticsService`
 
 _Others_
 
-* `i.g.s.a.f.d.DiagnosticsFeature`
+* `i.g.s.r.f.d.DiagnosticsFeature`
 |Bean references
-|* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.s.SecretRotationService` (in Settings)
-* `i.g.s.a.p.c.ClusterService` (in Clusters)
-* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
-* `i.g.s.a.k.p.internal.host.PluginHost` (in Plugin contract)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
+|* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.k.s.SecretRotationService` (in Settings)
+* `i.g.s.r.p.c.ClusterService` (in Clusters)
+* `i.g.s.r.k.p.FeatureRegistry` (in Plugin contract)
+* `i.g.s.r.k.p.internal.host.PluginHost` (in Plugin contract)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
 |===

@@ -5,49 +5,49 @@
 |Spring components
 |_Event listeners_
 
-* `i.g.s.a.k.s.AccessChanges`
-* `i.g.s.a.k.s.PluginSecretStore`
+* `i.g.s.r.k.s.AccessChanges`
+* `i.g.s.r.k.s.PluginSecretStore`
 
 _Configuration properties_
 
-* `i.g.s.a.k.s.SecretProviderProperties`
+* `i.g.s.r.k.s.SecretProviderProperties`
 
 _Others_
 
-* `i.g.s.a.k.s.AccessChangeLog`
-* `i.g.s.a.k.s.AccessLoader`
-* `i.g.s.a.k.s.AccountLockout`
-* `i.g.s.a.k.s.ActorResolver`
-* `i.g.s.a.k.s.ClusterAccessGuard`
-* `i.g.s.a.k.s.GrantLoader`
-* `i.g.s.a.k.s.IdentityProvisioner`
-* `i.g.s.a.k.s.KeyProvider`
-* `i.g.s.a.k.s.LoginAttemptLimiter`
-* `i.g.s.a.k.s.OperatorHandoff`
-* `i.g.s.a.k.s.PermissionResolver`
-* `i.g.s.a.k.s.PluginIdentityRevalidation`
-* `i.g.s.a.k.s.ScopedGrants`
-* `i.g.s.a.k.s.SecretKeyState`
-* `i.g.s.a.k.s.SecretRotations`
-* `i.g.s.a.k.s.SecretVault`
-* `i.g.s.a.k.s.SessionAuthentication`
-* `i.g.s.a.k.s.TeamIndex`
-* `i.g.s.a.k.s.UserAccounts`
-* `i.g.s.a.k.s.UserIdentityFacts`
-* `i.g.s.a.k.s.AccessChangeGuard` (via `i.g.s.a.k.s.internal.ApproverQuorumGuard`)
-* `i.g.s.a.k.s.PermissionHolders` (via `i.g.s.a.k.s.internal.EffectivePermissionHolders`)
-* `i.g.s.a.k.s.IdentityProviders` (via `i.g.s.a.k.s.internal.PluginSignIn`)
+* `i.g.s.r.k.s.AccessChangeLog`
+* `i.g.s.r.k.s.AccessLoader`
+* `i.g.s.r.k.s.AccountLockout`
+* `i.g.s.r.k.s.ActorResolver`
+* `i.g.s.r.k.s.ClusterAccessGuard`
+* `i.g.s.r.k.s.GrantLoader`
+* `i.g.s.r.k.s.IdentityProvisioner`
+* `i.g.s.r.k.s.KeyProvider`
+* `i.g.s.r.k.s.LoginAttemptLimiter`
+* `i.g.s.r.k.s.OperatorHandoff`
+* `i.g.s.r.k.s.PermissionResolver`
+* `i.g.s.r.k.s.PluginIdentityRevalidation`
+* `i.g.s.r.k.s.ScopedGrants`
+* `i.g.s.r.k.s.SecretKeyState`
+* `i.g.s.r.k.s.SecretRotations`
+* `i.g.s.r.k.s.SecretVault`
+* `i.g.s.r.k.s.SessionAuthentication`
+* `i.g.s.r.k.s.TeamIndex`
+* `i.g.s.r.k.s.UserAccounts`
+* `i.g.s.r.k.s.UserIdentityFacts`
+* `i.g.s.r.k.s.AccessChangeGuard` (via `i.g.s.r.k.s.internal.ApproverQuorumGuard`)
+* `i.g.s.r.k.s.PermissionHolders` (via `i.g.s.r.k.s.internal.EffectivePermissionHolders`)
+* `i.g.s.r.k.s.IdentityProviders` (via `i.g.s.r.k.s.internal.PluginSignIn`)
 |Bean references
-|* `i.g.s.a.k.r.RahdarBus` (in Replicas)
-* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
-* `i.g.s.a.k.p.PluginInstallers` (in Plugin contract)
-* `i.g.s.a.k.g.ApprovalProviderRegistry` (in Approval gate contract)
-* `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
-* `i.g.s.a.k.p.PluginProperties` (in Plugin contract)
-* `i.g.s.a.k.p.IdentityProviderListing` (in Plugin contract)
+|* `i.g.s.r.k.r.RahdarBus` (in Replicas)
+* `i.g.s.r.k.p.FeatureRegistry` (in Plugin contract)
+* `i.g.s.r.k.p.PluginInstallers` (in Plugin contract)
+* `i.g.s.r.k.g.ApprovalProviderRegistry` (in Approval gate contract)
+* `i.g.s.r.k.g.OperationGate` (in Approval gate contract)
+* `i.g.s.r.k.p.PluginProperties` (in Plugin contract)
+* `i.g.s.r.k.p.IdentityProviderListing` (in Plugin contract)
 |Events listened to
-|* `i.g.s.a.k.r.BusResumed` 
-* `i.g.s.a.k.r.ReplicaSignal` 
-* `i.g.s.a.k.p.PluginPurged` 
+|* `i.g.s.r.k.r.BusResumed` 
+* `i.g.s.r.k.r.ReplicaSignal` 
+* `i.g.s.r.k.p.PluginPurged` 
 * `org.springframework.boot.context.event.ApplicationReadyEvent` 
 |===

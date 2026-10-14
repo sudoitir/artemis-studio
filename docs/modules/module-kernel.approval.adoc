@@ -5,30 +5,30 @@
 |Spring components
 |_Event listeners_
 
-* `i.g.s.a.k.a.BreakGlass`
+* `i.g.s.r.k.a.BreakGlass`
 
 _Others_
 
-* `i.g.s.a.k.a.ApprovalSettings`
-* `i.g.s.a.k.a.Approvals`
+* `i.g.s.r.k.a.ApprovalSettings`
+* `i.g.s.r.k.a.Approvals`
 |Bean references
-|* `i.g.s.a.k.i.InboxService` (in Inbox)
-* `i.g.s.a.k.s.UserSignals` (in Event stream)
-* `i.g.s.a.k.g.ApprovalProviderRegistry` (in Approval gate contract)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.k.s.SessionAuthentication` (in Security)
-* `i.g.s.a.k.s.PermissionHolders` (in Security)
-* `i.g.s.a.k.s.UserIdentityFacts` (in Security)
-* `i.g.s.a.k.s.AccessChangeLog` (in Security)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
-* `i.g.s.a.k.g.GatedOperationRegistry` (in Approval gate contract)
-* `i.g.s.a.k.s.OperatorHandoff` (in Security)
-* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.s.SecretVault` (in Security)
-* `i.g.s.a.k.g.GatedOperationCatalogue` (in Approval gate contract)
+|* `i.g.s.r.k.i.InboxService` (in Inbox)
+* `i.g.s.r.k.s.UserSignals` (in Event stream)
+* `i.g.s.r.k.g.ApprovalProviderRegistry` (in Approval gate contract)
+* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.k.s.SessionAuthentication` (in Security)
+* `i.g.s.r.k.s.PermissionHolders` (in Security)
+* `i.g.s.r.k.s.UserIdentityFacts` (in Security)
+* `i.g.s.r.k.s.AccessChangeLog` (in Security)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
+* `i.g.s.r.k.g.GatedOperationRegistry` (in Approval gate contract)
+* `i.g.s.r.k.s.OperatorHandoff` (in Security)
+* `i.g.s.r.k.r.ReplicaRegistry` (in Replicas)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.k.s.SecretVault` (in Security)
+* `i.g.s.r.k.g.GatedOperationCatalogue` (in Approval gate contract)
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 
-* `i.g.s.a.k.p.PluginStatusChanged` 
+* `i.g.s.r.k.p.PluginStatusChanged` 
 |===

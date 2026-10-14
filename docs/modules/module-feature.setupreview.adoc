@@ -5,24 +5,24 @@
 |Spring components
 |_Services_
 
-* `i.g.s.a.f.s.SetupReviewService`
+* `i.g.s.r.f.s.SetupReviewService`
 
 _Configuration properties_
 
-* `i.g.s.a.f.s.SetupReviewProperties`
+* `i.g.s.r.f.s.SetupReviewProperties`
 
 _Others_
 
-* `i.g.s.a.f.s.SetupReader`
-* `i.g.s.a.f.s.SetupReviewFeature`
-* `i.g.s.a.f.s.SetupReviewSettings`
+* `i.g.s.r.f.s.SetupReader`
+* `i.g.s.r.f.s.SetupReviewFeature`
+* `i.g.s.r.f.s.SetupReviewSettings`
 |Bean references
-|* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
-* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
-* `i.g.s.a.p.c.ClusterLock` (in Clusters)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.s.SseHub` (in Event stream)
-* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
+|* `i.g.s.r.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.r.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.r.p.c.ClusterLock` (in Clusters)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.k.s.SseHub` (in Event stream)
+* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
 |===

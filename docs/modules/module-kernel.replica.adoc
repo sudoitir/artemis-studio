@@ -5,10 +5,10 @@
 |Spring components
 |_Configuration properties_
 
-* `i.g.s.a.k.r.HaProperties`
+* `i.g.s.r.k.r.HaProperties`
 
 _Others_
 
-* `i.g.s.a.k.r.ReplicaRegistry`
-* `i.g.s.a.k.r.RahdarBus`
+* `i.g.s.r.k.r.RahdarBus`
+* `i.g.s.r.k.r.ReplicaRegistry`
 |===

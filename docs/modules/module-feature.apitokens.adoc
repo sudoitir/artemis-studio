@@ -5,21 +5,21 @@
 |Spring components
 |_Services_
 
-* `i.g.s.a.f.a.ApiTokenService`
+* `i.g.s.r.f.a.ApiTokenService`
 
 _Others_
 
-* `i.g.s.a.f.a.ApiTokensFeature`
-* `i.g.s.a.f.a.ApiTokensSettings`
-* `i.g.s.a.f.a.TokenUsage`
+* `i.g.s.r.f.a.ApiTokensFeature`
+* `i.g.s.r.f.a.ApiTokensSettings`
+* `i.g.s.r.f.a.TokenUsage`
 |Bean references
-|* `i.g.s.a.k.s.UserAccounts` (in Security)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.r.RahdarBus` (in Replicas)
-* `i.g.s.a.k.s.SessionAuthentication` (in Security)
+|* `i.g.s.r.k.s.UserAccounts` (in Security)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.k.r.RahdarBus` (in Replicas)
+* `i.g.s.r.k.s.SessionAuthentication` (in Security)
 |Events listened to
-|* `i.g.s.a.k.s.ScopeGrantsRevoked` 
-* `i.g.s.a.k.p.PluginPurged` 
+|* `i.g.s.r.k.s.ScopeGrantsRevoked` 
+* `i.g.s.r.k.p.PluginPurged` 
 |===

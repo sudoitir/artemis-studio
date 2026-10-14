@@ -5,33 +5,33 @@
 |Spring components
 |_Controllers_
 
-* `i.g.s.a.f.r.web.ClusterResourceController`
-* `i.g.s.a.f.r.web.ConnectionControlController`
+* `i.g.s.r.f.r.web.ClusterResourceController`
+* `i.g.s.r.f.r.web.ConnectionControlController`
 
 _Services_
 
-* `i.g.s.a.f.r.ConnectionControlService`
-* `i.g.s.a.f.r.CrossNodeAggregator`
-* `i.g.s.a.f.r.PagedListService`
+* `i.g.s.r.f.r.ConnectionControlService`
+* `i.g.s.r.f.r.CrossNodeAggregator`
+* `i.g.s.r.f.r.PagedListService`
 
 _Others_
 
-* `i.g.s.a.f.r.ConnectionOperations`
-* `i.g.s.a.f.r.QueueViewMapper`
-* `i.g.s.a.f.r.ResourceViewMapper`
-* `i.g.s.a.f.r.ResourcesFeature`
+* `i.g.s.r.f.r.ConnectionOperations`
+* `i.g.s.r.f.r.QueueViewMapper`
+* `i.g.s.r.f.r.ResourceViewMapper`
+* `i.g.s.r.f.r.ResourcesFeature`
 |Bean references
-|* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
-* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
-* `i.g.s.a.k.s.SseHub` (in Event stream)
-* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.p.c.BrokerCommands` (in Clusters)
-* `i.g.s.a.p.b.BrokerListOps` (in Broker connectivity)
-* `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
-* `i.g.s.a.p.s.ScrapeProperties` (in Scraping)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.k.s.TeamIndex` (in Security)
-* `i.g.s.a.p.m.McpProperties` (in MCP server)
+|* `i.g.s.r.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.r.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
+* `i.g.s.r.k.s.SseHub` (in Event stream)
+* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.p.c.BrokerCommands` (in Clusters)
+* `i.g.s.r.p.b.BrokerListOps` (in Broker connectivity)
+* `i.g.s.r.p.s.QueueSnapshots` (in Scraping)
+* `i.g.s.r.p.s.ScrapeProperties` (in Scraping)
+* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.k.s.TeamIndex` (in Security)
+* `i.g.s.r.p.m.McpProperties` (in MCP server)
 |===

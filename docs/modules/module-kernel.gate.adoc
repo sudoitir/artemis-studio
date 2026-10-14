@@ -5,13 +5,13 @@
 |Spring components
 |_Event listeners_
 
-* `i.g.s.a.k.g.ApprovalProviderRegistry`
+* `i.g.s.r.k.g.ApprovalProviderRegistry`
 
 _Others_
 
-* `i.g.s.a.k.g.GatedOperationRegistry`
-* `i.g.s.a.k.g.GatedOperationCatalogue` (via `i.g.s.a.k.g.GatedOperations`)
+* `i.g.s.r.k.g.GatedOperationRegistry`
+* `i.g.s.r.k.g.GatedOperationCatalogue` (via `i.g.s.r.k.g.GatedOperations`)
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 
-* `i.g.s.a.k.p.PluginStatusChanged` 
+* `i.g.s.r.k.p.PluginStatusChanged` 
 |===

@@ -5,32 +5,32 @@
 |Spring components
 |_Services_
 
-* `i.g.s.a.f.i.AuthService`
+* `i.g.s.r.f.i.AuthService`
 
 _Event listeners_
 
-* `i.g.s.a.f.i.AdminBootstrap`
+* `i.g.s.r.f.i.AdminBootstrap`
 
 _Configuration properties_
 
-* `i.g.s.a.f.i.IdentityLocalProperties`
+* `i.g.s.r.f.i.IdentityLocalProperties`
 
 _Others_
 
-* `i.g.s.a.f.i.BreachLookup`
-* `i.g.s.a.f.i.IdentityLocalFeature`
-* `i.g.s.a.f.i.IdentityLocalSettings`
-* `i.g.s.a.f.i.PasswordPolicy`
+* `i.g.s.r.f.i.BreachLookup`
+* `i.g.s.r.f.i.IdentityLocalFeature`
+* `i.g.s.r.f.i.IdentityLocalSettings`
+* `i.g.s.r.f.i.PasswordPolicy`
 |Bean references
-|* `i.g.s.a.k.s.UserAccounts` (in Security)
-* `i.g.s.a.k.s.AccountLockout` (in Security)
-* `i.g.s.a.k.s.SessionAuthentication` (in Security)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
-* `i.g.s.a.k.s.LoginAttemptLimiter` (in Security)
-* `i.g.s.a.k.s.SecondFactors` (in Security)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.s.SecretVault` (in Security)
+|* `i.g.s.r.k.s.UserAccounts` (in Security)
+* `i.g.s.r.k.s.AccountLockout` (in Security)
+* `i.g.s.r.k.s.SessionAuthentication` (in Security)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
+* `i.g.s.r.k.s.LoginAttemptLimiter` (in Security)
+* `i.g.s.r.k.s.SecondFactors` (in Security)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.k.s.SecretVault` (in Security)
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 
 * `org.springframework.boot.context.event.ApplicationReadyEvent` 

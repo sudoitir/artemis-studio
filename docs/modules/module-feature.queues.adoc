@@ -5,23 +5,23 @@
 |Spring components
 |_Services_
 
-* `i.g.s.a.f.q.QueueLifecycleService`
+* `i.g.s.r.f.q.QueueLifecycleService`
 
 _Others_
 
-* `i.g.s.a.f.q.BridgeOperations`
-* `i.g.s.a.f.q.DivertOperations`
-* `i.g.s.a.f.q.QueueConfigurationReader`
-* `i.g.s.a.f.q.QueueLifecycleOperations`
-* `i.g.s.a.f.q.QueuesFeature`
+* `i.g.s.r.f.q.BridgeOperations`
+* `i.g.s.r.f.q.DivertOperations`
+* `i.g.s.r.f.q.QueueConfigurationReader`
+* `i.g.s.r.f.q.QueueLifecycleOperations`
+* `i.g.s.r.f.q.QueuesFeature`
 |Bean references
-|* `i.g.s.a.p.s.QueueLocator` (in Scraping)
-* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
-* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
-* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.p.s.QueueSnapshotUpsert` (in Scraping)
-* `i.g.s.a.k.s.SseHub` (in Event stream)
-* `i.g.s.a.p.c.BrokerCommands` (in Clusters)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
+|* `i.g.s.r.p.s.QueueLocator` (in Scraping)
+* `i.g.s.r.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.r.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.p.s.QueueSnapshotUpsert` (in Scraping)
+* `i.g.s.r.k.s.SseHub` (in Event stream)
+* `i.g.s.r.p.c.BrokerCommands` (in Clusters)
+* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.k.g.OperationGate` (in Approval gate contract)
 |===

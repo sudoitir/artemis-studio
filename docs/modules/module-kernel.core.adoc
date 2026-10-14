@@ -5,10 +5,10 @@
 |Spring components
 |_Configuration properties_
 
-* `i.g.s.a.k.c.RahdarProperties`
+* `i.g.s.r.k.c.RahdarProperties`
 
 _Others_
 
-* `i.g.s.a.k.c.HeavyRequests`
-* `i.g.s.a.k.c.ReadRouting`
+* `i.g.s.r.k.c.HeavyRequests`
+* `i.g.s.r.k.c.ReadRouting`
 |===

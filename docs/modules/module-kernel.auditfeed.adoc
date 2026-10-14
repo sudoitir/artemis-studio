@@ -5,17 +5,17 @@
 |Spring components
 |_Event listeners_
 
-* `i.g.s.a.k.a.AuditReceivers`
+* `i.g.s.r.k.a.AuditReceivers`
 
 _Others_
 
-* `i.g.s.a.k.a.AuditDeliveryHealth`
-* `i.g.s.a.k.a.AuditFeedSettings`
-* `i.g.s.a.k.a.AuditRetentionGuard`
+* `i.g.s.r.k.a.AuditDeliveryHealth`
+* `i.g.s.r.k.a.AuditFeedSettings`
+* `i.g.s.r.k.a.AuditRetentionGuard`
 |Bean references
-|* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.a.AuditFeed` (in Audit log)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
+|* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.k.a.AuditFeed` (in Audit log)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
 |Events listened to
-|* `i.g.s.a.k.p.PluginStatusChanged` 
+|* `i.g.s.r.k.p.PluginStatusChanged` 
 |===

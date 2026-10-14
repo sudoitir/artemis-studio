@@ -5,62 +5,62 @@
 |Spring components
 |_Controllers_
 
-* `i.g.s.a.p.c.web.ClusterController`
-* `i.g.s.a.p.c.web.EnvironmentsController`
+* `i.g.s.r.p.c.web.ClusterController`
+* `i.g.s.r.p.c.web.EnvironmentsController`
 
 _Services_
 
-* `i.g.s.a.p.c.CapabilityLedger`
-* `i.g.s.a.p.c.ClusterService`
-* `i.g.s.a.p.c.EnvironmentService`
+* `i.g.s.r.p.c.CapabilityLedger`
+* `i.g.s.r.p.c.ClusterService`
+* `i.g.s.r.p.c.EnvironmentService`
 
 _Event listeners_
 
-* `i.g.s.a.p.c.CapabilityAssessments`
-* `i.g.s.a.p.c.ClusterEnvironmentIndex`
-* `i.g.s.a.p.c.ClusterOwnership`
+* `i.g.s.r.p.c.CapabilityAssessments`
+* `i.g.s.r.p.c.ClusterEnvironmentIndex`
+* `i.g.s.r.p.c.ClusterOwnership`
 
 _Others_
 
-* `i.g.s.a.p.c.BrokerCommands`
-* `i.g.s.a.p.c.BrokerNodeMapper` (via `i.g.s.a.p.c.BrokerNodeMapperImpl`)
-* `i.g.s.a.p.c.ClusterDirectory`
-* `i.g.s.a.p.c.ClusterLock`
-* `i.g.s.a.p.c.ClusterSecrets`
-* `i.g.s.a.p.c.ClusterViewMapper` (via `i.g.s.a.p.c.ClusterViewMapperImpl`)
-* `i.g.s.a.p.c.HaStateEvaluator`
-* `i.g.s.a.p.c.NodeStateRecorder`
-* `i.g.s.a.p.c.SeedExpander`
-* `i.g.s.a.p.c.RahdarInfo`
-* `i.g.s.a.p.c.TopologyDiscovery`
+* `i.g.s.r.p.c.BrokerCommands`
+* `i.g.s.r.p.c.BrokerNodeMapper` (via `i.g.s.r.p.c.BrokerNodeMapperImpl`)
+* `i.g.s.r.p.c.ClusterDirectory`
+* `i.g.s.r.p.c.ClusterLock`
+* `i.g.s.r.p.c.ClusterSecrets`
+* `i.g.s.r.p.c.ClusterViewMapper` (via `i.g.s.r.p.c.ClusterViewMapperImpl`)
+* `i.g.s.r.p.c.HaStateEvaluator`
+* `i.g.s.r.p.c.NodeStateRecorder`
+* `i.g.s.r.p.c.RahdarInfo`
+* `i.g.s.r.p.c.SeedExpander`
+* `i.g.s.r.p.c.TopologyDiscovery`
 |Bean references
-|* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.p.b.BrokerSessions` (in Broker connectivity)
-* `i.g.s.a.p.b.CapabilityProbe` (in Broker connectivity)
-* `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
-* `i.g.s.a.k.r.RahdarBus` (in Replicas)
-* `i.g.s.a.k.s.SecretVault` (in Security)
-* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
-* `i.g.s.a.k.r.HaProperties` (in Replicas)
-* `i.g.s.a.p.b.BrokerClientFactory` (in Broker connectivity)
-* `i.g.s.a.p.b.CoreSubscriptionCheck` (in Broker connectivity)
-* `i.g.s.a.p.b.CoreAccountCheck` (in Broker connectivity)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.k.s.ScopedGrants` (in Security)
-* `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
-* `i.g.s.a.k.p.RahdarVersion` (in Plugin contract)
-* `i.g.s.a.k.c.HeavyRequests` (in Core)
+|* `i.g.s.r.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.p.b.BrokerSessions` (in Broker connectivity)
+* `i.g.s.r.p.b.CapabilityProbe` (in Broker connectivity)
+* `i.g.s.r.p.b.CoreSubscriptionManager` (in Broker connectivity)
+* `i.g.s.r.k.r.RahdarBus` (in Replicas)
+* `i.g.s.r.k.s.SecretVault` (in Security)
+* `i.g.s.r.k.r.ReplicaRegistry` (in Replicas)
+* `i.g.s.r.k.r.HaProperties` (in Replicas)
+* `i.g.s.r.p.b.BrokerClientFactory` (in Broker connectivity)
+* `i.g.s.r.p.b.CoreSubscriptionCheck` (in Broker connectivity)
+* `i.g.s.r.p.b.CoreAccountCheck` (in Broker connectivity)
+* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.k.s.ScopedGrants` (in Security)
+* `i.g.s.r.k.g.OperationGate` (in Approval gate contract)
+* `i.g.s.r.k.p.RahdarVersion` (in Plugin contract)
+* `i.g.s.r.k.c.HeavyRequests` (in Core)
 |Events listened to
-|* `i.g.s.a.k.r.BusResumed` 
-* `i.g.s.a.k.r.BusResumed` 
-* `i.g.s.a.k.r.ReplicaSignal` 
-* `i.g.s.a.k.r.BusResumed` 
-* `i.g.s.a.k.r.ReplicaSignal` 
-* `i.g.s.a.k.r.DrainStarted` 
-* `i.g.s.a.p.c.ClusterRegistered` 
-* `i.g.s.a.k.r.ReplicaSignal` 
+|* `i.g.s.r.k.r.BusResumed` 
+* `i.g.s.r.k.r.BusResumed` 
+* `i.g.s.r.k.r.ReplicaSignal` 
+* `i.g.s.r.k.r.BusResumed` 
+* `i.g.s.r.k.r.ReplicaSignal` 
+* `i.g.s.r.k.r.DrainStarted` 
+* `i.g.s.r.p.c.ClusterRegistered` 
+* `i.g.s.r.k.r.ReplicaSignal` 
 |===

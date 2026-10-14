@@ -5,15 +5,15 @@
 |Spring components
 |_Event listeners_
 
-* `i.g.s.a.k.j.BackgroundRuns`
+* `i.g.s.r.k.j.BackgroundRuns`
 
 _Others_
 
-* `i.g.s.a.k.j.JobRunner`
-* `i.g.s.a.k.j.JobStatuses`
+* `i.g.s.r.k.j.JobRunner`
+* `i.g.s.r.k.j.JobStatuses`
 |Bean references
-|* `i.g.s.a.k.s.OperatorHandoff` (in Security)
-* `i.g.s.a.k.r.RahdarBus` (in Replicas)
+|* `i.g.s.r.k.s.OperatorHandoff` (in Security)
+* `i.g.s.r.k.r.RahdarBus` (in Replicas)
 |Events listened to
-|* `i.g.s.a.k.r.ReplicaSignal` 
+|* `i.g.s.r.k.r.ReplicaSignal` 
 |===

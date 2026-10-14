@@ -5,26 +5,26 @@
 |Spring components
 |_Services_
 
-* `i.g.s.a.f.b.BulkService`
+* `i.g.s.r.f.b.BulkService`
 
 _Others_
 
-* `i.g.s.a.f.b.BulkFeature`
-* `i.g.s.a.f.b.BulkRunMapper` (via `i.g.s.a.f.b.BulkRunMapperImpl`)
+* `i.g.s.r.f.b.BulkFeature`
+* `i.g.s.r.f.b.BulkRunMapper` (via `i.g.s.r.f.b.BulkRunMapperImpl`)
 |Bean references
-|* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
-* `i.g.s.a.f.q.QueueLifecycleService` (in Queues)
-* `i.g.s.a.f.m.MessageService` (in Messages)
-* `i.g.s.a.k.s.OperatorHandoff` (in Security)
-* `i.g.s.a.k.s.SseHub` (in Event stream)
-* `i.g.s.a.k.j.BackgroundRuns` (in Scheduled jobs)
-* `i.g.s.a.f.r.CrossNodeAggregator` (in Resources)
-* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
-* `i.g.s.a.k.c.HeavyRequests` (in Core)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
+|* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.r.ReplicaRegistry` (in Replicas)
+* `i.g.s.r.f.q.QueueLifecycleService` (in Queues)
+* `i.g.s.r.f.m.MessageService` (in Messages)
+* `i.g.s.r.k.s.OperatorHandoff` (in Security)
+* `i.g.s.r.k.s.SseHub` (in Event stream)
+* `i.g.s.r.k.j.BackgroundRuns` (in Scheduled jobs)
+* `i.g.s.r.f.r.CrossNodeAggregator` (in Resources)
+* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.k.g.OperationGate` (in Approval gate contract)
+* `i.g.s.r.k.c.HeavyRequests` (in Core)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 
 |===

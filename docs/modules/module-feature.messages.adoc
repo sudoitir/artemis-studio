@@ -5,29 +5,29 @@
 |Spring components
 |_Services_
 
-* `i.g.s.a.f.m.DlqService`
-* `i.g.s.a.f.m.MessageService`
+* `i.g.s.r.f.m.DlqService`
+* `i.g.s.r.f.m.MessageService`
 
 _Others_
 
-* `i.g.s.a.f.m.MessagesFeature`
+* `i.g.s.r.f.m.MessagesFeature`
 |Bean references
-|* `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
-* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
-* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
-* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.p.s.QueueLocator` (in Scraping)
-* `i.g.s.a.p.b.MessageOperations` (in Broker connectivity)
-* `i.g.s.a.p.b.JolokiaMessageTransport` (in Broker connectivity)
-* `i.g.s.a.p.b.CoreMessageTransport` (in Broker connectivity)
-* `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.s.SseHub` (in Event stream)
-* `i.g.s.a.p.g.ContentPolicy` (in Data governance)
-* `i.g.s.a.p.g.ClearViewAudit` (in Data governance)
-* `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
-* `i.g.s.a.p.m.McpProperties` (in MCP server)
+|* `i.g.s.r.p.s.QueueSnapshots` (in Scraping)
+* `i.g.s.r.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.r.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.p.s.QueueLocator` (in Scraping)
+* `i.g.s.r.p.b.MessageOperations` (in Broker connectivity)
+* `i.g.s.r.p.b.JolokiaMessageTransport` (in Broker connectivity)
+* `i.g.s.r.p.b.CoreMessageTransport` (in Broker connectivity)
+* `i.g.s.r.p.b.CoreSubscriptionManager` (in Broker connectivity)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.k.s.SseHub` (in Event stream)
+* `i.g.s.r.p.g.ContentPolicy` (in Data governance)
+* `i.g.s.r.p.g.ClearViewAudit` (in Data governance)
+* `i.g.s.r.k.g.OperationGate` (in Approval gate contract)
+* `i.g.s.r.p.m.McpProperties` (in MCP server)
 |===
