@@ -42,6 +42,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -529,8 +531,12 @@ public class SettingsService {
         });
     }
 
-    /** Another replica wrote a setting: re-read the overrides and push them. */
+    /**
+     * Another replica wrote a setting: re-read the overrides and push them. First of the signal's listeners,
+     * so those that react to a change (the job runner re-arming a schedule) read the new values.
+     */
     @EventListener(condition = "#signal.kind() == 'settings'")
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     @Transactional(readOnly = true)
     public void onSignal(ReplicaSignal signal) {
         refreshOverrides();

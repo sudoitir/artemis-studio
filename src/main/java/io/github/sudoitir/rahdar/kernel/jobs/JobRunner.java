@@ -1,5 +1,6 @@
 package io.github.sudoitir.rahdar.kernel.jobs;
 
+import io.github.sudoitir.rahdar.kernel.replica.ReplicaSignal;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import java.time.Clock;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.support.SimpleTriggerContext;
 import org.springframework.stereotype.Component;
 
@@ -190,6 +192,33 @@ public class JobRunner implements SmartInitializingSingleton, DisposableBean {
             Duration delay = Duration.between(now, next);
             entry.timer = timer.schedule(
                     () -> dispatch(entry), delay.isNegative() ? 0 : delay.toNanos(), TimeUnit.NANOSECONDS);
+        }
+    }
+
+    /**
+     * A setting changed somewhere (every replica hears it, after the settings have been re-read): a waiting
+     * job whose schedule now comes due sooner is re-armed at once, so moving a job from daily to hourly takes
+     * effect now rather than after the old run. A schedule that moved later takes over after the next run,
+     * and a running job works its next run out when it ends, as always.
+     */
+    @EventListener(condition = "#signal.kind() == 'settings'")
+    void onSettingsChanged(ReplicaSignal signal) {
+        synchronized (this) {
+            for (Entry entry : entries.values()) {
+                if (entry.cancelled || entry.thread != null || entry.timer == null || entry.scheduledFor == null) {
+                    continue;
+                }
+                Instant next;
+                try {
+                    next = entry.job.trigger().nextExecution(entry.context);
+                } catch (RuntimeException e) {
+                    next = null; // an unreadable schedule is reported by arm on its own retry
+                }
+                if (next != null && next.isBefore(entry.scheduledFor)) {
+                    disarm(entry);
+                    arm(entry);
+                }
+            }
         }
     }
 
