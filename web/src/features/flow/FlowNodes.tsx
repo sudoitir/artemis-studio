@@ -1,4 +1,4 @@
-import { memo, useContext, useRef, type ReactNode } from 'react';
+import { memo, useContext, useId, useRef, type ReactNode } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 
 import type { FlowNodeView } from './api.ts';
@@ -83,6 +83,7 @@ function Frame({
   // reopen the menu at the pointer and close the one the keyboard opened.
   const suppressContextMenuUntil = useRef(0);
   const faults = faultWords(data.view);
+  const descriptionId = useId();
   return (
     <div
       className={classes.node}
@@ -91,7 +92,7 @@ function Frame({
       data-dimmed={data.dimmed || undefined}
       role="button"
       tabIndex={0}
-      aria-description={nodeSentence(data.view)}
+      aria-describedby={descriptionId}
       onClick={() => select(id, false)}
       onContextMenu={(event) => {
         event.preventDefault();
@@ -113,6 +114,10 @@ function Frame({
       onFocus={() => emphasize(id)}
       onBlur={() => emphasize(null)}
     >
+      {/* Hidden from the name (which is the node's visible lines) but still its description. */}
+      <span id={descriptionId} hidden>
+        {nodeSentence(data.view)}
+      </span>
       {(shape === 'tag' || shape === 'hex') && width && height ? (
         <ShapeOutline shape={shape} width={width} height={height} />
       ) : null}
