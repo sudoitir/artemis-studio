@@ -119,7 +119,10 @@ bound a subscription SHALL stop growing and SHALL be reported as degraded, with 
 named — it SHALL NOT silently discard the bound or silently stop recording.
 
 Storage SHALL be reclaimed by removing whole time ranges rather than by deleting rows one at
-a time, and the maintenance that does so SHALL run without operator action.
+a time, and the maintenance that does so SHALL run without operator action. The index SHALL be
+stored in daily partitions with UTC bounds and no default partition, created and dropped by the
+same partition maintenance as other high-volume history, and a partition SHALL be detached
+concurrently before it is dropped.
 
 Retention maintenance SHALL be governed by every subscription that exists, **including one
 that is currently disabled**. Disabling a subscription pauses recording; it SHALL NOT cause
@@ -147,6 +150,11 @@ bounds, so that the cost of a subscription is visible to the operator who create
 
 - **WHEN** an operator views an index subscription
 - **THEN** the number of messages held and the storage used are shown against both its retention period and its size bound
+
+#### Scenario: A day of the index is dropped
+
+- **WHEN** a daily partition holds only messages past every subscription's retention
+- **THEN** it is detached concurrently and dropped, with no writer blocked
 
 ### Requirement: The index is disposable and can be dropped in one action
 

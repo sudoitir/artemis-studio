@@ -36,8 +36,14 @@ nobody is observing.
 #### Scenario: Slow tier eventually covers every queue
 
 - **WHEN** a node has more queues than fit in one page
-- **THEN** successive slow-tier ticks advance through the pages until the whole
-  queue set has been refreshed, then the sweep restarts
+- **THEN** one slow-tier tick reads every page of that node, one after the other,
+  so the whole queue set is refreshed within one slow-tier interval
+
+#### Scenario: A slow-tier walk that fails part way removes nothing
+
+- **WHEN** a slow-tier walk fails or is interrupted before its last page
+- **THEN** no cache row is removed for that node, and the next tick walks it again
+  from the first page
 
 #### Scenario: Medium tier refreshes active queues sooner
 
@@ -69,7 +75,8 @@ nobody is observing.
 
 For every scrape tick, the system SHALL issue exactly one Jolokia bulk POST per
 node — an array of read and exec entries — never one request per attribute,
-operation, or queue.
+operation, or queue. The slow tier is the one exception: it SHALL issue one POST per
+page of a node's queue list, each through the node's management-call ceiling.
 
 #### Scenario: Fast tick is a single POST
 
@@ -182,8 +189,10 @@ SHALL only cost a re-scrape, never correctness.
 The system SHALL append queue counter samples to the metric history on the
 medium and slow tiers, and SHALL delete history older than a configurable
 retention window. The default retention SHALL be seven days. History SHALL be
-retained in daily partitions rather than a single unpartitioned table, so that
+retained in daily partitions with UTC bounds and no default partition, so that
 trimming expired history is a partition drop rather than a row-by-row delete.
+A sample for a queue, node and time that is already stored SHALL be ignored,
+not stored twice, so that a repeated scrape does not duplicate it.
 
 #### Scenario: Old samples are trimmed
 
@@ -191,12 +200,22 @@ trimming expired history is a partition drop rather than a row-by-row delete.
   retention window
 - **THEN** that partition is dropped and its samples are no longer queryable
 
+#### Scenario: A sample is scraped twice
+
+- **WHEN** the same sample is written a second time, for instance after a retry
+- **THEN** the second write is ignored and the history holds one row
+
+#### Scenario: A sample has no partition
+
+- **WHEN** a sample's day has no partition
+- **THEN** the partition is created and the write retried once, as for any partitioned history
+
 #### Scenario: Samples written before partitioning still age out
 
-- **WHEN** metric samples exist in the fallback partition from before daily
-  partitioning began
-- **THEN** those samples are still deleted once they exceed the retention
-  window, via the existing row-by-row trim on that partition only
+- **WHEN** samples sit in a partition that is only partly older than the
+  retention window
+- **THEN** they remain until the whole partition is older than the window, and
+  are then dropped with it
 
 ### Requirement: A node failure is isolated and recorded
 
