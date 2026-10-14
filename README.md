@@ -48,7 +48,9 @@ register them in the UI, and nothing here starts one.
 
 ```bash
 base=https://raw.githubusercontent.com/sudoitir/artemis-studio/main/deploy/compose
+mkdir -p studio/compose studio/postgres && cd studio/compose   # the compose file mounts ../postgres
 curl -sO "$base/compose.prod.yaml"
+for f in postgresql.conf 10-pg-stat-statements.sql; do curl -s "${base%/compose}/postgres/$f" -o "../postgres/$f"; done
 curl -s "$base/.env.example" | sed \
   -e "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -base64 32)|" \
   -e "s|^DB_PASSWORD=.*|DB_PASSWORD=$(openssl rand -hex 24)|" > .env
@@ -79,8 +81,30 @@ docker run -p 8080:8080 \
 
 </details>
 
+Studio runs on a managed or highly available PostgreSQL 18 too, in a schema of your choosing and as a role that
+is not a superuser: see [Running Studio on an external PostgreSQL](docs/external-database.md).
+
 Every variable, what a reverse proxy needs for the SSE stream, and how to recover a lost
 first login are in the [configuration guide](https://sudoitir.github.io/artemis-studio/guide/configuration).
+
+## Hardware requirements
+
+Measured with a load test on a 4 vCPU / 8 GB machine, Postgres on the same host ([sizing guide](docs/sizing.md),
+which also lists what each size carries and what degrades first). Sizes per host:
+
+| | Minimum | Recommended |
+| --- | --- | --- |
+| **Studio node** (single instance, or each replica of a replicated deployment) | 2 vCPU, 2 GB | 4 vCPU, 4 GB |
+| **PostgreSQL 18** (single instance, or the shared server of a replicated deployment) | 2 vCPU, 2 GB, SSD | 4 vCPU, 4 GB, SSD |
+
+A replicated deployment runs two or more Studio nodes of that size on one Postgres of that size. The minimum is the observed peak (a Studio
+replica 1.3 GiB and about 1.2 cores, Postgres 0.6 GB and one core) with little headroom, derived from the runs on the
+reference machine rather than measured on a smaller one. It carries a few clusters of up to four nodes with around a thousand queues per node, a few dozen browsers and
+about a hundred event-stream subscribers; the recommended size keeps interactive reads under a second
+at 3,000 queues per node and absorbs a burst of sign-ins. CPU is what runs out first, not memory. Postgres
+needs about 0.6 GB of its memory for the shipped configuration (`deploy/postgres/postgresql.conf`); how much
+disk depends on how long you keep history. The server requirements and settings of an existing PostgreSQL are in
+[Running Studio on an external PostgreSQL](docs/external-database.md).
 
 ## Why
 

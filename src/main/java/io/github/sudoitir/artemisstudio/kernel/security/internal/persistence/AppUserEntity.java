@@ -3,8 +3,6 @@ package io.github.sudoitir.artemisstudio.kernel.security.internal.persistence;
 import io.github.sudoitir.artemisstudio.kernel.security.internal.LoginService;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -15,6 +13,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.UuidGenerator;
 
 /**
  * Maps {@code app_user}. A local account carries a bcrypt {@code passwordHash}; an account
@@ -30,7 +29,7 @@ import lombok.Setter;
 public class AppUserEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     @Column(name = "id", nullable = false, updatable = false)
     @EqualsAndHashCode.Include
     private UUID id;

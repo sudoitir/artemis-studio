@@ -210,7 +210,7 @@ via `studio_setting`; the values below are the defaults.
 |---|---|---|
 | A | HA state (`Active`, `Started`, `ReplicaSync`, …) + per-cluster split-brain corroboration | 5s |
 | B | the first `listQueues` page per node — a fast refresh of the busiest queues | 15s |
-| C | one `listQueues` page per node per tick, walking the whole set, then reaping removed queues | 5m |
+| C | every `listQueues` page per node in one tick, walking the whole set, then reaping removed queues | 5m |
 
 Each tick is **one Jolokia POST per node** (the resolved broker MBean name is
 cached process-wide, so a tick does not pay an extra `search`). Artemis 2.44's
@@ -558,4 +558,4 @@ about a cluster go with it through `ON DELETE CASCADE` along those edges.
 
 Columns are ordered by alignment to cut row padding; high-churn tables carry
 `autovacuum`/`fillfactor` storage parameters; `metric_sample` is range-partitioned with
-BRIN on `ts`. Server tuning is in `deploy/postgres/postgresql.tuning.conf`.
+BRIN on `ts`. Server tuning is in `deploy/postgres/postgresql.conf`.

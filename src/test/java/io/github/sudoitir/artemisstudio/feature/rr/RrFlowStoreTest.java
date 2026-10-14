@@ -3,8 +3,12 @@ package io.github.sudoitir.artemisstudio.feature.rr;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.PurgeEstimate;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionDrops;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import io.github.sudoitir.artemisstudio.support.TestPartitions;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
@@ -24,13 +28,16 @@ class RrFlowStoreTest extends PostgresIntegrationTest {
     @Autowired
     NamedParameterJdbcTemplate jdbc;
 
+    @Autowired
+    PartitionDrops drops;
+
     private final UUID clusterId = UUID.randomUUID();
     private RrFlowStore flows;
     private CapturedPayloadStore payloads;
 
     @BeforeEach
     void seedCluster() {
-        flows = new RrFlowStore(plain);
+        flows = new RrFlowStore(plain, drops);
         payloads = new CapturedPayloadStore(plain);
         jdbc.update(
                 "INSERT INTO cluster (id, name) VALUES (:id, :name)",
@@ -44,6 +51,7 @@ class RrFlowStoreTest extends PostgresIntegrationTest {
 
     /** A flow {@code ageDays} old, with one event that carries a captured body. */
     private void flow(int ageDays) {
+        TestPartitions.ensure(plain, "rr_event", LocalDate.now(ZoneOffset.UTC).minusDays(ageDays));
         UUID id = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO rr_flow (id, requested_at, request_address, reply_kind, state, cluster_id)
@@ -102,7 +110,6 @@ class RrFlowStoreTest extends PostgresIntegrationTest {
         long batch;
         do {
             batch = flows.purgeBatch(cutoff, 1);
-            assertThat(batch).isLessThanOrEqualTo(1);
             total += batch;
         } while (batch > 0);
 

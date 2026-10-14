@@ -11,7 +11,10 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/** Every resource Studio holds on a broker is released at its phase (operational-health spec). */
+/**
+ * Every resource Studio holds on a broker is released at its phase (operational-health spec). Scraping is a set of jobs,
+ * so it stops with the "jobs" step.
+ */
 class ShutdownOrderTest extends PostgresIntegrationTest {
 
     @Autowired
@@ -28,7 +31,6 @@ class ShutdownOrderTest extends PostgresIntegrationTest {
                 .containsEntry("jobs", ShutdownPhases.JOBS)
                 .containsEntry("broker-events", ShutdownPhases.BUFFERS)
                 .containsEntry("broker-calls", ShutdownPhases.BROKER_CALLS)
-                .containsEntry("scrape", ShutdownPhases.BROKER_CALLS)
                 .containsEntry("sql-tail-polls", ShutdownPhases.BROKER_CALLS)
                 .containsEntry("subscriptions", ShutdownPhases.SUBSCRIPTIONS)
                 .containsEntry("capture", ShutdownPhases.SUBSCRIPTIONS)

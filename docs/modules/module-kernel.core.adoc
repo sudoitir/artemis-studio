@@ -6,4 +6,9 @@
 |_Configuration properties_
 
 * `i.g.s.a.k.c.StudioProperties`
+
+_Others_
+
+* `i.g.s.a.k.c.HeavyRequests`
+* `i.g.s.a.k.c.ReadRouting`
 |===

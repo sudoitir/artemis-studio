@@ -4,6 +4,7 @@ import { useDisplayZone } from '../../kernel/time/timezone.ts';
 import { EmptyState } from '../../ui/EmptyState.tsx';
 import { ErrorState } from '../../ui/ErrorState.tsx';
 import { Pager } from '../../ui/Pager.tsx';
+import { ReplicaLagNotice } from '../../ui/ReplicaLagNotice.tsx';
 import { DataTable } from '../../ui/table/index.ts';
 import { useAlertHistory, type AlertFiringView } from './api.ts';
 import { historyColumns } from './columns.ts';
@@ -23,6 +24,7 @@ export function HistoryPanel({ clusterId }: Readonly<{ clusterId: string }>) {
 
   return (
     <>
+      <ReplicaLagNotice mayLag={history.data?.mayLag} />
       <DataTable
         variant="static"
         label="Alert history"

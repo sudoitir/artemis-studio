@@ -372,7 +372,6 @@ public class BrokerConfigService {
     public record NodeConnectors(UUID nodeId, String nodeName, List<String> names, boolean known, String reason) {}
 
     /** The connector names of every serving node. One extra batched read per node, on this screen only. */
-    @Transactional(readOnly = true)
     public List<NodeConnectors> connectors(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
         List<NodeConnectors> out = new ArrayList<>();
@@ -470,7 +469,6 @@ public class BrokerConfigService {
      * nodes disagree, the disagreement is listed and the first live node's value is
      * kept.
      */
-    @Transactional(readOnly = true)
     public Adoption adopt(UUID clusterId) {
         clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_WRITE);
         List<String> notes = adoptionNotes();
@@ -487,7 +485,6 @@ public class BrokerConfigService {
      * because there are none. A node that cannot be read is noted and contributes nothing; empty when none
      * could be read.
      */
-    @Transactional(readOnly = true)
     public Optional<Adoption> previewAdoption(List<RegistrationAdoption.LiveNode> nodes) {
         List<String> notes = adoptionNotes();
         List<ObservedNodeConfig> observed = new ArrayList<>();

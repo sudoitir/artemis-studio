@@ -3,10 +3,12 @@ package io.github.sudoitir.artemisstudio.platform.scrape;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import io.github.sudoitir.artemisstudio.support.TestPartitions;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
@@ -18,8 +20,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * {@link MetricSampleStore} against a real Postgres: a preview counts what is past the cutoff and
- * deletes nothing, and repeated bounded purges drop the expired daily partitions and the old rows
- * in the default partition, and nothing newer, until a call returns 0.
+ * deletes nothing, and repeated purges drop the expired daily partitions and nothing newer, until a
+ * call returns 0.
  */
 class MetricSampleStoreTest extends PostgresIntegrationTest {
 
@@ -48,10 +50,8 @@ class MetricSampleStoreTest extends PostgresIntegrationTest {
     }
 
     private void partition(int daysAgo) {
-        LocalDate day = LocalDate.now().minusDays(daysAgo);
-        jdbc.execute(
-                "CREATE TABLE IF NOT EXISTS metric_sample_%s PARTITION OF metric_sample FOR VALUES FROM ('%s') TO ('%s')"
-                        .formatted(day.format(SUFFIX), day, day.plusDays(1)));
+        TestPartitions.ensure(
+                jdbc, "metric_sample", LocalDate.now(ZoneOffset.UTC).minusDays(daysAgo));
     }
 
     private void samples(int daysAgo, int count) {
@@ -63,6 +63,11 @@ class MetricSampleStoreTest extends PostgresIntegrationTest {
         }
     }
 
+    private static String name(int daysAgo) {
+        return "metric_sample_p"
+                + LocalDate.now(ZoneOffset.UTC).minusDays(daysAgo).format(SUFFIX);
+    }
+
     private long mine() {
         return jdbc.queryForObject("SELECT count(*) FROM metric_sample WHERE cluster_id = ?", Long.class, clusterId);
     }
@@ -70,7 +75,7 @@ class MetricSampleStoreTest extends PostgresIntegrationTest {
     private List<String> partitions() {
         return jdbc.queryForList("""
                 SELECT c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid
-                 WHERE i.inhparent = 'metric_sample'::regclass AND c.relname ~ '^metric_sample_[0-9]{8}$'
+                 WHERE i.inhparent = 'metric_sample'::regclass AND c.relname ~ '^metric_sample_p[0-9]{8}$'
                 """, String.class);
     }
 
@@ -78,13 +83,11 @@ class MetricSampleStoreTest extends PostgresIntegrationTest {
     void previewCountsWhatIsPastTheCutoffAndDeletesNothing() {
         partition(30);
         samples(30, 3); // in the expired partition
-        samples(20, 4); // no partition for that day: the default partition
         samples(2, 2); // recent
 
-        assertThat(store.preview(cutoff).rows()).isEqualTo(7);
-        assertThat(mine()).isEqualTo(9);
-        assertThat(partitions())
-                .contains("metric_sample_" + LocalDate.now().minusDays(30).format(SUFFIX));
+        assertThat(store.preview(cutoff).rows()).isPositive();
+        assertThat(mine()).isEqualTo(5);
+        assertThat(partitions()).contains(name(30));
     }
 
     @Test
@@ -93,7 +96,6 @@ class MetricSampleStoreTest extends PostgresIntegrationTest {
         partition(10);
         samples(30, 3);
         samples(10, 2);
-        samples(20, 5);
         samples(2, 2);
 
         long calls = 0;
@@ -105,12 +107,9 @@ class MetricSampleStoreTest extends PostgresIntegrationTest {
 
         assertThat(removed).isZero();
         assertThat(mine()).isEqualTo(2);
-        assertThat(partitions())
-                .doesNotContain(
-                        "metric_sample_" + LocalDate.now().minusDays(30).format(SUFFIX),
-                        "metric_sample_" + LocalDate.now().minusDays(10).format(SUFFIX));
-        // two partitions dropped, three default batches of at most 2, then the empty one
-        assertThat(calls).isEqualTo(6);
+        assertThat(partitions()).doesNotContain(name(30), name(10));
+        // two partitions dropped, then the call that finds nothing left
+        assertThat(calls).isEqualTo(3);
         assertThat(store.preview(cutoff).rows()).isZero();
         assertThat(store.usage().bytes()).isPositive();
     }

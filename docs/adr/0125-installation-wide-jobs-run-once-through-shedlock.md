@@ -1,6 +1,6 @@
 # ADR-0125: Installation-wide jobs run once, through ShedLock
 
-- **Status**: accepted
+- **Status**: accepted; its keep-alive and built-in job list are superseded by [ADR-0194](0194-one-job-runner-runs-every-job-on-its-own-virtual-thread.md)
 - **Date**: 2026-09-28
 - **Deciders**: Mahdi Amirabdollahi
 

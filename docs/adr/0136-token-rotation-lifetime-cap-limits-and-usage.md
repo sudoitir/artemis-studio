@@ -1,6 +1,7 @@
 # ADR-0136: Tokens rotate with an overlap, live under a live cap, are rate limited and counted per hour
 
 - **Status**: accepted
+- **Amended by**: [ADR-0196](0196-heavy-request-permits-and-limits-are-counted-across-replicas-in-postgresql.md) — the in-flight cap per token is counted in PostgreSQL, across replicas
 - **Date**: 2026-09-30
 - **Deciders**: Mahdi Amirabdollahi
 

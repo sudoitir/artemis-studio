@@ -356,8 +356,8 @@ class TransferRunnerTest {
         assertThat(run.getNotTransferred()).isZero();
         assertThat(run.getFinishedAt()).isNotNull();
         verify(ledger).forget(RUN);
-        verify(limiter, times(3)).acquire("http://src", 1);
-        verify(limiter, times(3)).acquire("http://tgt", 1);
+        verify(limiter, times(3)).acquire("http://src", 1, "transfer");
+        verify(limiter, times(3)).acquire("http://tgt", 1, "transfer");
         ArgumentCaptor<TransferProgress> progress = ArgumentCaptor.forClass(TransferProgress.class);
         verify(sse, org.mockito.Mockito.atLeastOnce())
                 .publishAbout(eq(SRC_CLUSTER), eq("transfer"), progress.capture(), anyCollection(), anyCollection());
@@ -1156,8 +1156,8 @@ class TransferRunnerTest {
 
         execute();
 
-        verify(limiter).acquire("http://src", 1);
-        verify(limiter).acquire("http://tgt", 1);
+        verify(limiter).acquire("http://src", 1, "transfer");
+        verify(limiter).acquire("http://tgt", 1, "transfer");
         verify(staging, never()).create(any(), any());
         verify(ledger, never()).remove(any(), any());
     }

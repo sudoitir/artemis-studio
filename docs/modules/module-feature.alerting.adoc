@@ -54,6 +54,8 @@ _Others_
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
+* `i.g.s.a.k.c.HeavyRequests` (in Core)
+* `i.g.s.a.k.c.ReadRouting` (in Core)
 * `i.g.s.a.k.a.AuditDeliveryHealth` (in Audit delivery)
 * `i.g.s.a.p.s.QueueSnapshots` (in Scraping)
 * `i.g.s.a.p.s.PluginMetrics` (in Scraping)

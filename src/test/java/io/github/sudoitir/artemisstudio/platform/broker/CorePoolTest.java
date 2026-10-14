@@ -18,7 +18,9 @@ class CorePoolTest extends ArtemisIntegrationTest {
 
     private CorePool pool() {
         BrokerProperties props = new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000);
-        return new CorePool(new CoreConnectionFactory(props, Mockito.mock(SslBundles.class)), CoreObservations.none());
+        return new CorePool(
+                new CoreConnectionFactory(props, Mockito.mock(SslBundles.class), BrokerCallGuard.OFF),
+                CoreObservations.none());
     }
 
     private CoreConnectionSettings settings() {

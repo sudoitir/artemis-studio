@@ -58,6 +58,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -94,51 +95,53 @@ public class BrokerConfigApplyService {
     private final ClusterSecrets secrets;
     private final SseHub sseHub;
     private final ObjectMapper mapper;
+    private final TransactionTemplate transactions;
 
     // ---- entry points ------------------------------------------------------
 
     /** A dry run: the plan, the hazards, no write. Audited, like every lifecycle dry run. */
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, BrokerConfigInvalidException.class})
     public BrokerConfigApplyOutcome plan(UUID clusterId, BrokerConfigApplyRequest request) {
         clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_APPLY);
+        // The nodes are read before any transaction opens; only the rows below are written in one.
         Prepared p = prepare(clusterId, request);
-        BrokerConfigApplyEntity row = applies.save(new BrokerConfigApplyEntity(
-                clusterId,
-                p.revision.id(),
-                mapper.writeValueAsString(p.plan),
-                actorResolver.resolve().displayName(),
-                p.plan.canaryNodeId(),
-                true));
-        AuditEvent event = audit.begin(
-                actorResolver.resolve(),
-                AUDIT_APPLY,
-                CLUSTER,
-                configs.clusterName(clusterId),
-                clusterId,
-                null,
-                params(p, request),
-                true);
-        row.attachAudit(event.getId());
-        List<NodeApply> nodes = preview(p.plan);
-        BrokerConfigApplyOutcome outcome = new BrokerConfigApplyOutcome(
-                row.getId(),
-                true,
-                Outcome.DRY_RUN,
-                p.revision.revision(),
-                p.plan,
-                nodes,
-                p.stepCap,
-                p.overCap,
-                previewSummary(p),
-                event.getId());
-        row.finish(Outcome.DRY_RUN, outcome.summary(), mapper.writeValueAsString(nodes));
-        applies.save(row);
-        audit.finish(event, false, 0, null, nodes);
-        return outcome;
+        return transactions.execute(status -> {
+            BrokerConfigApplyEntity row = applies.save(new BrokerConfigApplyEntity(
+                    clusterId,
+                    p.revision.id(),
+                    mapper.writeValueAsString(p.plan),
+                    actorResolver.resolve().displayName(),
+                    p.plan.canaryNodeId(),
+                    true));
+            AuditEvent event = audit.begin(
+                    actorResolver.resolve(),
+                    AUDIT_APPLY,
+                    CLUSTER,
+                    configs.clusterName(clusterId),
+                    clusterId,
+                    null,
+                    params(p, request),
+                    true);
+            row.attachAudit(event.getId());
+            List<NodeApply> nodes = preview(p.plan);
+            BrokerConfigApplyOutcome outcome = new BrokerConfigApplyOutcome(
+                    row.getId(),
+                    true,
+                    Outcome.DRY_RUN,
+                    p.revision.revision(),
+                    p.plan,
+                    nodes,
+                    p.stepCap,
+                    p.overCap,
+                    previewSummary(p),
+                    event.getId());
+            row.finish(Outcome.DRY_RUN, outcome.summary(), mapper.writeValueAsString(nodes));
+            applies.save(row);
+            audit.finish(event, false, 0, null, nodes);
+            return outcome;
+        });
     }
 
     /** A real run: refuse anything the preview did not cover, then canary, verify, continue, halt. */
-    @Transactional(noRollbackFor = {BulkCapExceededException.class, BrokerConfigInvalidException.class})
     public BrokerConfigApplyOutcome apply(UUID clusterId, BrokerConfigApplyRequest request) {
         clusterAccess.requireCluster(clusterId, BrokerConfigPermissions.CONFIG_APPLY);
         AtomicReference<BrokerConfigApplyOutcome> result = new AtomicReference<>();
@@ -237,13 +240,8 @@ public class BrokerConfigApplyService {
             return nothingToDo(clusterId, p, request);
         }
 
-        BrokerConfigApplyEntity row = applies.save(new BrokerConfigApplyEntity(
-                clusterId,
-                p.revision.id(),
-                mapper.writeValueAsString(p.plan),
-                actorResolver.resolve().displayName(),
-                p.plan.canaryNodeId(),
-                false));
+        // The audit row commits on its own before the first write to a broker (ADR-0078); no transaction of
+        // this method is open while the nodes are written.
         AuditEvent event = audit.begin(
                 actorResolver.resolve(),
                 AUDIT_APPLY,
@@ -253,7 +251,15 @@ public class BrokerConfigApplyService {
                 null,
                 params(p, request),
                 false);
-        row.attachAudit(event.getId());
+        BrokerConfigApplyEntity pending = new BrokerConfigApplyEntity(
+                clusterId,
+                p.revision.id(),
+                mapper.writeValueAsString(p.plan),
+                actorResolver.resolve().displayName(),
+                p.plan.canaryNodeId(),
+                false);
+        pending.attachAudit(event.getId());
+        BrokerConfigApplyEntity row = transactions.execute(status -> applies.save(pending));
 
         boolean lockoutGuard = p.plan.hazards().stream().anyMatch(h -> h.kind() == HazardKind.MANAGEMENT_ACCESS);
         List<NodePlan> order = new ArrayList<>();
@@ -264,7 +270,13 @@ public class BrokerConfigApplyService {
                 .filter(n -> n.readable() && !n.nodeId().equals(p.plan.canaryNodeId()))
                 .forEach(order::add);
 
-        RunResult run = runNodes(clusterId, p, order, lockoutGuard, row.getId());
+        RunResult run;
+        try {
+            run = runNodes(clusterId, p, order, lockoutGuard, row.getId());
+        } catch (RuntimeException e) {
+            audit.fail(event, e.getMessage());
+            throw e;
+        }
         List<NodeApply> results = run.results();
         p.plan.nodes().stream()
                 .filter(n -> !n.readable())
@@ -275,7 +287,7 @@ public class BrokerConfigApplyService {
         Outcome outcome = outcome(halted, run.applied(), results.size());
         String summary = summarise(outcome, results, run.haltReason(), order.size());
         row.finish(outcome, summary, mapper.writeValueAsString(results));
-        applies.save(row);
+        transactions.executeWithoutResult(status -> applies.save(row));
         audit.finish(event, halted, run.applied(), halted ? summary : null, results);
         publishAfterCommit(clusterId);
         return new BrokerConfigApplyOutcome(
@@ -365,38 +377,41 @@ public class BrokerConfigApplyService {
 
     private BrokerConfigApplyOutcome nothingToDo(UUID clusterId, Prepared p, BrokerConfigApplyRequest request) {
         List<NodeApply> nodes = preview(p.plan);
-        BrokerConfigApplyEntity row = applies.save(new BrokerConfigApplyEntity(
-                clusterId,
-                p.revision.id(),
-                mapper.writeValueAsString(p.plan),
-                actorResolver.resolve().displayName(),
-                p.plan.canaryNodeId(),
-                false));
-        AuditEvent event = audit.begin(
-                actorResolver.resolve(),
-                AUDIT_APPLY,
-                CLUSTER,
-                configs.clusterName(clusterId),
-                clusterId,
-                null,
-                params(p, request),
-                false);
-        row.attachAudit(event.getId());
-        String summary = "Every live node already matches revision " + p.revision.revision() + "; nothing was written.";
-        row.finish(Outcome.APPLIED, summary, mapper.writeValueAsString(nodes));
-        applies.save(row);
-        audit.finish(event, false, 0, null, nodes);
-        return new BrokerConfigApplyOutcome(
-                row.getId(),
-                false,
-                Outcome.APPLIED,
-                p.revision.revision(),
-                p.plan,
-                nodes,
-                p.stepCap,
-                p.overCap,
-                summary,
-                event.getId());
+        return transactions.execute(status -> {
+            BrokerConfigApplyEntity row = applies.save(new BrokerConfigApplyEntity(
+                    clusterId,
+                    p.revision.id(),
+                    mapper.writeValueAsString(p.plan),
+                    actorResolver.resolve().displayName(),
+                    p.plan.canaryNodeId(),
+                    false));
+            AuditEvent event = audit.begin(
+                    actorResolver.resolve(),
+                    AUDIT_APPLY,
+                    CLUSTER,
+                    configs.clusterName(clusterId),
+                    clusterId,
+                    null,
+                    params(p, request),
+                    false);
+            row.attachAudit(event.getId());
+            String summary =
+                    "Every live node already matches revision " + p.revision.revision() + "; nothing was written.";
+            row.finish(Outcome.APPLIED, summary, mapper.writeValueAsString(nodes));
+            applies.save(row);
+            audit.finish(event, false, 0, null, nodes);
+            return new BrokerConfigApplyOutcome(
+                    row.getId(),
+                    false,
+                    Outcome.APPLIED,
+                    p.revision.revision(),
+                    p.plan,
+                    nodes,
+                    p.stepCap,
+                    p.overCap,
+                    summary,
+                    event.getId());
+        });
     }
 
     /**

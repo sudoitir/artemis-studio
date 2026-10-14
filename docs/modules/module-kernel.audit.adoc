@@ -21,6 +21,9 @@ _Others_
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.s.ScopeHierarchy` (in Security)
+* `i.g.s.a.k.c.HeavyRequests` (in Core)
+* `i.g.s.a.k.c.ReadRouting` (in Core)
+* `i.g.s.a.k.c.PartitionProvisioner` (in Core)
 |Events listened to
 |* `org.springframework.security.authorization.event.AuthorizationDeniedEvent` 
 * `i.g.s.a.k.s.AccessRefused` 

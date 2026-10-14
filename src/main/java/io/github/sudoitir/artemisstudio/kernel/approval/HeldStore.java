@@ -109,10 +109,6 @@ class HeldStore {
 
     // ---- reads -------------------------------------------------------------------------------------
 
-    UUID newId() {
-        return jdbc.queryForObject("SELECT uuidv7()", UUID.class);
-    }
-
     /** The database's clock now, to the microsecond it stores. */
     Instant now() {
         return jdbc.queryForObject("SELECT clock_timestamp()", Timestamp.class).toInstant();

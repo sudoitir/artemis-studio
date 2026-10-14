@@ -209,7 +209,9 @@ class InstallationAlertsIntegrationTest extends PostgresIntegrationTest {
             });
             assertThat(alertService
                             .history(
-                                    clusterId, io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery.ofPage(1, 50))
+                                    clusterId,
+                                    io.github.sudoitir.artemisstudio.kernel.core.ResourceQuery.ofPage(1, 50),
+                                    null)
                             .data())
                     .hasSize(1);
 

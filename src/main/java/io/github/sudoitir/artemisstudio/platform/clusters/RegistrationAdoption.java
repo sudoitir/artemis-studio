@@ -31,9 +31,21 @@ public interface RegistrationAdoption {
      */
     Optional<Preview> preview(List<LiveNode> nodes);
 
+    /** What the live nodes run, read before the cluster is saved; handed back to {@link #adopt}. */
+    interface Reading {}
+
     /**
-     * Saves what the cluster's live nodes run as its revision 1, attributed to the caller and audited, in
-     * the caller's transaction. The cluster and its nodes are already saved in it.
+     * Reads what these nodes run, for {@link #adopt}. Reads the nodes and writes nothing, so it runs before
+     * the registration transaction opens. Empty when no node could be read.
+     *
+     * @throws kernel.core.ResourceForbiddenException when the caller may not declare
+     *     configuration
      */
-    void adopt(UUID clusterId);
+    Optional<Reading> read(List<LiveNode> nodes);
+
+    /**
+     * Saves what {@link #read} found as the cluster's revision 1, attributed to the caller and audited, in
+     * the caller's transaction. The cluster and its nodes are already saved in it; no broker is called.
+     */
+    void adopt(UUID clusterId, Reading reading);
 }

@@ -1,6 +1,5 @@
 package io.github.sudoitir.artemisstudio.feature.metrics;
 
-import io.github.sudoitir.artemisstudio.kernel.auditfeed.AuditRetentionGuard;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerClientFactory;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerSessions;
@@ -19,10 +18,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 /** Metrics starts with its direct dependencies only (task 5.14). */
 @ApplicationModuleTest(mode = BootstrapMode.DIRECT_DEPENDENCIES)
 class MetricsModuleTest extends ModuleIntegrationTest {
-    /** The data lifecycle, a direct dependency, purges the audit trail through the audit delivery module. */
-    @MockitoBean
-    AuditRetentionGuard auditRetentionGuard;
-
     /** The scrape cycle, in a direct dependency, persists each node's split-brain verdict through the clusters module. */
     @MockitoBean
     NodeStateRecorder nodeStateRecorder;

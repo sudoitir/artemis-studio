@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { type PagedView, requestAll } from '../../kernel/api/paging.ts';
+import { type HistoryPage, requestAll } from '../../kernel/api/paging.ts';
 import { ApiError, clusterKey, request } from '../../kernel/api/request.ts';
 import type { components } from '../../kernel/api/schema.d.ts';
 import { useCan } from '../../kernel/auth/useCan.ts';
@@ -93,11 +93,11 @@ export function useAlertHistory(
   clusterId: string,
   page: number,
   size: number,
-): UseQueryResult<PagedView<AlertFiringView>, ApiError> {
+): UseQueryResult<HistoryPage<AlertFiringView>, ApiError> {
   return useQuery({
     queryKey: keys.alertHistory(clusterId, page, size),
     queryFn: () =>
-      request<PagedView<AlertFiringView>>(`/clusters/${clusterId}/alerts/history?page=${page}&size=${size}`),
+      request<HistoryPage<AlertFiringView>>(`/clusters/${clusterId}/alerts/history?page=${page}&size=${size}`),
     placeholderData: (prev) => prev,
   });
 }

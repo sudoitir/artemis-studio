@@ -62,7 +62,9 @@ class CoreTlsPerClusterTest {
         bundles.registerBundle("ca-a", trusting(caA));
         bundles.registerBundle("ca-b", trusting(caB));
         factory = new CoreConnectionFactory(
-                new BrokerProperties(Duration.ofSeconds(5), Duration.ofSeconds(10), 2_000), bundles);
+                new BrokerProperties(Duration.ofSeconds(5), Duration.ofSeconds(10), 2_000),
+                bundles,
+                BrokerCallGuard.OFF);
     }
 
     @AfterAll

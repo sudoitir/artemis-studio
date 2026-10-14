@@ -3,6 +3,9 @@ package io.github.sudoitir.artemisstudio.feature.flow.web;
 import io.github.sudoitir.artemisstudio.feature.flow.FlowGraphService;
 import io.github.sudoitir.artemisstudio.feature.flow.FlowQuery;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.FlowGraphView;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
+import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
+import java.time.Duration;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +26,12 @@ import org.springframework.web.context.request.WebRequest;
 public class FlowController {
 
     private final FlowGraphService graphs;
+    private final HeavyRequests heavy;
+    private final ActorResolver actors;
+
+    /** Reading the graph aggregates samples and routes; a few at once per user, at most 200 paths, the database's 30 s. */
+    private static final HeavyRequests.Endpoint GRAPH =
+            new HeavyRequests.Endpoint("flow graph reads", 4, Duration.ofSeconds(30), FlowQuery.MAX_LIMIT);
 
     /**
      * @param focus {@code client:<name>}, {@code address:<name>} or {@code queue:<name>}
@@ -42,9 +51,12 @@ public class FlowController {
             @RequestParam(required = false) String layers,
             @RequestParam(defaultValue = "false") boolean byNode,
             WebRequest request) {
-        FlowGraphView view = graphs.graph(
-                clusterId,
-                FlowQuery.of(focus, hops, rank, limit, groupBy, layers).withByNode(byNode));
+        FlowGraphView view = heavy.run(
+                GRAPH,
+                actors.resolve().displayName(),
+                _ -> graphs.graph(
+                        clusterId,
+                        FlowQuery.of(focus, hops, rank, limit, groupBy, layers).withByNode(byNode)));
         String etag = "\"" + Integer.toHexString(view.hashCode()) + "\"";
         if (request.checkNotModified(etag)) {
             return ResponseEntity.status(304).eTag(etag).build();

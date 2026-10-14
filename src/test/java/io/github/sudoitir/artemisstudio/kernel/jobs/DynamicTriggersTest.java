@@ -1,9 +1,11 @@
 package io.github.sudoitir.artemisstudio.kernel.jobs;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.Trigger;
@@ -71,5 +73,29 @@ class DynamicTriggersTest {
 
         assertThat(moved).isNotNull().isNotEqualTo(nightly);
         assertThat(Duration.between(nightly, moved)).isEqualTo(Duration.ofMinutes(75));
+    }
+
+    /** A cron reads its hours in UTC, whatever zone the server is in. */
+    @Test
+    void aCronTriggerIsReadInUtcWhateverTheServerZone() {
+        TimeZone server = TimeZone.getDefault();
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tehran"));
+            Trigger trigger = DynamicTriggers.cron(() -> "0 0 4 * * *");
+
+            assertThat(trigger.nextExecution(contextEndingAt(LAST_RUN)))
+                    .isEqualTo(Instant.parse("2026-01-01T04:00:00Z"));
+        } finally {
+            TimeZone.setDefault(server);
+        }
+    }
+
+    @Test
+    void aMalformedCronThrowsSoTheRunnerCanMarkTheScheduleInvalid() {
+        Trigger trigger = DynamicTriggers.cron(() -> "not a cron");
+
+        var context = contextEndingAt(LAST_RUN);
+
+        assertThatThrownBy(() -> trigger.nextExecution(context)).isInstanceOf(IllegalArgumentException.class);
     }
 }

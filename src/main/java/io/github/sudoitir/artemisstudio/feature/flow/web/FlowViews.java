@@ -2,6 +2,7 @@ package io.github.sudoitir.artemisstudio.feature.flow.web;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
@@ -311,7 +312,16 @@ public final class FlowViews {
      * @param limit the bound in effect
      * @param clamped the request asked for more than the server allows
      */
-    public record FlowTotals(int paths, int shown, int limit, boolean clamped) {}
+    public record FlowTotals(
+            int paths,
+            int shown,
+            int limit,
+            boolean clamped,
+
+            @Schema(
+                    nullable = true,
+                    description = "ROWS when more paths matched than the limit, so some are not drawn.")
+            HeavyRequests.Bound bound) {}
 
     /**
      * @param producersTotal, consumersTotal what the node reported having; above the seen counts when truncated

@@ -136,7 +136,9 @@ async function addPublishedReleases(dir: string) {
 await rm(REFERENCE, { recursive: true, force: true });
 await rm(join(SRC, 'public/img'), { recursive: true, force: true });
 
-await copyMarkdown(join(REPO, 'docs'), REFERENCE, (name) => name !== 'architecture.md');
+// Only these top-level pages are for readers of the site; the other files in `docs/` are notes for the repository.
+const PUBLISHED = new Set(['architecture.md', 'external-database.md']);
+await copyMarkdown(join(REPO, 'docs'), REFERENCE, (name) => !PUBLISHED.has(name));
 // `000-template.md` is a form to fill in, not a decision anyone needs to read.
 await copyMarkdown(join(REPO, 'docs/adr'), join(REFERENCE, 'adr'), (name) => name === '000-template.md');
 await copyMarkdown(join(REPO, 'changelog'), join(REFERENCE, 'changelog'), () => false, escapeBareTags);

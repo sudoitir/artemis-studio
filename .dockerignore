@@ -11,3 +11,4 @@ deploy/
 .claude/
 .mvn/wrapper/
 target/
+load/

@@ -60,6 +60,8 @@ public class BrokerClientFactory implements DisposableBean {
     /** Bundles whose reload handler is registered, so a reload evicts the client built from old material. */
     private final Set<String> watchedBundles = ConcurrentHashMap.newKeySet();
 
+    private final BrokerCallGuard guard;
+
     /** Resolved broker MBean names, shared across every client this factory builds (keyed by Jolokia URL). */
     private final Map<String, String> brokerObjectNames = new ConcurrentHashMap<>();
 
@@ -70,7 +72,9 @@ public class BrokerClientFactory implements DisposableBean {
             ClockOffsetRegistry clockOffsets,
             NodeCallHealth callHealth,
             NodeCallLimiter limiter,
-            ObservationRegistry observations) {
+            ObservationRegistry observations,
+            BrokerCallGuard guard) {
+        this.guard = guard;
         this.observations = observations;
         this.mapper = mapper;
         this.sslBundles = sslBundles;
@@ -114,7 +118,11 @@ public class BrokerClientFactory implements DisposableBean {
             });
         }
         return new JolokiaBrokerClient(
-                builder.build(), jolokiaUrl, mapper, brokerObjectNames, clockOffsets, callHealth, limiter);
+                builder.build(),
+                jolokiaUrl,
+                mapper,
+                brokerObjectNames,
+                new JolokiaClientHooks(clockOffsets, callHealth, limiter, guard));
     }
 
     /**

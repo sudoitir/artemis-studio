@@ -20,7 +20,11 @@
         * High-churn tables carry per-table autovacuum and fillfactor storage
           parameters, set in the same file as the table.
         * A cross-module foreign key follows an allowed module dependency.
-        * Never edit a released changeset. Add a new one.
+        * Until the first stable release a module keeps one changes/0001-baseline.sql and a
+          change edits it; operators recreate the database (ADR-0192). After it, a released
+          changeset is never edited: add a new one.
+        * Every table has a primary key, every uuid key defaults to uuidv7(), and SchemaLintTest
+          checks the migrated catalog against these rules.
     -->
 
     <include file="db/changelog/kernel/core/changelog.xml"          relativeToChangelogFile="false"/>

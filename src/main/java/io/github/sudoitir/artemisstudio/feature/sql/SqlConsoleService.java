@@ -4,6 +4,7 @@ import io.github.sudoitir.artemisstudio.feature.messages.MessagePermissions;
 import io.github.sudoitir.artemisstudio.feature.sql.QueryAst.Source;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -14,8 +15,6 @@ import io.github.sudoitir.artemisstudio.platform.broker.JolokiaMessageTransport;
 import io.github.sudoitir.artemisstudio.platform.broker.MessageTransport;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -43,9 +42,7 @@ public class SqlConsoleService {
     private final AuditService audit;
     private final SqlProperties properties;
     private final SqlGovernance governance;
-
-    /** One counter per actor, so one operator cannot occupy the whole fan-out budget. */
-    private final Map<String, AtomicInteger> inFlight = new ConcurrentHashMap<>();
+    private final HeavyRequests heavy;
 
     /** Parse, validate and cost a query. Contacts no broker and no database beyond the cache. */
     public QueryPlan plan(UUID clusterId, String sql) {
@@ -67,12 +64,14 @@ public class SqlConsoleService {
 
         Actor actor = actorResolver.resolve();
         String key = actor == null ? "anonymous" : actor.displayName();
-        AtomicInteger running = inFlight.computeIfAbsent(key, k -> new AtomicInteger());
-        if (running.incrementAndGet() > properties.maxConcurrentQueries()) {
-            running.decrementAndGet();
-            throw new TooManyQueriesException(properties.maxConcurrentQueries());
-        }
+        // The permit is counted across replicas, so one operator cannot occupy the whole fan-out budget
+        // by spreading queries over them. The query's own bounds (rows, scan, time) are reported in its result.
+        HeavyRequests.Endpoint endpoint = new HeavyRequests.Endpoint(
+                "SQL queries", properties.maxConcurrentQueries(), properties.timeout(), properties.maxRows());
+        return heavy.run(endpoint, key, _ -> execute(clusterId, plan, actor, sink));
+    }
 
+    private Executed execute(UUID clusterId, QueryPlan plan, Actor actor, BrokerQueryExecutor.Sink sink) {
         AuditEvent event = audit.begin(
                 actor,
                 "sql.query",
@@ -111,8 +110,6 @@ public class SqlConsoleService {
         } catch (RuntimeException e) {
             audit.fail(event, e.getMessage());
             throw e;
-        } finally {
-            running.decrementAndGet();
         }
     }
 
@@ -152,18 +149,4 @@ public class SqlConsoleService {
 
     /** A run, with the plan it ran — the console shows both, and they must be the same one. */
     public record Executed(QueryPlan plan, QueryResult result) {}
-
-    /** One operator, too many queries at once. */
-    public static class TooManyQueriesException extends RuntimeException {
-        private final int cap;
-
-        public TooManyQueriesException(int cap) {
-            super("You already have " + cap + " queries running. Wait for one to finish, or stop it.");
-            this.cap = cap;
-        }
-
-        public int cap() {
-            return cap;
-        }
-    }
 }

@@ -3,12 +3,15 @@ package io.github.sudoitir.artemisstudio.platform.scrape;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import io.github.sudoitir.artemisstudio.support.TestPartitions;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -30,6 +33,14 @@ class MetricSamplesTest extends PostgresIntegrationTest {
 
     private final UUID clusterId = UUID.randomUUID();
     private final UUID nodeId = UUID.randomUUID();
+
+    /** The tests' fixed clock is long past, so its days have no partition unless made here. */
+    @BeforeEach
+    void partitionsForTheFixedClock() {
+        for (String day : new String[] {"2025-12-31", "2026-01-01", "2026-01-02"}) {
+            TestPartitions.ensure(jdbc.getJdbcTemplate(), "metric_sample", LocalDate.parse(day));
+        }
+    }
 
     @AfterEach
     void cleanUp() {
@@ -84,7 +95,7 @@ class MetricSamplesTest extends PostgresIntegrationTest {
         Map<String, Double> rates =
                 repository.latestRateBySubject(clusterId, "messagesAdded", base, base.plusSeconds(60));
 
-        assertThat(rates.get("orders")).isEqualTo(15.0); // 10/s on one node + 5/s on the other
+        assertThat(rates).containsEntry("orders", 15.0); // 10/s on one node + 5/s on the other
     }
 
     @Test

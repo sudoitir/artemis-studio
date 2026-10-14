@@ -9,6 +9,7 @@
 
 _Others_
 
+* `i.g.s.a.k.j.JobRunner`
 * `i.g.s.a.k.j.JobStatuses`
 |Bean references
 |* `i.g.s.a.k.s.OperatorHandoff` (in Security)

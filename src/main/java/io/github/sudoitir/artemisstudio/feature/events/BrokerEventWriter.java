@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
+import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEventSink;
@@ -44,6 +45,14 @@ public class BrokerEventWriter implements BrokerEventSink {
 
     private static final int BATCH_MAX = 500;
 
+    /**
+     * Held, for the transaction, by whoever is inserting. An identity value is taken when a row is inserted
+     * and becomes visible when its transaction commits, so two replicas flushing at once could commit a
+     * lower {@code seq} after a client was already sent a higher one, and a replay from that id would skip it.
+     * One writer at a time makes commit order follow {@code seq} (ADR-0197).
+     */
+    static final String WRITE_LOCK = "broker_event.write";
+
     private static final String INSERT = """
             INSERT INTO broker_event
               (occurred_at, type, address, routing_name, consumer_name, session_name,
@@ -58,6 +67,7 @@ public class BrokerEventWriter implements BrokerEventSink {
     private final ObjectProvider<BrokerEventPublisher> publisher;
 
     private final TransactionTemplate transaction;
+    private final PartitionProvisioner partitions;
 
     private final LinkedBlockingDeque<BrokerEvent> buffer = new LinkedBlockingDeque<>();
     private final Map<UUID, AtomicLong> dropped = new ConcurrentHashMap<>();
@@ -68,11 +78,13 @@ public class BrokerEventWriter implements BrokerEventSink {
             ObjectMapper mapper,
             ObjectProvider<BrokerEventPublisher> publisher,
             PlatformTransactionManager transactions,
+            PartitionProvisioner partitions,
             EventsProperties properties) {
         this.jdbc = jdbc;
         this.mapper = mapper;
         this.publisher = publisher;
         this.transaction = new TransactionTemplate(transactions);
+        this.partitions = partitions;
         this.capacity = Math.max(1, properties.bufferSize());
     }
 
@@ -108,7 +120,7 @@ public class BrokerEventWriter implements BrokerEventSink {
     }
 
     /**
-     * Scheduled by {@code JobScheduler} on the settings-driven flush interval, and run once
+     * Scheduled by {@code JobRunner} on the settings-driven flush interval, and run once
      * more at shutdown. A batch whose insert fails is put back at the head of the buffer,
      * in order, and the failure is rethrown so the job reports it: a database outage delays
      * events rather than discarding the batch that happened to be in flight. A batch the
@@ -122,7 +134,12 @@ public class BrokerEventWriter implements BrokerEventSink {
             return;
         }
         try {
-            transaction.executeWithoutResult(status -> write(batch));
+            // received_at is the database's clock, so only a missed maintenance run can leave a day without a
+            // partition.
+            partitions.retryingNoPartition(() -> {
+                transaction.executeWithoutResult(status -> write(batch));
+                return null;
+            });
         } catch (DataIntegrityViolationException _) {
             dropOrphans(batch);
         } catch (RuntimeException e) {
@@ -201,6 +218,7 @@ public class BrokerEventWriter implements BrokerEventSink {
      * only when that transaction commits, so a rollback announces nothing.
      */
     private void write(List<BrokerEvent> batch) {
+        jdbc.getJdbcOperations().query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> {}, WRITE_LOCK);
         SqlParameterSource[] params = batch.stream().map(this::params).toArray(SqlParameterSource[]::new);
         KeyHolder keys = new GeneratedKeyHolder();
         jdbc.batchUpdate(INSERT, params, keys, new String[] {"seq"});

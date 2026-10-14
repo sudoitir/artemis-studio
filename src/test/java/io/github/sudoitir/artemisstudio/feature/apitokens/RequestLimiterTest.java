@@ -69,13 +69,28 @@ class RequestLimiterTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void theInFlightLimitIsPerLimiter() {
-        RequestLimiter limiter = new RequestLimiter(jdbc);
+    void theInFlightLimitIsSharedByReplicas() {
+        RequestLimiter a = new RequestLimiter(jdbc);
+        RequestLimiter b = new RequestLimiter(jdbc);
         UUID key = UUID.randomUUID();
 
+        assertThat(a.enter(key, 2)).isTrue();
+        assertThat(b.enter(key, 2)).isTrue();
+        assertThat(a.enter(key, 2)).isFalse();
+        b.exit(key);
+        assertThat(a.enter(key, 2)).isTrue();
+    }
+
+    @Test
+    void anInFlightCountLapsesWithItsLease() {
+        RequestLimiter limiter = new RequestLimiter(jdbc);
+        UUID key = UUID.randomUUID();
         assertThat(limiter.enter(key, 1)).isTrue();
         assertThat(limiter.enter(key, 1)).isFalse();
-        limiter.exit(key);
+
+        // The replica that held the slot died: nobody exits, and the lease runs out.
+        jdbc.update("UPDATE request_in_flight SET expires_at = now() - interval '1 second' WHERE key = ?", key);
+
         assertThat(limiter.enter(key, 1)).isTrue();
     }
 }

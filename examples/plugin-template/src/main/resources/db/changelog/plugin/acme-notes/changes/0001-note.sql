@@ -6,7 +6,7 @@
 CREATE TABLE note (
     created_at timestamp with time zone NOT NULL,
     cluster_id uuid NOT NULL,
-    id uuid NOT NULL PRIMARY KEY,
+    id uuid DEFAULT uuidv7() NOT NULL PRIMARY KEY,
     queue text NOT NULL,
     author text NOT NULL,
     body text NOT NULL

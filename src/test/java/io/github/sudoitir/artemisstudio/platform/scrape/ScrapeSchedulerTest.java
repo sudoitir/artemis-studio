@@ -18,7 +18,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import io.github.sudoitir.artemisstudio.kernel.jobs.JobStatuses;
 import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerAccount;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnectionException;
@@ -92,7 +91,6 @@ class ScrapeSchedulerTest {
     io.github.sudoitir.artemisstudio.platform.clusters.ClusterOwnership ownership;
 
     ScrapeCycle scrapeCycle;
-    SweepCursor sweepCursor;
     ScrapeScheduler scheduler;
     ListAppender<ILoggingEvent> logs;
 
@@ -103,7 +101,6 @@ class ScrapeSchedulerTest {
         ((Logger) LoggerFactory.getLogger(ScrapeScheduler.class)).addAppender(logs);
         when(ownership.owns(any())).thenReturn(true);
         scrapeCycle = new ScrapeCycle(persist);
-        sweepCursor = new SweepCursor();
         scheduler = new ScrapeScheduler(
                 settings,
                 clusters,
@@ -112,17 +109,11 @@ class ScrapeSchedulerTest {
                 connections,
                 scrapeCycle,
                 persist,
-                sweepCursor,
                 upsert,
                 metrics,
                 new StreamSignals(org.mockito.Mockito.mock(SseHub.class)),
                 coreSubscriptions,
-                eventPublisher,
-                new JobStatuses(
-                        new net.javacrumbs.shedlock.core.DefaultLockingTaskExecutor(
-                                config -> java.util.Optional.of(() -> {})),
-                        io.micrometer.observation.ObservationRegistry.NOOP,
-                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
+                eventPublisher);
     }
 
     @AfterEach
@@ -509,6 +500,41 @@ class ScrapeSchedulerTest {
         verify(upsert, times(1)).upsertBatch(any());
         verify(metrics, times(1)).appendQueueSamples(any());
         verify(upsert, times(1)).reapStale(any(), any());
+    }
+
+    @Test
+    void tierCWalksEveryPageOfANodeInOneTickThenReaps() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+
+        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        // count=201: two pages of 200, both read in this one tick
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "list-queues-of-201.json", "list-queues-of-201.json"));
+
+        scheduler.tierC();
+
+        verify(upsert, times(2)).upsertBatch(any());
+        verify(upsert, times(1)).reapStale(any(), any());
+    }
+
+    @Test
+    void aWalkThatFailsPartWayReapsNothing() {
+        UUID clusterId = UUID.randomUUID();
+        ClusterEntity cluster = cluster("c");
+        BrokerNodeEntity n = node(clusterId, "n", GOOD);
+
+        when(clusters.clusters()).thenReturn(List.of(cluster));
+        when(clusters.nodes(cluster.getId())).thenReturn(List.of(n));
+        when(connections.forCluster(cluster.getId(), GOOD))
+                .thenReturn(client("search-broker.json", "list-queues-of-201.json", "list-queues-failed.json"));
+
+        scheduler.tierC();
+
+        verify(upsert, times(1)).upsertBatch(any());
+        verify(upsert, never()).reapStale(any(), any());
     }
 
     // The trigger itself — that a changed interval is honoured without a restart —

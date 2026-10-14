@@ -97,6 +97,21 @@ describe('useUserStream', () => {
     expect(stale(inboxKeys.count)).toBe(true);
   });
 
+  it('reconnects at once when the server says so, and catches up', async () => {
+    const { result } = renderHook(() => useUserStream(), { wrapper: Wrapper });
+    await settle();
+    seed();
+    await act(async () => {
+      EventSourceStub.emit('reconnect', Date.now(), 0);
+    });
+
+    // No timer has advanced: there was no backoff.
+    expect(EventSourceStub.instances).toHaveLength(2);
+    expect(EventSourceStub.instances[0]?.readyState).toBe(2);
+    expect(result.current).toBe('live');
+    expect(stale(inboxKeys.count)).toBe(true);
+  });
+
   it('waits until the tab is used again after a newer tab took its place', async () => {
     const { result } = renderHook(() => useUserStream(), { wrapper: Wrapper });
     await settle();

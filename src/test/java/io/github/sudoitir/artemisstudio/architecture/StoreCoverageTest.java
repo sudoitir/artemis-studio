@@ -48,7 +48,6 @@ class StoreCoverageTest extends PostgresIntegrationTest {
             Map.entry("plugin_installer", "configuration"),
             Map.entry("plugin_trusted_key", "configuration: one row per trusted publisher key"),
             Map.entry("plugin_trust_policy", "configuration: a single row"),
-            Map.entry("studio_boot", "dropped by kernel-plugin 0009; the changeset that created it stays"),
             Map.entry("plugin_upload", "trimmed to a day on every upload"),
             Map.entry("studio_config_property", "configuration"),
             Map.entry("studio_setting", "configuration: one row per overridden setting"),
@@ -110,8 +109,7 @@ class StoreCoverageTest extends PostgresIntegrationTest {
                 .collect(Collectors.toSet());
         Set<String> uncovered = new TreeSet<>();
         for (String table : createdTables()) {
-            boolean partition = table.endsWith("_default") && stored.contains(table.substring(0, table.length() - 8));
-            if (!stored.contains(table) && !partition && !BOUNDED_BY_DESIGN.containsKey(table)) {
+            if (!stored.contains(table) && !BOUNDED_BY_DESIGN.containsKey(table)) {
                 uncovered.add(table);
             }
         }

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerVersion.Support;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
@@ -42,17 +43,20 @@ class BrokerVersionTest {
         assertThat(BrokerVersion.support(null)).isEqualTo(Support.UNKNOWN);
     }
 
-    /** When the range moves, the pipeline moves with it: CI tests exactly the two ends. */
+    /**
+     * When the range moves, the pipeline moves with it: CI runs the suite against the newest tested broker and
+     * the broker tests against the oldest supported one, and no other.
+     */
     @Test
     void ciTestsBothEndsOfTheSupportedRange() throws Exception {
         String ci = Files.readString(Path.of(".github/workflows/ci.yml"));
-        var m = Pattern.compile("artemis: \\[([^\\]]*)]").matcher(ci);
-        assertThat(m.find()).as("the backend job's artemis matrix").isTrue();
-        assertThat(m.group(1).split(","))
-                .extracting(image -> {
-                    String tag = image.replaceAll("[\" ]", "");
-                    return tag.substring(tag.lastIndexOf(':') + 1);
-                })
-                .containsExactly(BrokerVersion.MINIMUM.toString(), BrokerVersion.LATEST_TESTED.toString());
+        var m = Pattern.compile("artemis: \"[^\"]*:([^\":]+)\"").matcher(ci);
+        var tags = new TreeSet<String>();
+        while (m.find()) {
+            tags.add(m.group(1));
+        }
+        assertThat(tags)
+                .as("the backend job's artemis images")
+                .containsExactlyInAnyOrder(BrokerVersion.MINIMUM.toString(), BrokerVersion.LATEST_TESTED.toString());
     }
 }

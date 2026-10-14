@@ -1,9 +1,8 @@
 --liquibase formatted sql
 
--- The feature/events module's schema as of the per-module re-baseline (ADR-0072), generated
--- from a database migrated by the previous changelog and split by owner. Column order
--- (non-negotiable #7), storage parameters, partitions and indexes are as they were.
--- Never edit this file once released; add a new changeset beside it.
+-- The feature/events module's schema (ADR-0192): the final shape of its tables, written in one file.
+-- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
+-- Until the first stable release a change edits this file, and operators recreate the database.
 
 --changeset artemis-studio:feature-events-0001-baseline splitStatements:true
 CREATE TABLE broker_event (
@@ -22,7 +21,7 @@ CREATE TABLE broker_event (
     cluster_id uuid NOT NULL,
     node_id uuid
 )
-WITH (fillfactor='100', autovacuum_vacuum_insert_scale_factor='0.0', autovacuum_vacuum_insert_threshold='5000');
+PARTITION BY RANGE (received_at);
 
 ALTER TABLE broker_event ALTER COLUMN seq ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME broker_event_seq_seq
@@ -33,18 +32,20 @@ ALTER TABLE broker_event ALTER COLUMN seq ADD GENERATED ALWAYS AS IDENTITY (
     CACHE 1
 );
 
-ALTER TABLE ONLY broker_event
-    ADD CONSTRAINT pk_broker_event PRIMARY KEY (seq);
+ALTER TABLE broker_event
+    ADD CONSTRAINT pk_broker_event PRIMARY KEY (seq, received_at);
 
 CREATE INDEX ix_broker_event_cluster_seq ON broker_event USING btree (cluster_id, seq DESC);
 
 CREATE INDEX ix_broker_event_cluster_time ON broker_event USING btree (cluster_id, occurred_at DESC);
 
+CREATE INDEX ix_broker_event_node_id ON broker_event USING btree (node_id);
+
 CREATE INDEX ix_broker_event_type ON broker_event USING btree (cluster_id, type, occurred_at DESC);
 
-ALTER TABLE ONLY broker_event
+ALTER TABLE broker_event
     ADD CONSTRAINT fk_broker_event_cluster FOREIGN KEY (cluster_id) REFERENCES cluster(id) ON DELETE CASCADE;
 
-ALTER TABLE ONLY broker_event
+ALTER TABLE broker_event
     ADD CONSTRAINT fk_broker_event_node FOREIGN KEY (node_id) REFERENCES broker_node(id) ON DELETE SET NULL;
 --rollback DROP TABLE IF EXISTS broker_event CASCADE;

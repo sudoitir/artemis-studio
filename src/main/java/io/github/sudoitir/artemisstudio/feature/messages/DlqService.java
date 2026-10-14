@@ -23,7 +23,6 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 /**
@@ -44,7 +43,6 @@ public class DlqService {
     private final ClusterAccessGuard clusterAccess;
     private final PermissionResolver permissions;
 
-    @Transactional(readOnly = true)
     public DlqView view(UUID clusterId) {
         clusterAccess.requireVisible(clusterId);
         ResourceFilter readableQueues = permissions.filter(clusterId, ResourceKind.QUEUE);

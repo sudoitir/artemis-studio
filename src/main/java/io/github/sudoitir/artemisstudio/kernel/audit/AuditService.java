@@ -3,6 +3,7 @@ package io.github.sudoitir.artemisstudio.kernel.audit;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.AuditRowWriter;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.artemisstudio.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ScopeHierarchy;
@@ -37,6 +38,7 @@ public class AuditService {
     static final String ROLLED_BACK = "The action was rolled back before its outcome was recorded.";
 
     private final AuditRowWriter writer;
+    private final PartitionProvisioner partitions;
     private final AuditEventRepository events;
     private final ObjectMapper mapper;
     private final ScopeHierarchy clusters;
@@ -52,8 +54,9 @@ public class AuditService {
             UUID nodeId,
             Map<String, ?> params,
             boolean dryRun) {
-        AuditEventEntity row = writer.insert(
-                entity(actor, action, new Subject(targetType, targetName, clusterId, nodeId), params, dryRun));
+        AuditEventEntity pending =
+                entity(actor, action, new Subject(targetType, targetName, clusterId, nodeId), params, dryRun);
+        AuditEventEntity row = insert(pending);
         failIfCallerRollsBack(row.getId());
         return row;
     }
@@ -73,7 +76,7 @@ public class AuditService {
         AuditEventEntity entity =
                 entity(actor, action, new Subject(targetType, targetName, clusterId, null), params, false);
         entity.markRefused(reason, 1);
-        return writer.insert(entity);
+        return insert(entity);
     }
 
     /** The request this event was opened for was refused: {@code REFUSED}, not left {@code PENDING}. */
@@ -84,6 +87,14 @@ public class AuditService {
     /** A refused event stands for {@code count} identical refusals now. */
     public void recount(AuditEvent event, long count) {
         writer.recount(event.getId(), count);
+    }
+
+    /**
+     * The row commits on its own, so a month without a partition is created and the insert tried once more
+     * (ADR-0193). Studio makes the partitions of the coming months ahead, so this is a missed maintenance run.
+     */
+    private AuditEventEntity insert(AuditEventEntity row) {
+        return partitions.retryingNoPartition(() -> writer.insert(row));
     }
 
     /** What an event is about, as the caller names it. */

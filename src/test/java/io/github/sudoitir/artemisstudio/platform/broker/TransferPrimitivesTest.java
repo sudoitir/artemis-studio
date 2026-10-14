@@ -51,7 +51,8 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
         relay = new CoreRelay(
                 new CoreConnectionFactory(
                         new BrokerProperties(Duration.ofSeconds(5), Duration.ofSeconds(10), 2_000),
-                        org.mockito.Mockito.mock(SslBundles.class)),
+                        org.mockito.Mockito.mock(SslBundles.class),
+                        BrokerCallGuard.OFF),
                 CoreObservations.none());
         suffix = Long.toString(System.nanoTime());
     }

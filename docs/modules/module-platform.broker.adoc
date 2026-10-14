@@ -22,6 +22,7 @@ _Others_
 
 * `i.g.s.a.p.b.AcceptanceProbe`
 * `i.g.s.a.p.b.BrokerAccountRoles`
+* `i.g.s.a.p.b.BrokerCallGuard`
 * `i.g.s.a.p.b.BrokerClientFactory`
 * `i.g.s.a.p.b.BrokerConnections`
 * `i.g.s.a.p.b.BrokerConnectors`
@@ -45,7 +46,8 @@ _Others_
 * `i.g.s.a.p.b.NotificationMapper`
 * `i.g.s.a.p.b.StagingQueues`
 |Bean references
-|* `i.g.s.a.k.j.JobStatuses` (in Scheduled jobs)
+|* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
+* `i.g.s.a.k.j.JobStatuses` (in Scheduled jobs)
 |Events listened to
 |* `i.g.s.a.k.r.ReplicaSignal` 
 * `org.springframework.boot.context.event.ApplicationReadyEvent` 

@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -44,11 +45,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.ResponseCreator;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
-@Transactional
 class TopologyDiscoveryTest extends PostgresIntegrationTest {
 
     private static final String SEED_URL = "http://localhost:8161/console/jolokia";
@@ -68,6 +67,13 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
 
     @MockitoBean
     BrokerClientFactory clientFactory;
+
+    /** Not a rolled-back test transaction: discovery calls brokers, and a broker call inside one is refused. */
+    @AfterEach
+    void removeWhatTheTestSaved() {
+        nodes.deleteAll();
+        clusters.deleteAll();
+    }
 
     private UUID newCluster() {
         return clusters.save(new ClusterEntity("t-" + UUID.randomUUID(), null, null))

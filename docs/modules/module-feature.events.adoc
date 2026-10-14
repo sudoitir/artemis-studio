@@ -28,7 +28,12 @@ _Others_
 |Bean references
 |* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
+* `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.k.c.HeavyRequests` (in Core)
+* `i.g.s.a.k.c.ReadRouting` (in Core)
 * `i.g.s.a.p.g.ContentPolicy` (in Data governance)
+* `i.g.s.a.k.l.partition.PartitionDrops` (in Data lifecycle)
+* `i.g.s.a.k.c.PartitionProvisioner` (in Core)
 * `i.g.s.a.k.r.StudioBus` (in Replicas)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
 |Events listened to

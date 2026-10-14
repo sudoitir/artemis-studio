@@ -42,14 +42,16 @@ stored it, but never compared it.
   the same verdict. A release newer than tested is accepted with a warning. Each node's
   `versionSupport` is derived on read, so an upgrade or a node found later needs no new write path; a
   later node below the minimum is flagged and the cluster stays registered.
-- **CI runs the backend suite at both ends** of the range (a matrix over the three shards), with the
-  image from `-Dartemis.image`. `BrokerVersionTest` fails when the matrix and the constants disagree.
+- **CI tests both ends** of the range, with the image from `-Dartemis.image`: the whole backend suite
+  in three shards against the newest tested release, and the classes that start a real broker
+  (`ArtemisIntegrationTest`, `ArtemisBrokers`) on a fourth runner against the minimum. Nothing else
+  depends on the broker's version. `BrokerVersionTest` fails when the images and the constants disagree.
 
 ## Consequences
 
 - Operators get a documented range (`site/src/guide/supported-versions.md`) and a refusal at
   registration instead of a mid-feature failure.
-- The backend job runs on six runners instead of three; they run in parallel.
+- The backend job runs on four runners in parallel; only the broker tests run twice.
 - `BrokerCommands.Command` is plugin API, and its new `requires` component changes its canonical
   constructor, so the plugin contract moves to 6 (ADR-0112) and plugins are rebuilt against it. A
   plugin's commands can declare a version gate like Studio's own.

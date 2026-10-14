@@ -27,6 +27,7 @@ import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.NodeRole;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.NodeSampleState;
 import io.github.sudoitir.artemisstudio.feature.flow.web.FlowViews.RateSource;
 import io.github.sudoitir.artemisstudio.feature.queues.DivertOperations;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyRequests;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
 import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
@@ -181,7 +182,12 @@ public class FlowGraphService {
                 drawnNodes,
                 drawnEdges,
                 kpis,
-                new FlowTotals(all.size(), chosen.size(), query.limit(), query.clamped()),
+                new FlowTotals(
+                        all.size(),
+                        chosen.size(),
+                        query.limit(),
+                        query.clamped(),
+                        selection.limited() ? HeavyRequests.Bound.ROWS : null),
                 selection.focusView(),
                 sampledAt,
                 samples.isEmpty(),
@@ -346,17 +352,17 @@ public class FlowGraphService {
 
     private static Selection select(FlowQuery query, List<Path> all, List<Path> ranked, Picture picture) {
         if (query.focus() == null) {
-            return new Selection(ranked.stream().limit(query.limit()).toList(), null);
+            return new Selection(ranked.stream().limit(query.limit()).toList(), null, ranked.size() > query.limit());
         }
         Set<Path> reach = neighbourhood(query.focus(), query.hops(), all, picture.producers(), picture.consumers());
-        List<Path> chosen =
-                ranked.stream().filter(reach::contains).limit(query.limit()).toList();
+        List<Path> candidates = ranked.stream().filter(reach::contains).toList();
+        List<Path> chosen = candidates.stream().limit(query.limit()).toList();
         FlowFocusView focusView = new FlowFocusView(
                 query.focus().kind().name().toLowerCase(Locale.ROOT),
                 query.focus().name(),
                 query.hops(),
                 !reach.isEmpty());
-        return new Selection(chosen, focusView);
+        return new Selection(chosen, focusView, candidates.size() > query.limit());
     }
 
     private static Set<String> knownAddresses(Picture picture) {
@@ -1287,7 +1293,7 @@ public class FlowGraphService {
 
     private record NodeNames(Map<UUID, String> byId, Map<String, String> byArtemisId) {}
 
-    private record Selection(List<Path> chosen, FlowFocusView focusView) {}
+    private record Selection(List<Path> chosen, FlowFocusView focusView, boolean limited) {}
 
     /** The store-and-forward hops, diverts, bridges and failure addresses the routes add up to. */
     private static final class Routing {

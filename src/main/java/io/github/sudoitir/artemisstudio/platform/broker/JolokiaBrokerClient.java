@@ -64,11 +64,14 @@ public class JolokiaBrokerClient {
      */
     private final NodeCallLimiter limiter;
 
+    /** Refuses a request made inside a database transaction where the application switches that on. */
+    private final BrokerCallGuard guard;
+
     /** Operations one permit covers in a batch request, so batching cannot exceed the ceiling. */
     static final int OPERATIONS_PER_PERMIT = 50;
 
     public JolokiaBrokerClient(RestClient restClient, String jolokiaUrl, ObjectMapper mapper) {
-        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), null, null, null);
+        this(restClient, jolokiaUrl, mapper, new ConcurrentHashMap<>(), JolokiaClientHooks.NONE);
     }
 
     public JolokiaBrokerClient(
@@ -76,16 +79,15 @@ public class JolokiaBrokerClient {
             String jolokiaUrl,
             ObjectMapper mapper,
             Map<String, String> sharedBrokerObjectNames,
-            ClockOffsetRegistry clockOffsets,
-            NodeCallHealth callHealth,
-            NodeCallLimiter limiter) {
+            JolokiaClientHooks hooks) {
         this.restClient = restClient;
+        this.guard = hooks.guard();
         this.jolokiaUrl = jolokiaUrl;
         this.mapper = mapper;
         this.sharedBrokerObjectNames = sharedBrokerObjectNames;
-        this.clockOffsets = clockOffsets;
-        this.callHealth = callHealth;
-        this.limiter = limiter;
+        this.clockOffsets = hooks.clockOffsets();
+        this.callHealth = hooks.callHealth();
+        this.limiter = hooks.limiter();
     }
 
     public String jolokiaUrl() {
@@ -93,15 +95,16 @@ public class JolokiaBrokerClient {
     }
 
     /** Wait for the node's ceiling: one permit per request, and one per {@value #OPERATIONS_PER_PERMIT} operations. */
-    private void permit(int operations) {
+    private void permit(int operations, String kind) {
         if (limiter != null) {
-            limiter.acquire(jolokiaUrl, Math.max(1, (operations + OPERATIONS_PER_PERMIT - 1) / OPERATIONS_PER_PERMIT));
+            limiter.acquire(
+                    jolokiaUrl, Math.max(1, (operations + OPERATIONS_PER_PERMIT - 1) / OPERATIONS_PER_PERMIT), kind);
         }
     }
 
     /** Send a bulk request; the returned list is positionally aligned with {@code requests}. */
     public List<JolokiaResponse> batch(List<JolokiaRequest> requests) {
-        permit(requests.size());
+        permit(requests.size(), "batch");
         long t0 = studioMillis();
         JolokiaResponse[] body = post(requests, JolokiaResponse[].class);
         long t1 = studioMillis();
@@ -126,7 +129,7 @@ public class JolokiaBrokerClient {
 
     /** Send a single request. */
     public JolokiaResponse single(JolokiaRequest request) {
-        permit(1);
+        permit(1, "single");
         long t0 = studioMillis();
         JolokiaResponse body = post(request, JolokiaResponse.class);
         long t1 = studioMillis();
@@ -219,6 +222,7 @@ public class JolokiaBrokerClient {
     }
 
     private <T> T post(Object payload, Class<T> responseType) {
+        guard.check();
         try {
             T body = exchange(payload, responseType);
             if (callHealth != null) {

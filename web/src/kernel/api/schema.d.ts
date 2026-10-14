@@ -5882,12 +5882,35 @@ export interface components {
             lastStart?: string | null;
             /** Format: date-time */
             lastEnd?: string | null;
-            /** @description The most recent run's failure; absent once a later run succeeds. */
+            /**
+             * @description How the most recent run ended; absent until one has.
+             * @enum {string|null}
+             */
+            lastOutcome?: "SUCCEEDED" | "FAILED" | "TIMED_OUT" | "LOCK_LOST" | "INTERRUPTED" | null;
+            /** @description Why the most recent run did not succeed; absent once a later run succeeds. */
             lastError?: string | null;
             /** Format: int64 */
             runs: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Runs that did not succeed, for any reason.
+             */
             failures: number;
+            /**
+             * Format: int64
+             * @description Runs interrupted for exceeding the job's timeout.
+             */
+            timeouts: number;
+            /**
+             * Format: int64
+             * @description Runs interrupted because the installation-wide lock could not be extended.
+             */
+            lockLost: number;
+            /**
+             * Format: int64
+             * @description Runs that lasted past the time the next was due.
+             */
+            overruns: number;
             /**
              * Format: date-time
              * @description When the scheduler next intends to start it.
@@ -5898,7 +5921,9 @@ export interface components {
              * @description When this instance last found an installation-wide run held by another instance.
              */
             lastSkippedElsewhere?: string | null;
-            /** @description Whether no run has finished, here or elsewhere, within three of the job's intervals. */
+            /** @description Why the job's schedule cannot be read; the job does not run until it can. */
+            invalidSchedule?: string | null;
+            /** @description Whether the schedule is invalid, or no run has finished, here or elsewhere, within three of the job's intervals. */
             degraded: boolean;
         };
         PagedViewJobStatusView: {
@@ -7233,6 +7258,11 @@ export interface components {
             /** Format: int32 */
             limit: number;
             clamped: boolean;
+            /**
+             * @description ROWS when more paths matched than the limit, so some are not drawn.
+             * @enum {string|null}
+             */
+            bound?: "ROWS" | "TIME" | null;
         };
         BrokerEventPageView: {
             data: components["schemas"]["BrokerEventView"][];
@@ -7240,9 +7270,16 @@ export interface components {
             page: number;
             /** Format: int32 */
             pageSize: number;
-            /** Format: int64 */
-            count: number;
+            /**
+             * Format: int64
+             * @description The total; null when the page was reached by cursor.
+             */
+            count?: number | null;
             hasNext: boolean;
+            /** @description Pass as `after` for the page that follows; null on the last page. */
+            next?: string | null;
+            /** @description Read from a replica that may be a little behind. */
+            mayLag: boolean;
             /** Format: int64 */
             dropped: number;
             /** Format: date-time */
@@ -7771,7 +7808,7 @@ export interface components {
             /** Format: uuid */
             nodeId?: string | null;
         };
-        PagedViewAuditEventView: {
+        HistoryPageAuditEventView: {
             data: components["schemas"]["AuditEventView"][];
             /** Format: int32 */
             page: number;
@@ -7779,10 +7816,14 @@ export interface components {
             pageSize: number;
             /**
              * Format: int64
-             * @description The total across all pages; null when it is not known.
+             * @description The total; null when the page was reached by cursor.
              */
             count?: number | null;
             hasNext: boolean;
+            /** @description Pass as `after` for the page that follows; null on the last page. */
+            next?: string | null;
+            /** @description Read from a replica that may be a little behind. */
+            mayLag: boolean;
         };
         PagedViewAlertRuleView: {
             data: components["schemas"]["AlertRuleView"][];
@@ -7836,6 +7877,23 @@ export interface components {
             startedAt: string;
             /** Format: date-time */
             resolvedAt?: string | null;
+        };
+        HistoryPageAlertFiringView: {
+            data: components["schemas"]["AlertFiringView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total; null when the page was reached by cursor.
+             */
+            count?: number | null;
+            hasNext: boolean;
+            /** @description Pass as `after` for the page that follows; null on the last page. */
+            next?: string | null;
+            /** @description Read from a replica that may be a little behind. */
+            mayLag: boolean;
         };
         PagedViewAlertFiringView: {
             data: components["schemas"]["AlertFiringView"][];
@@ -8033,6 +8091,19 @@ export interface components {
             allowedAt?: string | null;
             command: string;
             unreleased: string[];
+        };
+        PagedViewAuditEventView: {
+            data: components["schemas"]["AuditEventView"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /**
+             * Format: int64
+             * @description The total across all pages; null when it is not known.
+             */
+            count?: number | null;
+            hasNext: boolean;
         };
         TrustedKeysView: {
             keys: components["schemas"]["TrustedKeyView"][];
@@ -20492,6 +20563,7 @@ export interface operations {
                 to?: string;
                 page?: number;
                 size?: number;
+                after?: string;
             };
             header?: never;
             path: {
@@ -21733,6 +21805,7 @@ export interface operations {
                 to?: string;
                 page?: number;
                 size?: number;
+                after?: string;
             };
             header?: never;
             path: {
@@ -21748,7 +21821,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PagedViewAuditEventView"];
+                    "*/*": components["schemas"]["HistoryPageAuditEventView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -21976,6 +22049,7 @@ export interface operations {
             query?: {
                 page?: number;
                 size?: number;
+                after?: string;
             };
             header?: never;
             path: {
@@ -21991,7 +22065,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["PagedViewAlertFiringView"];
+                    "*/*": components["schemas"]["HistoryPageAlertFiringView"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */

@@ -1,8 +1,10 @@
 # ADR-0018: The SSE hub is `SseEmitter` on Spring MVC, carrying poll-derived change signals
 
-- **Status**: accepted (extended by [ADR-0027](0027-sse-events-topic-carries-data.md)); partly superseded by [ADR-0152](0152-replicas-coordinate-through-postgres.md)
+- **Status**: accepted (extended by [ADR-0027](0027-sse-events-topic-carries-data.md)); partly superseded by [ADR-0152](0152-replicas-coordinate-through-postgres.md); amended by [ADR-0197](0197-slow-stream-subscribers-are-coalesced-then-dropped.md)
 - **Date**: 2026-09-03
 - **Deciders**: Mahdi Amirabdollahi
+
+> **Amended.** [ADR-0197](0197-slow-stream-subscribers-are-coalesced-then-dropped.md) bounds each subscriber's queue by size as well as count, coalesces queued signals, and closes a subscriber that keeps falling behind with `reconnect`.
 
 > **Partly superseded.** [ADR-0152](0152-replicas-coordinate-through-postgres.md) replaces the per-instance registry: events now reach every replica through the Postgres bus.
 

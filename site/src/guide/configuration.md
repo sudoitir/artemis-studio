@@ -11,6 +11,7 @@ description: The environment variables Artemis Studio reads, which are required,
 |---|---|---|
 | `ARTEMIS_STUDIO_DB_URL` | yes | `jdbc:postgresql://host:5432/artemis_studio` |
 | `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | yes | — |
+| `ARTEMIS_STUDIO_DB_POOL_SIZE` | no | Connections each replica keeps open, 16 by default. Every replica together, plus its listening connection and the plugins' pools, must stay under the server's `max_connections`. A request that waits more than 5 s for a connection fails; a query that runs past 30 s is cancelled, except the SQL console, exports and maintenance, which raise it for their own transaction |
 | `ARTEMIS_STUDIO_SECRET_KEY` | with the `env` provider | The key that protects every stored secret. Base64 of **exactly 32 bytes**, or the application will not start: `openssl rand -base64 32`. To hold several versions, see [Secrets and key rotation](#secrets-and-key-rotation) |
 | `ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE` | for capture | The broker role Studio's own broker user holds. Capture queues are restricted to it, and message capture is refused until it is set. Use a dedicated role, not the default `amq` |
 | `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | no | Decrypts `{cipher}` values stored in `studio_config_property`. A **different** key from `ARTEMIS_STUDIO_SECRET_KEY` — do not reuse it |
@@ -166,6 +167,23 @@ for any user from **Administration → Users → Sessions**. See
 PostgreSQL, with the schema owned by Liquibase and migrated on startup. Studio
 validates the mapping against the migrated schema at boot rather than generating
 DDL, so a schema that has drifted fails loudly instead of quietly.
+
+Studio also runs on a managed or highly available PostgreSQL 18 that it does not administer, in a schema
+of your choosing (`currentSchema` in the JDBC URL), as a role that is not a superuser. At boot it checks the
+version, the privileges and that the connection keeps its session (so a pooler must be in session mode), and
+refuses to start with the fix named when something is missing. The guide
+[Running Studio on an external PostgreSQL](/reference/external-database) covers privileges, TLS, poolers,
+failover URLs (`targetServerType=primary`) and the connection budget.
+
+An optional read replica serves heavy history reads and exports while it is close enough behind the primary,
+and the primary serves them otherwise:
+
+| Property | Default | Notes |
+|---|---|---|
+| `studio.database.read.url` | none | The standby's JDBC URL. Unset means every read uses the primary |
+| `studio.database.read.username` / `.password` | the primary's | The standby's credentials |
+| `studio.database.read.pool-size` | `8` | Connections each Studio replica keeps to the standby |
+| `studio.database.read.max-lag` | `30s` | The most the standby may lag and still serve a read. A response served from it says it may lag |
 
 Postgres owns configuration, users and the audit trail. The broker-derived
 tables — `queue_snapshot`, `metric_sample` — are a **disposable cache**: losing

@@ -45,11 +45,11 @@ class StorageHealthIntegrationTest extends PostgresIntegrationTest {
     @Test
     void aMissingUpcomingDailyPartitionIsReported() {
         Instant now = Instant.parse("2026-09-30T12:00:00Z");
-        Set<String> children = Set.of("t_20260930", "t_20261001", "t_20261003", "t_default");
+        Set<String> children = Set.of("t_p20260930", "t_p20261001", "t_p20261003");
 
         assertThat(StorageHealthService.missingPartitions(children, "t", now))
                 .containsExactly(LocalDate.parse("2026-10-02"));
-        assertThat(StorageHealthService.missingPartitions(Set.of("t_default"), "t", now))
+        assertThat(StorageHealthService.missingPartitions(Set.of("other_p20260930"), "t", now))
                 .isEmpty();
     }
 }

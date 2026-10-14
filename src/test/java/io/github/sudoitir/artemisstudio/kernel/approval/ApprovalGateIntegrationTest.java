@@ -219,6 +219,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         state.count = 7;
         state.purgeVersion = 1;
         service.purged.clear();
+        service.duringPurge = () -> {};
         jdbc.update("UPDATE plugin_install SET approval_provider = false");
         installs.findById(PROVIDER).ifPresent(installs::delete);
         sha = pluginStore.put(("approval-gate-test-" + UUID.randomUUID()).getBytes());
@@ -673,6 +674,25 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         executions.runApproved(id);
         executions.runDue(Duration.ZERO);
         assertThat(service.purged).containsExactly("orders");
+    }
+
+    @Test
+    void anApprovedRunInterruptedWhileRunningEndsWithAnUnknownOutcomeNotAFailure() {
+        Person alice = requester();
+        Person bob = approver();
+        approversAre(bob);
+        UUID id = hold(alice, "orders");
+        service.duringPurge = () -> {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("stopping");
+        };
+
+        decide(bob, id, Vote.APPROVE, null);
+
+        awaitState(id, HeldState.OUTCOME_UNKNOWN);
+        assertThat(detail(id)).contains("Interrupted");
+        assertThat(timeline(id)).containsExactly("REQUESTED", "APPROVED", "EXECUTING", "OUTCOME_UNKNOWN");
+        assertThat(service.purged).isEmpty();
     }
 
     @Test

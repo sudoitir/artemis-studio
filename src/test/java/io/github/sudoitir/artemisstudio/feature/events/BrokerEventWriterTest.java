@@ -1,15 +1,20 @@
 package io.github.sudoitir.artemisstudio.feature.events;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
+import io.github.sudoitir.artemisstudio.kernel.core.PartitionProvisioner;
 import io.github.sudoitir.artemisstudio.kernel.replica.ReplicaSignal;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerEvent;
 import io.github.sudoitir.artemisstudio.support.PostgresIntegrationTest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +51,9 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
     @Autowired
     PlatformTransactionManager transactions;
 
+    @Autowired
+    PartitionProvisioner partitions;
+
     private final UUID clusterId = UUID.randomUUID();
     private BrokerEventWriter writer;
 
@@ -54,7 +62,7 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
         jdbc.update(
                 "INSERT INTO cluster (id, name) VALUES (:id, :name)",
                 Map.of("id", clusterId, "name", "writer-" + clusterId));
-        writer = new BrokerEventWriter(jdbc, mapper, publisher, transactions, properties);
+        writer = new BrokerEventWriter(jdbc, mapper, publisher, transactions, partitions, properties);
     }
 
     @AfterEach
@@ -114,7 +122,8 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
                                 org.springframework.jdbc.core.namedparam.SqlParameterSource[].class),
                         org.mockito.ArgumentMatchers.any(org.springframework.jdbc.support.KeyHolder.class),
                         org.mockito.ArgumentMatchers.any(String[].class));
-        BrokerEventWriter flaky = new BrokerEventWriter(failingOnce, mapper, publisher, transactions, properties);
+        BrokerEventWriter flaky =
+                new BrokerEventWriter(failingOnce, mapper, publisher, transactions, partitions, properties);
         flaky.accept(event("CONSUMER_CREATED"));
         flaky.accept(event("SESSION_CREATED"));
 
@@ -133,12 +142,49 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aFlushWaitsForAnotherWriterSoSeqFollowsCommitOrder() throws Exception {
+        writer.accept(event("QUEUE_CREATED"));
+        CountDownLatch holding = new CountDownLatch(1);
+        CountDownLatch commit = new CountDownLatch(1);
+        Thread other = Thread.ofVirtual()
+                .start(() -> new TransactionTemplate(transactions).executeWithoutResult(s -> {
+                    jdbc.getJdbcOperations()
+                            .query("SELECT pg_advisory_xact_lock(hashtext(?))", rs -> {}, BrokerEventWriter.WRITE_LOCK);
+                    holding.countDown();
+                    try {
+                        commit.await();
+                    } catch (InterruptedException _) {
+                        Thread.currentThread().interrupt();
+                    }
+                }));
+        assertThat(holding.await(5, TimeUnit.SECONDS)).isTrue();
+
+        Thread flushing = Thread.ofVirtual().start(writer::flush);
+        await().during(Duration.ofMillis(500))
+                .atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertThat(count())
+                        .as("rows written while another writer holds the lock")
+                        .isZero());
+
+        commit.countDown();
+        flushing.join(5_000);
+        other.join(5_000);
+        assertThat(count()).isEqualTo(1);
+    }
+
+    private int count() {
+        return jdbc.getJdbcOperations()
+                .queryForObject("SELECT count(*) FROM broker_event WHERE cluster_id = ?", Integer.class, clusterId);
+    }
+
+    @Test
     void thePublisherGetsOnlyItsOwnRows() {
         List<String> published = new ArrayList<>();
         ObjectProvider<BrokerEventPublisher> capturing = Mockito.mock();
         Mockito.when(capturing.getIfAvailable())
                 .thenReturn((seqs, batch) -> batch.forEach(e -> published.add(e.type())));
-        BrokerEventWriter capturingWriter = new BrokerEventWriter(jdbc, mapper, capturing, transactions, properties);
+        BrokerEventWriter capturingWriter =
+                new BrokerEventWriter(jdbc, mapper, capturing, transactions, partitions, properties);
         TransactionTemplate tx = new TransactionTemplate(transactions);
         capturingWriter.accept(event("CONSUMER_CREATED"));
         capturingWriter.accept(event("SESSION_CREATED"));

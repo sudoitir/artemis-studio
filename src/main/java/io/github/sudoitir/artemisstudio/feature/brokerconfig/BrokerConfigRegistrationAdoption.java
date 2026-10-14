@@ -1,5 +1,6 @@
 package io.github.sudoitir.artemisstudio.feature.brokerconfig;
 
+import io.github.sudoitir.artemisstudio.kernel.core.ResourceForbiddenException;
 import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
 import io.github.sudoitir.artemisstudio.platform.clusters.RegistrationAdoption;
 import java.util.List;
@@ -41,12 +42,25 @@ class BrokerConfigRegistrationAdoption implements RegistrationAdoption {
         });
     }
 
+    private record Read(BrokerConfigService.Adoption adoption) implements Reading {}
+
     @Override
-    public void adopt(UUID clusterId) {
-        BrokerConfigService.Adoption adoption = config.adopt(clusterId);
+    public Optional<Reading> read(List<LiveNode> nodes) {
+        if (!permissions.can(BrokerConfigPermissions.CONFIG_WRITE)) {
+            throw new ResourceForbiddenException(
+                    BrokerConfigPermissions.CONFIG_WRITE,
+                    "cluster",
+                    "being registered",
+                    "Adopting the running configuration needs " + BrokerConfigPermissions.CONFIG_WRITE + ".");
+        }
+        return config.previewAdoption(nodes).map(Read::new);
+    }
+
+    @Override
+    public void adopt(UUID clusterId, Reading reading) {
         config.save(
                 clusterId,
-                adoption.document(),
+                ((Read) reading).adoption().document(),
                 null,
                 "Adopted from the running cluster when it was registered",
                 BrokerConfigService.Source.ADOPT);

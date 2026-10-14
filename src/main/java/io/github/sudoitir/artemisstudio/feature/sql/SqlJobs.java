@@ -3,8 +3,8 @@ package io.github.sudoitir.artemisstudio.feature.sql;
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownPhases;
 import io.github.sudoitir.artemisstudio.kernel.core.ShutdownStep;
 import io.github.sudoitir.artemisstudio.kernel.jobs.ScheduledJob;
-import io.github.sudoitir.artemisstudio.kernel.settings.SettingsService;
-import io.github.sudoitir.artemisstudio.platform.scrape.ScrapeSettings;
+import io.github.sudoitir.artemisstudio.kernel.lifecycle.partition.PartitionSpec;
+import java.time.Duration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -76,18 +76,19 @@ class SqlJobs {
                 "capture-flush", "sql", ScheduledJob.Scope.INSTANCE, properties::flushInterval, consumer::flushAll);
     }
 
-    /**
-     * One partition-maintenance hour for both partitioned tables — the setting is
-     * "when Studio may take brief exclusive locks on its own tables", and there is no
-     * reason for the index to want a different answer than the metrics.
-     */
     @Bean
-    ScheduledJob messageIndexPartitionJob(MessageIndexPartitionMaintainer maintainer, SettingsService settings) {
-        return ScheduledJob.cron(
-                "message-index-partitions",
+    PartitionSpec messageIndexPartitions() {
+        return MessageIndexStore.PARTITIONS;
+    }
+
+    /** Keeps each subscription's own, shorter retention on the shared index (ADR-0059). */
+    @Bean
+    ScheduledJob messageIndexRetentionJob(MessageIndexRetention retention) {
+        return ScheduledJob.fixedDelay(
+                "message-index-retention",
                 "sql",
                 ScheduledJob.Scope.INSTALLATION,
-                () -> settings.value(ScrapeSettings.METRIC_PARTITION_CRON),
-                maintainer::maintain);
+                () -> Duration.ofHours(1),
+                retention::expire);
     }
 }

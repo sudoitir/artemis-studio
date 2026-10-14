@@ -1,9 +1,8 @@
 --liquibase formatted sql
 
--- The kernel/settings module's schema as of the per-module re-baseline (ADR-0072), generated
--- from a database migrated by the previous changelog and split by owner. Column order
--- (non-negotiable #7), storage parameters, partitions and indexes are as they were.
--- Never edit this file once released; add a new changeset beside it.
+-- The kernel/settings module's schema (ADR-0192): the final shape of its tables, written in one file.
+-- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
+-- Until the first stable release a change edits this file, and operators recreate the database.
 
 --changeset artemis-studio:kernel-settings-0001-baseline splitStatements:true
 CREATE TABLE studio_config_property (
@@ -26,5 +25,5 @@ ALTER TABLE ONLY studio_config_property
 
 ALTER TABLE ONLY studio_setting
     ADD CONSTRAINT pk_studio_setting PRIMARY KEY (key);
---rollback DROP TABLE IF EXISTS studio_config_property CASCADE;
 --rollback DROP TABLE IF EXISTS studio_setting CASCADE;
+--rollback DROP TABLE IF EXISTS studio_config_property CASCADE;

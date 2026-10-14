@@ -36,7 +36,9 @@ Run `just setup` again later to move the version pin forward.
 
 ```bash
 base=https://raw.githubusercontent.com/sudoitir/artemis-studio/main/deploy/compose
+mkdir -p studio/compose studio/postgres && cd studio/compose   # the compose file mounts ../postgres
 curl -sO "$base/compose.prod.yaml"
+for f in postgresql.conf 10-pg-stat-statements.sql; do curl -s "${base%/compose}/postgres/$f" -o "../postgres/$f"; done
 curl -s "$base/.env.example" -o .env   # then edit it — see Configuration
 docker compose -f compose.prod.yaml --env-file .env up -d
 ```

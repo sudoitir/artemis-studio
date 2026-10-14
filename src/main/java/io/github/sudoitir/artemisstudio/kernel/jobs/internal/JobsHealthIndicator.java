@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * The {@code jobs} contributor: degraded when any job has not finished a run within three of
- * its own intervals, naming the job and when it last completed.
+ * its own intervals or whose schedule cannot be read, naming the job and when it last completed or why.
  */
 @Component
 @RequiredArgsConstructor
@@ -28,7 +28,9 @@ class JobsHealthIndicator extends AbstractHealthIndicator {
         List<JobStatus> all = statuses.all();
         Map<String, String> stalled = new LinkedHashMap<>();
         for (JobStatus s : all) {
-            if (s.degraded(now)) {
+            if (s.invalidSchedule() != null) {
+                stalled.put(s.id(), "invalid schedule: " + s.invalidSchedule());
+            } else if (s.degraded(now)) {
                 stalled.put(
                         s.id(),
                         (s.lastEnd() != null

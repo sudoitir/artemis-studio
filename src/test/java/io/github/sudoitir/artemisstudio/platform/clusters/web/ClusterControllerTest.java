@@ -333,6 +333,8 @@ class ClusterControllerTest extends PostgresIntegrationTest {
     @Test
     void registeringWithTheAdoptionOnAdoptsInTheRegistrationsTransaction() throws Exception {
         when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+        RegistrationAdoption.Reading reading = new RegistrationAdoption.Reading() {};
+        when(adoption.read(any())).thenReturn(Optional.of(reading));
 
         mvc.perform(post("/api/v1/clusters")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -343,7 +345,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.connection.seedUrls[0]").value(SEED));
 
         UUID clusterId = clusters.findAll().get(0).getId();
-        verify(adoption).adopt(clusterId);
+        verify(adoption).adopt(clusterId, reading);
         assertThat(audits.findAll())
                 .filteredOn(e -> "REGISTER_CLUSTER".equals(e.getAction()))
                 .singleElement()
@@ -359,15 +361,29 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                         .content(registerBody(false)))
                 .andExpect(status().isCreated());
 
-        verify(adoption, never()).adopt(any());
+        verify(adoption, never()).adopt(any(), any());
+    }
+
+    @Test
+    void anAdoptionWithNoReadableNodeIsRefusedBeforeAnythingIsSaved() throws Exception {
+        when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
+        when(adoption.read(any())).thenReturn(Optional.empty());
+
+        mvc.perform(post("/api/v1/clusters")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody(true)))
+                .andExpect(status().isConflict());
+
+        assertThat(clusters.count()).isZero();
     }
 
     @Test
     void anAdoptionThatFailsLeavesNoClusterBehind() throws Exception {
         when(clientFactory.forNode(any(), eq(SEED))).thenReturn(client(SEED, registerSequence()));
-        doThrow(new ConflictException("no-live-node", "No live node could be read, so there is nothing to adopt."))
+        when(adoption.read(any())).thenReturn(Optional.of(new RegistrationAdoption.Reading() {}));
+        doThrow(new ConflictException("adoption-failed", "The first revision could not be saved."))
                 .when(adoption)
-                .adopt(any());
+                .adopt(any(), any());
 
         mvc.perform(post("/api/v1/clusters")
                         .contentType(MediaType.APPLICATION_JSON)

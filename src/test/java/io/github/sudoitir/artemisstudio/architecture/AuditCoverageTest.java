@@ -36,12 +36,6 @@ class AuditCoverageTest {
             Map.entry("feature.alerting.AlertDispatcher", "delivers notifications Studio already queued"),
             Map.entry("feature.alerting.AlertEvaluator", "records rule state after a scrape tier"),
             Map.entry(
-                    "feature.brokerconfig.BrokerConfigDriftService",
-                    "records drift findings and never writes to a broker"),
-            Map.entry(
-                    "feature.brokerconfig.BrokerConfigRecommendationService",
-                    "declares through BrokerConfigService.save, which audits"),
-            Map.entry(
                     "feature.bulk.internal.persistence.BulkRunRepository",
                     "run status bookkeeping; BulkService audits the preview and execute calls that use it"),
             Map.entry(
@@ -55,14 +49,12 @@ class AuditCoverageTest {
                     "feature.alerting.OutboundNoticeService",
                     "queues a plugin's notice in its caller's transaction; the operation that sends it is what is"
                             + " audited"),
-            Map.entry("feature.rr.RrCorrelator", "records observed request-reply flows"),
             Map.entry(
                     "feature.rr.RrEventRemasker",
                     "re-masks stored payloads under a policy whose rule change was already audited"),
             Map.entry(
                     "feature.sql.MessageIndexRemasker",
                     "re-masks stored messages under a policy whose rule change was already audited"),
-            Map.entry("feature.rr.RrDeadlineSweep", "marks flows past their deadline"),
             Map.entry("feature.sql.CaptureLoss", "measures capture loss for the index view"),
             Map.entry(
                     "feature.plugins.internal.persistence.RegistrationRepository",

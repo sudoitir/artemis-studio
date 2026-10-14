@@ -27,6 +27,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.unit.DataSize;
 import tools.jackson.databind.ObjectMapper;
 
@@ -84,7 +86,8 @@ class MessageIndexServicePreviewTest {
                 new CaptureTap(null, null, properties, new ObjectMapper()),
                 properties,
                 instance,
-                lifecycle());
+                lifecycle(),
+                new TransactionTemplate(mock(PlatformTransactionManager.class)));
     }
 
     private static MessageIndexService.Spec spec(String pattern, Long ringSize) {
@@ -196,7 +199,8 @@ class MessageIndexServicePreviewTest {
                 new CaptureTap(null, null, properties, new ObjectMapper()),
                 properties,
                 mock(StudioInstance.class),
-                lifecycle());
+                lifecycle(),
+                new TransactionTemplate(mock(PlatformTransactionManager.class)));
 
         service.delete(CLUSTER, id);
 

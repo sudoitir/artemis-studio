@@ -20648,6 +20648,13 @@
             "type" : "integer",
             "format" : "int32"
           }
+        }, {
+          "name" : "after",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -22726,6 +22733,13 @@
             "type" : "integer",
             "format" : "int32"
           }
+        }, {
+          "name" : "after",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -22733,7 +22747,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PagedViewAuditEventView"
+                  "$ref" : "#/components/schemas/HistoryPageAuditEventView"
                 }
               }
             }
@@ -23166,6 +23180,13 @@
             "type" : "integer",
             "format" : "int32"
           }
+        }, {
+          "name" : "after",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -23173,7 +23194,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PagedViewAlertFiringView"
+                  "$ref" : "#/components/schemas/HistoryPageAlertFiringView"
                 }
               }
             }
@@ -32582,9 +32603,14 @@
             "type" : [ "string", "null" ],
             "format" : "date-time"
           },
+          "lastOutcome" : {
+            "type" : [ "string", "null" ],
+            "description" : "How the most recent run ended; absent until one has.",
+            "enum" : [ "SUCCEEDED", "FAILED", "TIMED_OUT", "LOCK_LOST", "INTERRUPTED", null ]
+          },
           "lastError" : {
             "type" : [ "string", "null" ],
-            "description" : "The most recent run's failure; absent once a later run succeeds."
+            "description" : "Why the most recent run did not succeed; absent once a later run succeeds."
           },
           "runs" : {
             "type" : "integer",
@@ -32592,7 +32618,23 @@
           },
           "failures" : {
             "type" : "integer",
-            "format" : "int64"
+            "format" : "int64",
+            "description" : "Runs that did not succeed, for any reason."
+          },
+          "timeouts" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Runs interrupted for exceeding the job's timeout."
+          },
+          "lockLost" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Runs interrupted because the installation-wide lock could not be extended."
+          },
+          "overruns" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Runs that lasted past the time the next was due."
           },
           "nextRun" : {
             "type" : [ "string", "null" ],
@@ -32604,12 +32646,16 @@
             "format" : "date-time",
             "description" : "When this instance last found an installation-wide run held by another instance."
           },
+          "invalidSchedule" : {
+            "type" : [ "string", "null" ],
+            "description" : "Why the job's schedule cannot be read; the job does not run until it can."
+          },
           "degraded" : {
             "type" : "boolean",
-            "description" : "Whether no run has finished, here or elsewhere, within three of the job's intervals."
+            "description" : "Whether the schedule is invalid, or no run has finished, here or elsewhere, within three of the job's intervals."
           }
         },
-        "required" : [ "degraded", "failures", "featureId", "id", "runs", "scope" ]
+        "required" : [ "degraded", "failures", "featureId", "id", "lockLost", "overruns", "runs", "scope", "timeouts" ]
       },
       "PagedViewJobStatusView" : {
         "type" : "object",
@@ -35857,6 +35903,11 @@
           },
           "clamped" : {
             "type" : "boolean"
+          },
+          "bound" : {
+            "type" : [ "string", "null" ],
+            "description" : "ROWS when more paths matched than the limit, so some are not drawn.",
+            "enum" : [ "ROWS", "TIME", null ]
           }
         },
         "required" : [ "clamped", "limit", "paths", "shown" ]
@@ -35879,11 +35930,20 @@
             "format" : "int32"
           },
           "count" : {
-            "type" : "integer",
-            "format" : "int64"
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The total; null when the page was reached by cursor."
           },
           "hasNext" : {
             "type" : "boolean"
+          },
+          "next" : {
+            "type" : [ "string", "null" ],
+            "description" : "Pass as `after` for the page that follows; null on the last page."
+          },
+          "mayLag" : {
+            "type" : "boolean",
+            "description" : "Read from a replica that may be a little behind."
           },
           "dropped" : {
             "type" : "integer",
@@ -35894,7 +35954,7 @@
             "format" : "date-time"
           }
         },
-        "required" : [ "count", "data", "dropped", "hasNext", "page", "pageSize" ]
+        "required" : [ "data", "dropped", "hasNext", "mayLag", "page", "pageSize" ]
       },
       "BrokerEventView" : {
         "type" : "object",
@@ -37173,7 +37233,7 @@
         },
         "required" : [ "action", "dryRun", "id", "outcome", "ts" ]
       },
-      "PagedViewAuditEventView" : {
+      "HistoryPageAuditEventView" : {
         "type" : "object",
         "properties" : {
           "data" : {
@@ -37193,13 +37253,21 @@
           "count" : {
             "type" : [ "integer", "null" ],
             "format" : "int64",
-            "description" : "The total across all pages; null when it is not known."
+            "description" : "The total; null when the page was reached by cursor."
           },
           "hasNext" : {
             "type" : "boolean"
+          },
+          "next" : {
+            "type" : [ "string", "null" ],
+            "description" : "Pass as `after` for the page that follows; null on the last page."
+          },
+          "mayLag" : {
+            "type" : "boolean",
+            "description" : "Read from a replica that may be a little behind."
           }
         },
-        "required" : [ "data", "hasNext", "page", "pageSize" ]
+        "required" : [ "data", "hasNext", "mayLag", "page", "pageSize" ]
       },
       "PagedViewAlertRuleView" : {
         "type" : "object",
@@ -37317,6 +37385,42 @@
           }
         },
         "required" : [ "ruleId", "ruleName", "seq", "severity", "startedAt", "subjectKey" ]
+      },
+      "HistoryPageAlertFiringView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AlertFiringView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "count" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The total; null when the page was reached by cursor."
+          },
+          "hasNext" : {
+            "type" : "boolean"
+          },
+          "next" : {
+            "type" : [ "string", "null" ],
+            "description" : "Pass as `after` for the page that follows; null on the last page."
+          },
+          "mayLag" : {
+            "type" : "boolean",
+            "description" : "Read from a replica that may be a little behind."
+          }
+        },
+        "required" : [ "data", "hasNext", "mayLag", "page", "pageSize" ]
       },
       "PagedViewAlertFiringView" : {
         "type" : "object",
@@ -37814,6 +37918,34 @@
           }
         },
         "required" : [ "command", "needed", "restarting", "supervised", "unreleased" ]
+      },
+      "PagedViewAuditEventView" : {
+        "type" : "object",
+        "properties" : {
+          "data" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AuditEventView"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "pageSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "count" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int64",
+            "description" : "The total across all pages; null when it is not known."
+          },
+          "hasNext" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "data", "hasNext", "page", "pageSize" ]
       },
       "TrustedKeysView" : {
         "type" : "object",

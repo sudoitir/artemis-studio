@@ -29,13 +29,16 @@ public class CoreConnectionFactory {
     static final int CONSUMER_WINDOW_BYTES = 64 * 1024;
 
     private final BrokerProperties properties;
+    private final BrokerCallGuard guard;
 
-    public CoreConnectionFactory(BrokerProperties properties, SslBundles sslBundles) {
+    public CoreConnectionFactory(BrokerProperties properties, SslBundles sslBundles, BrokerCallGuard guard) {
         this.properties = properties;
+        this.guard = guard;
         StudioSslContextFactory.use(sslBundles);
     }
 
     public ActiveMQConnectionFactory build(CoreConnectionSettings settings, String dialableCoreUrl) {
+        guard.check();
         // A bounded prefetch: the default 1 MiB per consumer and browser is buffered in Studio
         // whether or not it is read, which a browse of one page or a paused capture drain
         // never needs (core-transport spec).

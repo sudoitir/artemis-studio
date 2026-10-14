@@ -7,6 +7,7 @@ import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.Message
 import io.github.sudoitir.artemisstudio.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
 import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
+import io.github.sudoitir.artemisstudio.kernel.core.Ids;
 import io.github.sudoitir.artemisstudio.kernel.core.NotFoundException;
 import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
@@ -24,10 +25,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Index subscriptions: the deliberate act of storing message payload (ADR-0059).
@@ -79,7 +82,7 @@ public class MessageIndexService {
         String pattern = validPattern(spec.queuePattern());
         clusterAccess.requireOnAll(clusterId, ResourceKind.QUEUE, pattern, SqlPermissions.CAPTURE_WRITE);
         MessageIndexSubscriptionEntity draft = new MessageIndexSubscriptionEntity();
-        draft.setId(UUID.randomUUID());
+        draft.setId(Ids.v7());
         draft.setClusterId(clusterId);
         draft.setQueuePattern(pattern);
         draft.setMode(CaptureMode.CAPTURE);
@@ -189,7 +192,7 @@ public class MessageIndexService {
         requireMayChange(clusterId, mode, pattern);
 
         MessageIndexSubscriptionEntity entity = new MessageIndexSubscriptionEntity();
-        entity.setId(UUID.randomUUID());
+        entity.setId(Ids.v7());
         entity.setClusterId(clusterId);
         entity.setQueuePattern(pattern);
         entity.setIntervalMs(spec.intervalMs() == null ? 5000L : validInterval(spec.intervalMs()));
@@ -225,8 +228,11 @@ public class MessageIndexService {
         }
     }
 
-    @Transactional
     public Subscription update(UUID clusterId, UUID id, Spec spec) {
+        return committing(() -> change(clusterId, id, spec));
+    }
+
+    private Subscription change(UUID clusterId, UUID id, Spec spec) {
         MessageIndexSubscriptionEntity entity = subscriptions
                 .findById(id)
                 .filter(sub -> sub.getClusterId().equals(clusterId))
@@ -308,8 +314,11 @@ public class MessageIndexService {
     public record Deleted(long messagesDestroyed, boolean hadCapture) {}
 
     /** Deletes the subscription and every message it captured. Returns how many were destroyed. */
-    @Transactional
     public Deleted delete(UUID clusterId, UUID id) {
+        return committing(() -> remove(clusterId, id));
+    }
+
+    private Deleted remove(UUID clusterId, UUID id) {
         MessageIndexSubscriptionEntity entity = require(clusterId, id);
         if (!readable(clusterId, entity)) {
             throw new NotFoundException("Index subscription", id);
@@ -456,18 +465,31 @@ public class MessageIndexService {
         return bounds;
     }
 
-    private static void afterCommit(Runnable action) {
-        if (!org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
-            action.run();
-            return;
+    /** Broker work to do once the transaction of {@link #committing} has committed and released its connection. */
+    private static final ThreadLocal<List<Runnable>> AFTER_COMMIT = new ThreadLocal<>();
+
+    private final TransactionTemplate transactions;
+
+    /**
+     * Runs the body in a transaction, then the broker work it asked for through {@link #afterCommit}. Spring's
+     * own after-commit hook runs with the transaction's connection still held, which is a broker call inside a
+     * database transaction.
+     */
+    private <T> T committing(Supplier<T> body) {
+        List<Runnable> after = new ArrayList<>();
+        AFTER_COMMIT.set(after);
+        T result;
+        try {
+            result = transactions.execute(status -> body.get());
+        } finally {
+            AFTER_COMMIT.remove();
         }
-        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-                new org.springframework.transaction.support.TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        action.run();
-                    }
-                });
+        after.forEach(Runnable::run);
+        return result;
+    }
+
+    private static void afterCommit(Runnable action) {
+        AFTER_COMMIT.get().add(action);
     }
 
     /**

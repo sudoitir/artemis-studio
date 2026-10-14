@@ -36,7 +36,7 @@ append-only metrics and audit).
   - `metric_sample` is `PARTITION BY RANGE (ts)` with a default partition; BRIN on
     `ts`.
   - Server-level tuning (shared_buffers, WAL, autovacuum workers, planner SSD
-    costs) lives in `deploy/postgres/postgresql.tuning.conf` and inline in the
+    costs) lives in `deploy/postgres/postgresql.conf`, mounted by the
     compose files.
 - **Never edit a released changeset.** Add a new one. `checksum` drift fails
   startup.

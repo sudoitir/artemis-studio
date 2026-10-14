@@ -9,6 +9,8 @@ import io.github.sudoitir.artemisstudio.feature.sql.SqlGovernance;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlSyntaxException;
 import io.github.sudoitir.artemisstudio.feature.sql.SqlTailPoller;
 import io.github.sudoitir.artemisstudio.feature.sql.web.SqlViews.StreamFrameView;
+import io.github.sudoitir.artemisstudio.kernel.core.HeavyLimitException;
+import io.github.sudoitir.artemisstudio.kernel.core.Problems;
 import io.github.sudoitir.artemisstudio.kernel.core.SecretRedactor;
 import io.github.sudoitir.artemisstudio.kernel.security.Actor;
 import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
@@ -213,8 +215,8 @@ public class SqlStreamController {
         if (e instanceof GovernanceRefusedException refused) {
             return problems.onGovernanceRefused(refused);
         }
-        if (e instanceof SqlConsoleService.TooManyQueriesException tooMany) {
-            return problems.onTooManyQueries(tooMany).getBody();
+        if (e instanceof HeavyLimitException tooMany) {
+            return Problems.heavyLimit(tooMany);
         }
         log.debug("SQL console query failed", e);
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(

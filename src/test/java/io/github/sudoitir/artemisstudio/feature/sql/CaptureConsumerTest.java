@@ -8,6 +8,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.github.sudoitir.artemisstudio.platform.broker.BrokerCallGuard;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerConnections;
 import io.github.sudoitir.artemisstudio.platform.broker.BrokerProperties;
 import io.github.sudoitir.artemisstudio.platform.broker.CoreConnectionFactory;
@@ -56,7 +57,9 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
     @BeforeEach
     void setUp() {
         BrokerProperties properties = new BrokerProperties(Duration.ofSeconds(3), Duration.ofSeconds(10), 2_000);
-        pool = new CorePool(new CoreConnectionFactory(properties, mock(SslBundles.class)), CoreObservations.none());
+        pool = new CorePool(
+                new CoreConnectionFactory(properties, mock(SslBundles.class), BrokerCallGuard.OFF),
+                CoreObservations.none());
         BrokerConnections connections = mock(BrokerConnections.class);
         when(connections.coreSettingsFor(any()))
                 .thenReturn(new CoreConnectionSettings(clusterId, BROKER_USER, BROKER_PASSWORD, null, true));

@@ -29,7 +29,7 @@ _Others_
 * `i.g.s.a.f.s.CaptureTap`
 * `i.g.s.a.f.s.IndexQueryExecutor`
 * `i.g.s.a.f.s.MessageIndexCoverage`
-* `i.g.s.a.f.s.MessageIndexPartitionMaintainer`
+* `i.g.s.a.f.s.MessageIndexRetention`
 * `i.g.s.a.f.s.MessageIndexStore`
 * `i.g.s.a.f.s.MessageIndexWriter`
 * `i.g.s.a.f.s.MessagePredicate`
@@ -56,11 +56,14 @@ _Others_
 * `i.g.s.a.k.l.LifecycleRegistry` (in Data lifecycle)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.k.s.ActorResolver` (in Security)
+* `i.g.s.a.k.l.partition.PartitionDrops` (in Data lifecycle)
+* `i.g.s.a.k.c.PartitionProvisioner` (in Core)
 * `i.g.s.a.p.s.QueueLocator` (in Scraping)
 * `i.g.s.a.p.b.ClockOffsetService` (in Broker connectivity)
 * `i.g.s.a.p.b.JolokiaMessageTransport` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreMessageTransport` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
+* `i.g.s.a.k.c.HeavyRequests` (in Core)
 * `i.g.s.a.p.g.ContentPolicy` (in Data governance)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
 * `i.g.s.a.p.g.ClearViewAudit` (in Data governance)

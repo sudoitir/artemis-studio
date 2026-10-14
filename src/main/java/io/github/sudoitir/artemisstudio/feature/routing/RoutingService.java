@@ -31,7 +31,6 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The cross-node routing views — diverts and bridges — read live through to the
@@ -71,7 +70,6 @@ public class RoutingService {
     private final PermissionResolver permissions;
     private final AuditService audit;
 
-    @Transactional(readOnly = true)
     public PagedView<DivertView> diverts(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireVisible(clusterId);
         ResourceFilter addresses = permissions.filter(clusterId, ResourceKind.ADDRESS);
@@ -103,7 +101,6 @@ public class RoutingService {
         return query.paginate(filtered, Comparator.comparing(DivertView::address, nullSafe()));
     }
 
-    @Transactional(readOnly = true)
     public PagedView<BridgeView> bridges(UUID clusterId, ResourceQuery query) {
         clusterAccess.requireVisible(clusterId);
         ResourceFilter queues = permissions.filter(clusterId, ResourceKind.QUEUE);

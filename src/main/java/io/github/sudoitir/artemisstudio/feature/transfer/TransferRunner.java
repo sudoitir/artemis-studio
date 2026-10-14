@@ -674,8 +674,8 @@ class TransferRunner {
             return waitForCapacity(s, verdict.waitReason());
         }
         // One permit on each node per batch, on top of the management calls the transports charge.
-        limiter.acquire(s.source.getJolokiaUrl(), 1);
-        limiter.acquire(s.target.getJolokiaUrl(), 1);
+        limiter.acquire(s.source.getJolokiaUrl(), 1, TOPIC);
+        limiter.acquire(s.target.getJolokiaUrl(), 1, TOPIC);
         return null;
     }
 

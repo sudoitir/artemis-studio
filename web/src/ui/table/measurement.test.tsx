@@ -100,6 +100,21 @@ describe('sampleRows', () => {
     // Numbers are not sampled beyond the first rows.
     expect(extra.every((r) => r[1] === '')).toBe(true);
   });
+
+  it('scans the rows past the head once per page of data, not once per call', () => {
+    const data = rows(500);
+    const accessor = vi.fn((r: Row) => r.name);
+    const named: Column<Row>[] = [{ id: 'name', header: 'Queue', accessor, kind: 'identifier', priority: 'essential' }];
+
+    sampleRows(named, data);
+    const scanned = accessor.mock.calls.length;
+    sampleRows([...named], data);
+    // The second call reads only the head again.
+    expect(accessor.mock.calls.length - scanned).toBe(40);
+
+    sampleRows(named, [...data]);
+    expect(accessor.mock.calls.length - scanned).toBeGreaterThan(400);
+  });
 });
 
 describe('readMeasurement', () => {

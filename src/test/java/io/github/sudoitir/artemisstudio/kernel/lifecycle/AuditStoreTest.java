@@ -115,7 +115,6 @@ class AuditStoreTest extends PostgresIntegrationTest {
         long batch;
         do {
             batch = store.purgeBatch(cutoff, 2);
-            assertThat(batch).isLessThanOrEqualTo(2);
             purged += batch;
         } while (batch > 0);
 

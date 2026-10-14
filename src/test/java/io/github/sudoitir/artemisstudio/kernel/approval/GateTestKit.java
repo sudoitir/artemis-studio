@@ -71,6 +71,9 @@ class GateTestKit {
     static final class TestService {
         final List<String> purged = new CopyOnWriteArrayList<>();
         final AtomicInteger tokens = new AtomicInteger();
+        /** Runs inside the purge action, before it records: a test makes the action fail or be interrupted here. */
+        volatile Runnable duringPurge = () -> {};
+
         private final OperationGate gate;
         private final PermissionResolver permissions;
 
@@ -82,6 +85,7 @@ class GateTestKit {
         int purge(PurgeParams params) {
             authorize();
             return gate.run(Operation.of(params), () -> {
+                duringPurge.run();
                 purged.add(params.queue());
                 return purged.size();
             });

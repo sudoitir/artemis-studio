@@ -6,58 +6,100 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import net.javacrumbs.shedlock.core.DefaultLockingTaskExecutor;
 import org.junit.jupiter.api.Test;
-import org.springframework.scheduling.support.SimpleTriggerContext;
 
 class JobStatusesTest {
 
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
-    private final AtomicBoolean heldElsewhere = new AtomicBoolean();
-    private final JobStatuses statuses = new JobStatuses(
-            new DefaultLockingTaskExecutor(config -> heldElsewhere.get() ? Optional.empty() : Optional.of(() -> {})),
-            observationsInto(meters),
-            meters);
+    private final JobStatuses statuses = new JobStatuses(meters);
 
-    private static io.micrometer.observation.ObservationRegistry observationsInto(SimpleMeterRegistry meters) {
-        io.micrometer.observation.ObservationRegistry registry = io.micrometer.observation.ObservationRegistry.create();
-        registry.observationConfig()
-                .observationHandler(
-                        new io.micrometer.core.instrument.observation.DefaultMeterObservationHandler(meters));
-        return registry;
+    private ScheduledJob register(String id, ScheduledJob.Scope scope) {
+        ScheduledJob job = ScheduledJob.fixedDelay(id, "rr", scope, () -> Duration.ofSeconds(10), () -> {});
+        statuses.register(job);
+        return job;
     }
 
     @Test
-    void anInstallationWideJobRunsOnlyWhileItHoldsItsLock() {
-        AtomicInteger ran = new AtomicInteger();
-        Runnable run = statuses.instrument(ScheduledJob.fixedDelay(
-                "shared", "rr", ScheduledJob.Scope.INSTALLATION, () -> Duration.ofSeconds(10), ran::incrementAndGet));
+    void everyRunIsRecordedWithItsOutcome() {
+        register("demo", ScheduledJob.Scope.INSTANCE);
 
-        run.run();
-        assertThat(ran).hasValue(1);
-        assertThat(statuses.all().getFirst().runs()).isEqualTo(1);
+        statuses.started("demo", Instant.now());
+        statuses.succeeded("demo", Instant.now());
+        JobStatus ok = statuses.all().getFirst();
+        assertThat(ok.runs()).isEqualTo(1);
+        assertThat(ok.failures()).isZero();
+        assertThat(ok.lastError()).isNull();
+        assertThat(ok.lastEnd()).isNotNull();
+        assertThat(ok.lastOutcome()).isEqualTo(JobStatus.Outcome.SUCCEEDED);
 
-        heldElsewhere.set(true);
-        run.run();
-        JobStatus skipped = statuses.all().getFirst();
-        assertThat(ran).hasValue(1);
-        assertThat(skipped.runs()).isEqualTo(1);
-        assertThat(skipped.lastSkippedElsewhere()).isNotNull();
-        assertThat(skipped.scope()).isEqualTo(ScheduledJob.Scope.INSTALLATION);
+        statuses.started("demo", Instant.now());
+        statuses.ended("demo", Instant.now(), JobStatus.Outcome.FAILED, "boom");
+        JobStatus failed = statuses.all().getFirst();
+        assertThat(failed.runs()).isEqualTo(2);
+        assertThat(failed.failures()).isEqualTo(1);
+        assertThat(failed.lastError()).isEqualTo("boom");
+        assertThat(failed.lastOutcome()).isEqualTo(JobStatus.Outcome.FAILED);
+        assertThat(failed.timeouts()).isZero();
+    }
+
+    @Test
+    void aTimeoutALostLockAndAnOverrunAreCountedAsStatusAndMetric() {
+        register("slow", ScheduledJob.Scope.INSTALLATION);
+
+        statuses.started("slow", Instant.now());
+        statuses.ended("slow", Instant.now(), JobStatus.Outcome.TIMED_OUT, "Timed out after PT5M");
+        statuses.started("slow", Instant.now());
+        statuses.ended("slow", Instant.now(), JobStatus.Outcome.LOCK_LOST, "Lost its lock while running");
+        statuses.overran("slow");
+
+        JobStatus s = statuses.all().getFirst();
+        assertThat(s.timeouts()).isEqualTo(1);
+        assertThat(s.lockLost()).isEqualTo(1);
+        assertThat(s.overruns()).isEqualTo(1);
+        assertThat(s.failures()).isEqualTo(2);
+        assertThat(s.lastOutcome()).isEqualTo(JobStatus.Outcome.LOCK_LOST);
+        assertThat(meters.get("studio.job.timeouts")
+                        .tag("job.id", "slow")
+                        .counter()
+                        .count())
+                .isEqualTo(1);
+        assertThat(meters.get("studio.job.lock_lost")
+                        .tag("job.id", "slow")
+                        .counter()
+                        .count())
+                .isEqualTo(1);
+        assertThat(meters.get("studio.job.overruns")
+                        .tag("job.id", "slow")
+                        .counter()
+                        .count())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void anInvalidScheduleIsDegradedUntilTheNextRunIsScheduled() {
+        register("cron", ScheduledJob.Scope.INSTANCE);
+
+        statuses.invalid("cron", "Invalid cron expression");
+        JobStatus invalid = statuses.all().getFirst();
+        assertThat(invalid.invalidSchedule()).isEqualTo("Invalid cron expression");
+        assertThat(invalid.degraded(Instant.now())).isTrue();
+        assertThat(meters.get("studio.job.degraded")
+                        .tag("job.id", "cron")
+                        .gauge()
+                        .value())
+                .isEqualTo(1.0);
+
+        statuses.scheduled("cron", Instant.now().plusSeconds(10), Duration.ofSeconds(10));
+        assertThat(statuses.all().getFirst().invalidSchedule()).isNull();
+        assertThat(statuses.all().getFirst().degraded(Instant.now())).isFalse();
     }
 
     @Test
     void aTickAnotherInstanceRanDoesNotMakeTheJobDegraded() {
-        heldElsewhere.set(true);
-        ScheduledJob job = ScheduledJob.fixedDelay(
-                "elsewhere", "rr", ScheduledJob.Scope.INSTALLATION, () -> Duration.ofSeconds(1), () -> {});
-        Runnable run = statuses.instrument(job);
-        statuses.trigger(job).nextExecution(new SimpleTriggerContext());
+        register("elsewhere", ScheduledJob.Scope.INSTALLATION);
+        statuses.scheduled("elsewhere", Instant.now(), Duration.ofSeconds(1));
 
-        run.run();
+        statuses.skippedElsewhere("elsewhere", Instant.now());
 
         JobStatus status = statuses.all().getFirst();
         assertThat(status.lastEnd()).isNull();
@@ -65,16 +107,6 @@ class JobStatusesTest {
                 .isFalse();
         assertThat(status.degraded(status.lastSkippedElsewhere().plusSeconds(4)))
                 .isTrue();
-    }
-
-    @Test
-    void anInstanceJobIgnoresTheLock() {
-        heldElsewhere.set(true);
-        AtomicInteger ran = new AtomicInteger();
-        statuses.instrument(ScheduledJob.fixedDelay(
-                        "local", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(1), ran::incrementAndGet))
-                .run();
-        assertThat(ran).hasValue(1);
     }
 
     @Test
@@ -96,73 +128,56 @@ class JobStatusesTest {
     }
 
     @Test
-    void everyRunIsRecordedAndAFailureIsRethrown() {
-        AtomicBoolean fail = new AtomicBoolean();
-        Runnable run = statuses.instrument(
-                ScheduledJob.fixedDelay("demo", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(1), () -> {
-                    if (fail.get()) {
-                        throw new IllegalStateException("boom");
-                    }
-                }));
-
-        run.run();
-        JobStatus ok = statuses.all().getFirst();
-        assertThat(ok.runs()).isEqualTo(1);
-        assertThat(ok.failures()).isZero();
-        assertThat(ok.lastError()).isNull();
-        assertThat(ok.lastEnd()).isNotNull();
-
-        fail.set(true);
-        assertThatThrownBy(run::run).hasMessage("boom");
-        JobStatus failed = statuses.all().getFirst();
-        assertThat(failed.runs()).isEqualTo(2);
-        assertThat(failed.failures()).isEqualTo(1);
-        assertThat(failed.lastError()).isEqualTo("boom");
-
-        // The observation adds an `error` tag, so a failed run lands on its own timer beside the passing ones.
-        assertThat(meters.find("studio.job").tags("job.id", "demo", "feature", "rr").timers().stream()
-                        .mapToLong(io.micrometer.core.instrument.Timer::count)
-                        .sum())
-                .isEqualTo(2);
+    void theDefaultTimeoutIsTheLargerOfFiveMinutesAndThreeIntervalsAndCronGetsAnHour() {
+        assertThat(ScheduledJob.fixedDelay(
+                                "a", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(10), () -> {})
+                        .timeout()
+                        .get())
+                .isEqualTo(Duration.ofMinutes(5));
+        assertThat(ScheduledJob.fixedDelay(
+                                "b", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofMinutes(10), () -> {})
+                        .timeout()
+                        .get())
+                .isEqualTo(Duration.ofMinutes(30));
+        assertThat(ScheduledJob.cron("c", "rr", ScheduledJob.Scope.INSTANCE, () -> "0 0 4 * * *", () -> {})
+                        .timeout()
+                        .get())
+                .isEqualTo(Duration.ofHours(1));
+        assertThat(ScheduledJob.cron("d", "rr", ScheduledJob.Scope.INSTANCE, () -> "0 0 4 * * *", () -> {})
+                        .withTimeout(() -> Duration.ofSeconds(7))
+                        .timeout()
+                        .get())
+                .isEqualTo(Duration.ofSeconds(7));
     }
 
     @Test
     void aDuplicateJobIdIsRefused() {
-        ScheduledJob job = ScheduledJob.fixedDelay(
-                "dup", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(1), () -> {});
-        statuses.instrument(job);
-        assertThatThrownBy(() -> statuses.instrument(job)).hasMessageContaining("'dup'");
+        ScheduledJob job = register("dup", ScheduledJob.Scope.INSTANCE);
+        assertThatThrownBy(() -> statuses.register(job)).hasMessageContaining("'dup'");
     }
 
     @Test
-    void theTriggerRecordsTheNextRunAndItsInterval() {
-        ScheduledJob job = ScheduledJob.fixedDelay(
-                "tick", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(15), () -> {});
-        statuses.instrument(job);
+    void schedulingRecordsTheNextRunAndItsInterval() {
+        register("tick", ScheduledJob.Scope.INSTANCE);
+        Instant next = Instant.now().plusSeconds(15);
 
-        Instant next = statuses.trigger(job).nextExecution(new SimpleTriggerContext());
+        statuses.scheduled("tick", next, Duration.ofSeconds(15));
 
         JobStatus s = statuses.all().getFirst();
         assertThat(s.nextRun()).isEqualTo(next);
-        assertThat(s.interval()).isBetween(Duration.ofSeconds(14), Duration.ofSeconds(15));
+        assertThat(s.interval()).isEqualTo(Duration.ofSeconds(15));
     }
 
     @Test
     void aJobThatHasNotFinishedWithinThreeIntervalsIsDegraded() {
         Instant registered = Instant.parse("2026-09-13T10:00:00Z");
-        JobStatus s = new JobStatus(
-                "tick",
-                "rr",
-                ScheduledJob.Scope.INSTANCE,
-                registered,
-                null,
-                null,
-                null,
-                0,
-                0,
-                null,
-                Duration.ofSeconds(15),
-                null);
+        JobStatus s = JobStatus.builder()
+                .id("tick")
+                .featureId("rr")
+                .scope(ScheduledJob.Scope.INSTANCE)
+                .registeredAt(registered)
+                .interval(Duration.ofSeconds(15))
+                .build();
 
         assertThat(s.degraded(registered.plusSeconds(44))).isFalse();
         assertThat(s.degraded(registered.plusSeconds(46))).isTrue();
@@ -174,36 +189,36 @@ class JobStatusesTest {
 
     @Test
     void aJobWithoutAKnownIntervalIsNeverCalledStalled() {
-        JobStatus s = new JobStatus(
-                "tick", "rr", ScheduledJob.Scope.INSTANCE, Instant.EPOCH, null, null, null, 0, 0, null, null, null);
+        JobStatus s = JobStatus.builder()
+                .id("tick")
+                .featureId("rr")
+                .scope(ScheduledJob.Scope.INSTANCE)
+                .registeredAt(Instant.EPOCH)
+                .build();
         assertThat(s.degraded(Instant.now())).isFalse();
     }
 
     @Test
     void lagIsTheTimePastTheIntervalAndNeverNegative() {
         Instant done = Instant.parse("2026-01-01T00:00:00Z");
-        JobStatus status = new JobStatus(
-                "poll",
-                "scrape",
-                ScheduledJob.Scope.INSTANCE,
-                done,
-                done,
-                done,
-                null,
-                1,
-                0,
-                null,
-                Duration.ofSeconds(10),
-                null);
+        JobStatus status = JobStatus.builder()
+                .id("poll")
+                .featureId("scrape")
+                .scope(ScheduledJob.Scope.INSTANCE)
+                .registeredAt(done)
+                .lastStart(done)
+                .lastEnd(done)
+                .runs(1)
+                .interval(Duration.ofSeconds(10))
+                .build();
 
         assertThat(status.lag(done.plusSeconds(4))).isEqualTo(Duration.ZERO);
         assertThat(status.lag(done.plusSeconds(25))).isEqualTo(Duration.ofSeconds(15));
     }
 
     @Test
-    void lagIsUnknownBeforeTheSchedulerHasComputedAnInterval() {
-        statuses.instrument(ScheduledJob.fixedDelay(
-                "fresh", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(10), () -> {}));
+    void lagIsUnknownBeforeTheRunnerHasComputedAnInterval() {
+        register("fresh", ScheduledJob.Scope.INSTANCE);
 
         assertThat(statuses.all().getFirst().lag(Instant.now())).isNull();
         assertThat(meters.get("studio.job.lag").tag("job.id", "fresh").gauge().value())
@@ -211,28 +226,31 @@ class JobStatusesTest {
     }
 
     @Test
-    void deregisteringAJobRemovesItsLagGauge() {
-        statuses.instrument(ScheduledJob.fixedDelay(
-                "gone", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(10), () -> {}));
+    void deregisteringAJobRemovesItsMeters() {
+        register("gone", ScheduledJob.Scope.INSTANCE);
         statuses.deregister("gone");
 
-        assertThat(meters.find("studio.job.lag").tag("job.id", "gone").gauge()).isNull();
+        assertThat(statuses.all()).isEmpty();
+        for (String name : new String[] {
+            "studio.job.lag",
+            "studio.job.degraded",
+            "studio.job.timeouts",
+            "studio.job.lock_lost",
+            "studio.job.overruns"
+        }) {
+            assertThat(meters.find(name).tag("job.id", "gone").meter()).isNull();
+        }
     }
 
     @Test
-    void aJobKeepingToScheduleIsNotDegradedAndDeregisteringRemovesTheGauge() {
-        ScheduledJob job = ScheduledJob.fixedDelay(
-                "steady", "rr", ScheduledJob.Scope.INSTANCE, () -> Duration.ofSeconds(10), () -> {});
-        statuses.instrument(job);
-        statuses.trigger(job).nextExecution(new SimpleTriggerContext());
+    void aJobKeepingToScheduleIsNotDegraded() {
+        register("steady", ScheduledJob.Scope.INSTANCE);
+        statuses.scheduled("steady", Instant.now().plusSeconds(10), Duration.ofSeconds(10));
 
         assertThat(meters.get("studio.job.degraded")
                         .tag("job.id", "steady")
                         .gauge()
                         .value())
                 .isEqualTo(0.0);
-        statuses.deregister("steady");
-        assertThat(meters.find("studio.job.degraded").tag("job.id", "steady").gauge())
-                .isNull();
     }
 }
