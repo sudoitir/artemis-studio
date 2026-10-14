@@ -82,6 +82,11 @@ function grouped(clusters: ClusterSummary[], environments: EnvironmentView[], qu
  * The face of the switcher: one box of one height whatever it holds, so the navigation under it never
  * moves. The loading state, the chosen cluster and "Choose a cluster" are all this box.
  */
+/** The two letters a cluster shows on the collapsed rail. */
+function monogramOf(name: string): string {
+  return name.slice(0, 2).toUpperCase();
+}
+
 function Face({
   collapsed,
   entry,
@@ -125,7 +130,7 @@ function Face({
         style={environment ? { borderColor: colourOf(environment) } : undefined}
         aria-hidden="true"
       >
-        {cluster.name.slice(0, 2).toUpperCase()}
+        {monogramOf(cluster.name)}
       </span>
     );
   }
@@ -193,6 +198,8 @@ export function ClusterSwitcher({ collapsed }: Readonly<{ collapsed: boolean }>)
   if (entry) {
     const environment = entry.environment ? `${entry.environment.name}, ` : '';
     label = `Switch cluster, now ${entry.cluster.name}, ${environment}${HEALTH[entry.cluster.health].word}`;
+    // The name starts with the monogram the rail shows, so it can be said as it is read (WCAG 2.5.3).
+    if (collapsed) label = `${monogramOf(entry.cluster.name)}, ${label}`;
   }
 
   function choose(value: string) {

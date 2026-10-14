@@ -13,7 +13,7 @@ const PATCH = '*/api/v1/clusters/c1/config/mode';
 async function openPopover(canWrite: boolean) {
   const user = userEvent.setup();
   renderWithProviders(<ModeControl declaration={declaration()} canWrite={canWrite} />);
-  await user.click(screen.getByRole('button', { name: /Apply mode: Managed by Rahdar/ }));
+  await user.click(screen.getByRole('button', { name: /Managed by Rahdar.*Change apply mode/ }));
   const popover = await screen.findByRole('dialog');
   return { user, popover };
 }

@@ -170,8 +170,9 @@ describe('AuditView', () => {
     const user = userEvent.setup();
     renderWithProviders(<AuditView />);
 
+    // The banner comes from the address, so it can show before the list is asked for; wait for the request itself.
     expect(await screen.findByText(/Showing the events that belong to audit event 7/)).toBeInTheDocument();
-    expect(asked).toBe('7');
+    await waitFor(() => expect(asked).toBe('7'));
     await user.click(screen.getByRole('button', { name: 'Show every event' }));
     expect(navigate).toHaveBeenCalled();
     search = {};

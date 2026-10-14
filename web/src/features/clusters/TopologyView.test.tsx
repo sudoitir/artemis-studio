@@ -104,10 +104,8 @@ describe('TopologyView', () => {
     serve();
     renderWithProviders(<TopologyView />);
     expect(screen.getByRole('heading', { level: 1, name: 'Topology' })).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: /^alpha: Primary\. Live, serving\./ })).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /^bravo:61616: Backup\. Not polled: no management URL\./ }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^alpha\s*2\.44\.0\s*Live, serving/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^bravo:61616\s*2\.44\.0\s*Not polled/ })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Graph' })).toBeChecked();
     expect(screen.getByRole('radio', { name: 'Table' })).not.toBeChecked();
   });
@@ -117,21 +115,21 @@ describe('TopologyView', () => {
     renderWithProviders(<TopologyView />);
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByText('Loading the topology')).toBeInTheDocument();
-    await screen.findByRole('button', { name: /^alpha:/ });
+    await screen.findByRole('button', { name: /^alpha\s*\d/ });
     expect(document.querySelector('[aria-busy="true"]')).toBeNull();
   });
 
   it('asks before choosing anything: the panel says how to choose a node', async () => {
     serve();
     renderWithProviders(<TopologyView />);
-    await screen.findByRole('button', { name: /^alpha:/ });
+    await screen.findByRole('button', { name: /^alpha\s*\d/ });
     expect(screen.getByRole('heading', { level: 2, name: 'Node details' })).toBeInTheDocument();
   });
 
   it('puts the chosen node in the address', async () => {
     serve();
     renderWithProviders(<TopologyView />);
-    const box = await screen.findByRole('button', { name: /^alpha-backup:/ });
+    const box = await screen.findByRole('button', { name: /^alpha-backup/ });
     // A bare click: jsdom's pointer events carry no window, which the pane's pan handler reads.
     fireEvent.click(box);
     expect(routerState.navigate).toHaveBeenCalled();
@@ -144,7 +142,7 @@ describe('TopologyView', () => {
   it('puts the table in the address, and leaves the graph out of it', async () => {
     serve();
     renderWithProviders(<TopologyView />);
-    await screen.findByRole('button', { name: /^alpha:/ });
+    await screen.findByRole('button', { name: /^alpha\s*\d/ });
     await userEvent.setup().click(screen.getByRole('radio', { name: 'Table' }));
     const { search } = routerState.navigate.mock.calls.at(-1)![0] as {
       search: (prev: Record<string, unknown>) => Record<string, unknown>;
@@ -269,10 +267,10 @@ describe('TopologyView', () => {
   it('keeps showing the topology through a failed refresh', async () => {
     serve();
     const { client } = renderWithProviders(<TopologyView />);
-    await screen.findByRole('button', { name: /^alpha:/ });
+    await screen.findByRole('button', { name: /^alpha\s*\d/ });
     server.use(http.get('*/api/v1/clusters/c1/topology', () => HttpResponse.json({ status: 500 }, { status: 500 })));
     await client.refetchQueries({ queryKey: ['clusters', 'c1', 'topology'] });
-    expect(screen.getByRole('button', { name: /^alpha:/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^alpha\s*\d/ })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });

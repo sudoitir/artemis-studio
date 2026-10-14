@@ -51,7 +51,7 @@ export function HeaderCell<T>({
     <button
       type="button"
       className={classes.sortButton}
-      aria-label={column.short ? column.header : undefined}
+      aria-label={column.short ? `${column.short} (${column.header})` : undefined}
       onClick={onSort}
     >
       {spec.alignEnd ? mark : null}

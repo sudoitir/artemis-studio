@@ -97,7 +97,7 @@ describe('the configuration screen', () => {
     // The sentence a save produces: a revision exists, and a broker has not been written.
     expect(await screen.findByText('Revision 3 — applied to 1 of 2 live nodes')).toBeInTheDocument();
     // The item's live state is on the item's own row, in words, with the difference.
-    const row = (await screen.findByRole('button', { name: 'Apply address setting orders.#' })).closest('tr')!;
+    const row = (await screen.findByRole('button', { name: 'Apply this address setting orders.#' })).closest('tr')!;
     expect(within(row).getByText(/differs on broker-2/)).toBeInTheDocument();
     // declared → observed, on the row, so the comparison needs no second screen.
     expect(within(row).getAllByText(/PAGE/).length).toBeGreaterThanOrEqual(1);
@@ -172,7 +172,7 @@ describe('the configuration screen', () => {
     const user = userEvent.setup();
     await open('/clusters/c1/configuration?tab=addressSettings');
 
-    await user.click(await screen.findByRole('button', { name: 'Apply address setting orders.#' }));
+    await user.click(await screen.findByRole('button', { name: 'Apply this address setting orders.#' }));
     const drawer = await screen.findByRole('dialog', { name: /Review & apply address setting orders.#/ });
     await within(drawer).findByText(/Would apply 2 steps/);
 

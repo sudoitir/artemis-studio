@@ -111,7 +111,7 @@ export function ItemActions<T>({
           size="compact-sm"
           onClick={() => onApply(spec.scopeOf(item))}
           disabled={applyGate.kind === 'blocked'}
-          aria-label={`Apply ${name}`}
+          aria-label={`Apply this ${name}`}
         >
           Apply this
         </Button>

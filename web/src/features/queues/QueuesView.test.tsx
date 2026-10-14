@@ -560,9 +560,10 @@ describe('QueuesView page structure', () => {
 
   it('never nests a button inside another, when creating is not allowed and the selection bar is shown', async () => {
     search = {};
+    // Creating is refused by the broker connection, not by a grant: without the grant New queue is hidden once the
+    // caller's access arrives, so its explanation would only be there until then.
     serve({
       queues: [queue('a')],
-      permissions: ['queue:read'],
       managementWrite: { status: 'UNAVAILABLE', reason: 'Read-only.', brokerXmlSnippet: null },
     });
     const { container } = renderWithProviders(<QueuesView />);

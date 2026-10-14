@@ -30,6 +30,7 @@ export function ModeControl({
   });
   const form = useForm({ initialValues: seed(), validateInputOnBlur: true });
   const { applyMode, reportUndeclared } = form.values;
+  const label = `${applyModeWords(declaration.applyMode)}${declaration.reportUndeclared ? ' · reports undeclared items' : ''}`;
 
   const submit = form.onSubmit((values) => {
     configure.mutate(values, {
@@ -60,10 +61,9 @@ export function ModeControl({
             configure.reset();
             setOpen((o) => !o);
           }}
-          aria-label={`Apply mode: ${applyModeWords(declaration.applyMode)}. Change`}
+          aria-label={`${label}. Change apply mode`}
         >
-          {applyModeWords(declaration.applyMode)}
-          {declaration.reportUndeclared ? ' · reports undeclared items' : ''}
+          {label}
         </Button>
       </Popover.Target>
       <Popover.Dropdown>

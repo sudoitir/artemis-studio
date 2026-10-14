@@ -185,12 +185,17 @@ function mount(seed: Seed, search: string, scheme: (typeof SCHEMES)[number], hei
 }
 
 const LAYOUTS = [
-  { name: 'graph', seed: 'data', search: '', ready: /^alpha: Primary/ },
-  { name: 'graph with a chosen node', seed: 'data', search: '?node=d2', ready: /^alpha: Primary/ },
-  { name: 'graph with a split brain chosen', seed: 'data', search: '?node=c1', ready: /^alpha: Primary/ },
+  { name: 'graph', seed: 'data', search: '', ready: /^alpha\s*2\.44\.0\s*Live, serving/ },
+  { name: 'graph with a chosen node', seed: 'data', search: '?node=d2', ready: /^alpha\s*2\.44\.0\s*Live, serving/ },
+  {
+    name: 'graph with a split brain chosen',
+    seed: 'data',
+    search: '?node=c1',
+    ready: /^alpha\s*2\.44\.0\s*Live, serving/,
+  },
   { name: 'table', seed: 'data', search: '?view=table', ready: null },
   { name: 'table with a chosen node', seed: 'data', search: '?view=table&node=b2', ready: null },
-  { name: 'reduced detail', seed: 'dense', search: '', ready: /^Node N000:/ },
+  { name: 'reduced detail', seed: 'dense', search: '', ready: /serving · 1 standby/ },
   { name: 'reduced detail as a table', seed: 'dense', search: '?view=table', ready: null },
   { name: 'nothing answered', seed: 'empty', search: '', ready: null },
   { name: 'loading', seed: 'loading', search: '', ready: null },
@@ -202,7 +207,7 @@ describe.each(LAYOUTS)('Topology, $name', ({ seed, search, ready }) => {
     it('has one h1, no accessibility violations and nothing scrolling sideways', async () => {
       const { container } = mount(seed, search, scheme);
       await screen.findByRole('heading', { level: 1, name: 'Topology' });
-      if (ready) await screen.findByRole('button', { name: ready });
+      if (ready) await screen.findAllByRole('button', { name: ready });
       else if (search.includes('view=table')) await screen.findByRole('grid', { name: 'Nodes' });
       await settle(() => `${container.querySelectorAll('button, [role="grid"]').length}:${container.scrollHeight}`);
 
@@ -218,21 +223,21 @@ describe('Topology keyboard, in a real browser', () => {
 
   it('is one tab stop, moves across and within columns, and keeps the focused box in view', async () => {
     mount('data', '', 'light');
-    await screen.findByRole('button', { name: /^alpha: Primary/ });
-    await waitFor(() => expect(box(/^alpha: Primary/).tabIndex).toBe(0));
+    await screen.findByRole('button', { name: /^alpha\s*2\.44\.0\s*Live, serving/ });
+    await waitFor(() => expect(box(/^alpha\s*2\.44\.0\s*Live, serving/).tabIndex).toBe(0));
     // Every box has a pressed state, which the view controls beside them do not.
     const stops = screen.getAllByRole('button', { pressed: false }).filter((b) => b.tabIndex === 0);
     expect(stops).toHaveLength(1);
 
-    box(/^alpha: Primary/).focus();
+    box(/^alpha\s*2\.44\.0\s*Live, serving/).focus();
     await userEvent.keyboard('{ArrowDown}');
-    expect(box(/^alpha-backup:/)).toHaveFocus();
+    expect(box(/^alpha-backup\s*2\.44\.0/)).toHaveFocus();
     await userEvent.keyboard('{ArrowRight}');
-    expect(box(/^bravo-backup:/)).toHaveFocus();
+    expect(box(/^bravo-backup/)).toHaveFocus();
     await userEvent.keyboard('{Home}');
-    expect(box(/^alpha: Primary/)).toHaveFocus();
+    expect(box(/^alpha\s*2\.44\.0\s*Live, serving/)).toHaveFocus();
     await userEvent.keyboard('{End}');
-    const last = box(/^delta:61616:/);
+    const last = box(/^delta:61616/);
     expect(last).toHaveFocus();
 
     // Wherever the last box is in the pane, it ends up inside the canvas's frame.
@@ -249,7 +254,7 @@ describe('Topology keyboard, in a real browser', () => {
 
   it('keeps every box in a window as tall as a laptop, at least 24 px square', async () => {
     mount('data', '', 'dark');
-    await screen.findByRole('button', { name: /^alpha: Primary/ });
+    await screen.findByRole('button', { name: /^alpha\s*2\.44\.0\s*Live, serving/ });
     for (const b of screen.getAllByRole('button', { name: /^(alpha|bravo|charlie|delta)/ })) {
       const r = b.getBoundingClientRect();
       expect(r.width).toBeGreaterThanOrEqual(24);
@@ -269,14 +274,14 @@ describe('Topology keyboard, in a real browser', () => {
       </QueryClientProvider>,
       'light',
     );
-    await screen.findByRole('button', { name: /^alpha: Primary/ });
-    box(/^alpha-backup:/).focus();
+    await screen.findByRole('button', { name: /^alpha\s*2\.44\.0\s*Live, serving/ });
+    box(/^alpha-backup\s*2\.44\.0/).focus();
     await userEvent.keyboard('{Enter}');
     await waitFor(() => expect(router.state.location.search).toEqual({ node: 'a2' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'alpha-backup' })).toBeInTheDocument();
-    expect(box(/^alpha-backup:/)).toHaveAttribute('aria-pressed', 'true');
+    expect(box(/^alpha-backup\s*2\.44\.0/)).toHaveAttribute('aria-pressed', 'true');
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(router.state.location.search).toEqual({}));
-    expect(box(/^alpha-backup:/)).toHaveFocus();
+    expect(box(/^alpha-backup\s*2\.44\.0/)).toHaveFocus();
   });
 });

@@ -207,7 +207,7 @@ function router(search: string) {
 async function edit() {
   const tierA = await screen.findByLabelText('Tier A interval');
   fireEvent.change(tierA, { target: { value: '10s' } });
-  fireEvent.click(screen.getByRole('button', { name: /Reset Tier B interval/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Reset to default: Tier B interval/ }));
   fireEvent.click(screen.getByRole('link', { name: /Audit/ }));
   const batch = await screen.findByLabelText('Batch size');
   fireEvent.change(batch, { target: { value: '200' } });

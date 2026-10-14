@@ -100,7 +100,7 @@ describe('RootLayout sidebar collapse', () => {
     renderWithProviders(<RootLayout />);
 
     // The rail's one control names the cluster the address is under.
-    expect(await screen.findByRole('button', { name: /^Switch cluster, now prod-emea/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PR, Switch cluster, now prod-emea/ })).toBeInTheDocument();
   });
 });
 
@@ -139,7 +139,7 @@ describe('RootLayout in a narrow window', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(await screen.findByRole('button', { name: /^Switch cluster, now prod-emea/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^PR, Switch cluster, now prod-emea/ })).toBeInTheDocument();
     // The viewer's own choice is kept for when the window is wide again.
     expect(localStorage.getItem('as:nav:collapsed')).toBe('false');
   });

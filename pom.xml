@@ -57,7 +57,7 @@
         <!-- Pinned; verified against Maven Central during workspace setup. -->
         <artemis.version>2.57.0</artemis.version>
         <testcontainers.version>2.0.5</testcontainers.version>
-        <spotless.version>3.10.3</spotless.version>
+        <spotless.version>3.10.4</spotless.version>
         <!-- Publishing the plugin API (ADR-0102); verified against Maven Central 2026-09-23. -->
         <central-publishing.version>0.11.0</central-publishing.version>
         <maven-gpg.version>3.2.8</maven-gpg.version>
