@@ -211,7 +211,7 @@ public class JobRunner implements SmartInitializingSingleton, DisposableBean {
                 Instant next;
                 try {
                     next = entry.job.trigger().nextExecution(entry.context);
-                } catch (RuntimeException e) {
+                } catch (RuntimeException _) {
                     next = null; // an unreadable schedule is reported by arm on its own retry
                 }
                 if (next != null && next.isBefore(entry.scheduledFor)) {

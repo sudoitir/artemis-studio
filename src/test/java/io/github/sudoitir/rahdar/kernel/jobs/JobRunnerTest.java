@@ -359,4 +359,17 @@ class JobRunnerTest {
 
         assertThat(status("waiting").nextRun()).isEqualTo(planned);
     }
+
+    @Test
+    void aScheduleMadeUnreadableBySettingChangesKeepsItsPlannedRunUntilThatRunReportsIt() {
+        AtomicReference<String> cron = new AtomicReference<>("0 0 3 * * *");
+        runner.schedule(ScheduledJob.cron("broken", "test", ScheduledJob.Scope.INSTANCE, cron::get, () -> {}));
+        Instant planned = status("broken").nextRun();
+
+        cron.set("not a schedule");
+        runner.onSettingsChanged(new ReplicaSignal("settings", ""));
+
+        assertThat(status("broken").nextRun()).isEqualTo(planned);
+        assertThat(status("broken").invalidSchedule()).isNull();
+    }
 }
