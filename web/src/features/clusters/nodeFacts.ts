@@ -42,7 +42,7 @@ export interface NodeFacts {
   version: string | null;
   /** "Artemis 2.40.0", or "Version unknown". */
   versionLabel: string;
-  /** Why this release is outside what Studio supports or has tested, in words; null when it is neither. */
+  /** Why this release is outside what Rahdar supports or has tested, in words; null when it is neither. */
   versionNote: string | null;
   /** The note in two words, for a box: "unsupported", "untested". */
   versionFlag: string | null;
@@ -55,9 +55,9 @@ export interface NodeFacts {
   lastError: string | null;
   /** An ISO instant; null when the node has never answered. */
   lastSeenAt: string | null;
-  /** How Studio came to know this node, in words. */
+  /** How Rahdar came to know this node, in words. */
   origin: string;
-  /** Whether Studio can poll it: false for a node found but given no management URL. */
+  /** Whether Rahdar can poll it: false for a node found but given no management URL. */
   manageable: boolean;
   /** The box's accessible name, and what is announced when it is chosen. */
   sentence: string;
@@ -85,9 +85,9 @@ function roleOf(endpoint: NodeEndpointView): Role {
 export function versionNoteOf(endpoint: NodeEndpointView): string | null {
   switch (endpoint.versionSupport) {
     case 'BELOW_MINIMUM':
-      return 'unsupported release: older than Studio supports';
+      return 'unsupported release: older than Rahdar supports';
     case 'NEWER_THAN_TESTED':
-      return 'newer release than Studio has tested';
+      return 'newer release than Rahdar has tested';
     default:
       return null;
   }

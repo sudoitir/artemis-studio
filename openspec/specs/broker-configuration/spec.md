@@ -2,7 +2,7 @@
 
 ## Purpose
 Defines how a cluster's configuration — its addresses and queues, address settings,
-security settings and diverts — is declared in Artemis Studio, imported from and exported
+security settings and diverts — is declared in Rahdar, imported from and exported
 to `broker.xml`, applied to every live node over the management API without taking a
 whole cluster down at once, and continuously compared against what each node is
 actually running. Absorbs the `desired-state` capability change 05 proposed.
@@ -263,7 +263,7 @@ response SHALL remain the authoritative outcome.
 #### Scenario: A value the broker never reports back is stated, not compared
 
 - **WHEN** a security setting declares roles for a permission type the broker accepts but does not report back through its management read (`view` and `edit` on the versions measured)
-- **THEN** the roles are sent, the plan, the verification and the drift evaluation compare only the reported types, and the editor states that those two cannot be verified from Studio
+- **THEN** the roles are sent, the plan, the verification and the drift evaluation compare only the reported types, and the editor states that those two cannot be verified from Rahdar
 
 #### Scenario: A canary failure touches nothing else
 
@@ -379,7 +379,7 @@ Applying that revision is the ordinary apply, with the ordinary plan, hazards, c
 confirmation (D8): the recommendation is a suggestion, and the operator is still the one who acts.
 
 A recommended security setting grants permissions that the broker checks against the account
-Studio uses for Core connections. Its roles SHALL be prefilled with the roles of that account,
+Rahdar uses for Core connections. Its roles SHALL be prefilled with the roles of that account,
 read from the broker's user management: the account's roles that the broker already names for
 that address, or else all of the account's roles. When the broker cannot report the account's
 roles (for example under an LDAP or custom login module), the roles the broker currently names
@@ -388,7 +388,7 @@ why. The roles SHALL stay editable before they are declared, and a security sett
 name no role at all SHALL be refused, because a block granting nobody anything applies cleanly
 and does nothing.
 
-#### Scenario: Roles come from Studio's account
+#### Scenario: Roles come from Rahdar's account
 - **WHEN** the Core account holds the roles `amq` and `ops`, and the broker names `amq` for the recommended match
 - **THEN** the field is prefilled with `amq` and says the roles were read from the account
 

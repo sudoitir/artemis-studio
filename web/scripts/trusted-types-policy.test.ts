@@ -6,15 +6,13 @@ import { TRUSTED_TYPES_DIRECTIVES } from '../src/test/trustedTypesPolicy.ts';
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
 /**
- * The browser tests are served with Studio's Trusted Types directives (ADR-0168). They are only worth
+ * The browser tests are served with Rahdar's Trusted Types directives (ADR-0168). They are only worth
  * something while they are the ones the server sends, and while the page makes exactly the policies
  * they name.
  */
 describe('the Trusted Types policy', () => {
   it('is the one the server sends', () => {
-    const server = read(
-      '../../src/main/java/io/github/sudoitir/artemisstudio/kernel/security/internal/SecurityConfig.java',
-    );
+    const server = read('../../src/main/java/io/github/sudoitir/rahdar/kernel/security/internal/SecurityConfig.java');
 
     expect(server).toContain(`"${TRUSTED_TYPES_DIRECTIVES}"`);
   });

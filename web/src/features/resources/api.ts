@@ -42,7 +42,7 @@ export const useProducers = (id: string, p: ResourceParams = {}) => useResource<
  * consumer connection on an address.
  *
  * <p>A by-id close names the **node** the identifier was issued by — the one
- * mutating call in Studio that is not cluster-wide, because a connection id
+ * mutating call in Rahdar that is not cluster-wide, because a connection id
  * means nothing on another node. Only the address-scoped close names the
  * cluster.
  *

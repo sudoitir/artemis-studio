@@ -51,7 +51,7 @@ secret, not derived from the Jolokia credential's stored form.
 
 The system SHALL open Core connections with client-side topology-driven load
 balancing disabled and the client library's automatic reconnect disabled, so
-that a connector hostname the broker advertises but Studio cannot resolve does
+that a connector hostname the broker advertises but Rahdar cannot resolve does
 not cause a blocking retry. TLS settings for a Core connection SHALL be resolved
 from the same per-cluster TLS reference used for the Jolokia connection, and
 SHALL apply to that cluster's connections only: configuring TLS for one cluster
@@ -59,8 +59,8 @@ SHALL NOT change the trust material any other cluster's Core connection uses.
 
 #### Scenario: An unresolvable advertised connector does not wedge the connection
 
-- **WHEN** the broker advertises a Core connector hostname that does not resolve from where Studio runs
-- **THEN** the Core connection attempt fails fast and is retried by Studio rather than blocking on a library reconnect loop
+- **WHEN** the broker advertises a Core connector hostname that does not resolve from where Rahdar runs
+- **THEN** the Core connection attempt fails fast and is retried by Rahdar rather than blocking on a library reconnect loop
 
 #### Scenario: TLS reference is shared
 

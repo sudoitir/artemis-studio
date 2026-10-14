@@ -299,7 +299,7 @@ describe('AuditView rows and states', () => {
     );
     renderWithProviders(<AuditView />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Studio failed to complete the request');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Rahdar failed to complete the request');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
@@ -474,7 +474,7 @@ describe('AuditView event detail', () => {
     renderWithProviders(<AuditView />);
 
     const dialog = await screen.findByRole('dialog', { name: 'Audit event' });
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Studio failed to complete the request');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Rahdar failed to complete the request');
   });
 
   it('shows a placeholder while an event that is not on the page loads', async () => {
@@ -525,7 +525,7 @@ describe('AuditView export', () => {
       ['NDJSON', 'ndjson'],
     ]) {
       const link = await screen.findByRole('menuitem', { name: label });
-      const url = new URL(link.getAttribute('href') ?? '', 'http://studio');
+      const url = new URL(link.getAttribute('href') ?? '', 'http://rahdar');
       expect(url.pathname).toBe('/api/v1/clusters/c1/audit/export');
       expect(Object.fromEntries(url.searchParams)).toEqual({
         format,

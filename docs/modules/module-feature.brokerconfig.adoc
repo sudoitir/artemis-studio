@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.feature.brokerconfig`
+|`io.github.sudoitir.rahdar.feature.brokerconfig`
 |Spring components
 |_Services_
 

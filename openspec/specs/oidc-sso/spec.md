@@ -4,7 +4,7 @@
 
 Defines single sign-on via an external OpenID Connect identity provider,
 automatic provisioning of first-time users, and mapping an identity provider's
-group claim to Studio roles.
+group claim to Rahdar roles.
 
 ## Requirements
 
@@ -18,7 +18,7 @@ login SHALL remain available alongside single sign-on.
 #### Scenario: Successful SSO login establishes a session
 
 - **WHEN** a user completes login at the configured identity provider
-- **THEN** a Studio session is established for that user, equivalent to a
+- **THEN** a Rahdar session is established for that user, equivalent to a
   local login
 
 #### Scenario: Local login remains available

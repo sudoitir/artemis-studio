@@ -27,8 +27,8 @@ import { createAppRouter } from './app/router.ts';
 import { manifestKey } from './kernel/manifest.ts';
 import { boot } from './kernel/plugins/boot.ts';
 // A module is only in Module Federation's shared scope when the host bundle imports it; this is
-// what hands plugin bundles the running Studio's SDK instead of a copy of their own.
-import '@artemis-studio/plugin-sdk';
+// what hands plugin bundles the running Rahdar's SDK instead of a copy of their own.
+import '@rahdar/plugin-sdk';
 import { shouldRetry } from './kernel/api/retry.ts';
 import { shikiAdapter } from './ui/codeHighlightAdapter.ts';
 import { installDefaultPolicy } from './ui/trustedTypes.ts';
@@ -58,14 +58,14 @@ const queryClient = new QueryClient({
   }),
 });
 
-// Learn Studio's clock before anything renders a duration. Started outside React
+// Learn Rahdar's clock before anything renders a duration. Started outside React
 // so it survives StrictMode's double-mount and is not tied to any one route
 // (`app/time.ts`); it never rejects, so nothing downstream has to handle it. The sign-in page
 // has no session to ask with: signing in reloads the page, which starts the clock signed in.
 if (!onLoginPage()) startServerTimeSync();
 
 // Plugins are loaded before the router exists, because their routes are part of it (ADR-0100).
-// Nothing here can keep Studio's own screens from loading: every step is bounded, and a failure
+// Nothing here can keep Rahdar's own screens from loading: every step is bounded, and a failure
 // leaves the plugin out with its reason (kernel/plugins/boot.ts).
 const started = await boot();
 if (started.manifest) queryClient.setQueryData(manifestKey, started.manifest);

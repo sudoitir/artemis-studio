@@ -38,7 +38,7 @@ const graph = {
       delivery: 'SHARED',
       faults: [],
       bypassed: false,
-      studio: false,
+      rahdar: false,
     },
   ],
   measuring: false,
@@ -102,7 +102,7 @@ const edge = (over: Record<string, unknown>) => ({
   stale: false,
   faults: [],
   bypassed: false,
-  studio: false,
+  rahdar: false,
   ...over,
 });
 

@@ -8,18 +8,18 @@ An operator SHALL be able to declare expected values for broker settings the man
 - **THEN** the declaration stores it as verify-only and the next apply plan contains no step for it
 
 #### Scenario: An unsupported setting
-- **WHEN** the operator names a setting Studio cannot read from a node
+- **WHEN** the operator names a setting Rahdar cannot read from a node
 - **THEN** the declaration is refused and states the reason
 
 ### Requirement: Importing broker XML keeps readable static settings as verify-only
-When a pasted `broker.xml` or `<core>` fragment holds a static setting Studio can read from a node, the import SHALL offer it as a verify-only entry instead of listing it as unsupported. Settings Studio cannot read SHALL still be listed as unsupported.
+When a pasted `broker.xml` or `<core>` fragment holds a static setting Rahdar can read from a node, the import SHALL offer it as a verify-only entry instead of listing it as unsupported. Settings Rahdar cannot read SHALL still be listed as unsupported.
 
 #### Scenario: Global size in an import
 - **WHEN** an operator imports a fragment containing `<global-max-size>`
 - **THEN** the preview offers it as a verify-only entry and does not list it as unsupported
 
 ### Requirement: Actual static values are read from each node
-Studio SHALL read the actual value of each declared static setting from each live node where the broker exposes it, and SHALL say which settings it could not read.
+Rahdar SHALL read the actual value of each declared static setting from each live node where the broker exposes it, and SHALL say which settings it could not read.
 
 #### Scenario: A node reports a value
 - **WHEN** a node is read

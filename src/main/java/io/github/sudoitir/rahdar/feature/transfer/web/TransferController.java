@@ -1,0 +1,112 @@
+package io.github.sudoitir.rahdar.feature.transfer.web;
+
+import io.github.sudoitir.rahdar.feature.transfer.TransferService;
+import io.github.sudoitir.rahdar.feature.transfer.web.TransferViews.OrphanReturnRequest;
+import io.github.sudoitir.rahdar.feature.transfer.web.TransferViews.OrphanReturnView;
+import io.github.sudoitir.rahdar.feature.transfer.web.TransferViews.OrphanView;
+import io.github.sudoitir.rahdar.feature.transfer.web.TransferViews.TransferExecuteRequest;
+import io.github.sudoitir.rahdar.feature.transfer.web.TransferViews.TransferPreviewRequest;
+import io.github.sudoitir.rahdar.feature.transfer.web.TransferViews.TransferRunView;
+import io.github.sudoitir.rahdar.kernel.core.HeavyRequests;
+import io.github.sudoitir.rahdar.kernel.core.PagedView;
+import io.github.sudoitir.rahdar.kernel.core.ResourceQuery;
+import io.github.sudoitir.rahdar.kernel.gate.HeldResponse;
+import io.github.sudoitir.rahdar.kernel.security.ActorResolver;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.validation.Valid;
+import java.time.Duration;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Preview, run, stop, resume, return and read message transfers (ADR-0097). The path's cluster is the
+ * source for a preview, and the source or the target for a run. Authorization is on both clusters,
+ * through {@code ClusterAccessGuard} inside {@link TransferService}.
+ */
+@RestController
+@RequestMapping("/clusters/{clusterId}/transfers")
+@RequiredArgsConstructor
+public class TransferController {
+
+    private final TransferService transfers;
+    private final HeavyRequests heavy;
+    private final ActorResolver actors;
+
+    /** A preview reads the source queue and its target from the brokers; a few at once per user. */
+    private static final HeavyRequests.Endpoint PREVIEW =
+            new HeavyRequests.Endpoint("transfer previews", 2, Duration.ofSeconds(60), Integer.MAX_VALUE);
+
+    @PostMapping("/preview")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TransferRunView preview(@PathVariable UUID clusterId, @Valid @RequestBody TransferPreviewRequest request) {
+        return heavy.run(PREVIEW, actors.resolve().displayName(), _ -> transfers.preview(clusterId, request));
+    }
+
+    /** Starts the run, or, when an approval provider holds it, answers 202 with the held request and starts nothing. */
+    @ApiResponse(
+            responseCode = "202",
+            description = "Started: the run",
+            content = @Content(schema = @Schema(implementation = TransferRunView.class)))
+    @HeldResponse
+    @PostMapping("/runs/{runId}/execute")
+    public ResponseEntity<TransferRunView> execute(
+            @PathVariable UUID clusterId,
+            @PathVariable UUID runId,
+            @Valid @RequestBody TransferExecuteRequest request) {
+        return ResponseEntity.accepted().body(transfers.execute(clusterId, runId, request));
+    }
+
+    @PostMapping("/runs/{runId}/stop")
+    public TransferRunView stop(@PathVariable UUID clusterId, @PathVariable UUID runId) {
+        return transfers.stop(clusterId, runId);
+    }
+
+    @PostMapping("/runs/{runId}/resume")
+    public ResponseEntity<TransferRunView> resume(@PathVariable UUID clusterId, @PathVariable UUID runId) {
+        return ResponseEntity.accepted().body(transfers.resume(clusterId, runId));
+    }
+
+    @PostMapping("/runs/{runId}/return")
+    public ResponseEntity<TransferRunView> returnToSource(@PathVariable UUID clusterId, @PathVariable UUID runId) {
+        return ResponseEntity.accepted().body(transfers.returnToSource(clusterId, runId));
+    }
+
+    @GetMapping("/runs")
+    public PagedView<TransferRunView> history(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(transfers.history(clusterId), null);
+    }
+
+    @GetMapping("/runs/{runId}")
+    public TransferRunView get(@PathVariable UUID clusterId, @PathVariable UUID runId) {
+        return transfers.get(clusterId, runId);
+    }
+
+    @GetMapping("/orphans")
+    public PagedView<OrphanView> orphans(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(transfers.orphans(clusterId), null);
+    }
+
+    @PostMapping("/orphans/return")
+    public OrphanReturnView returnOrphan(
+            @PathVariable UUID clusterId, @Valid @RequestBody OrphanReturnRequest request) {
+        return transfers.returnOrphan(clusterId, request);
+    }
+}

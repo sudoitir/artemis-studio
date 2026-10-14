@@ -60,12 +60,12 @@ function latencyItem(f: Flow): DescriptionItem {
     value: `${f.latencyMs}ms${bound}`,
     hint:
       f.latencySource === 'MESSAGE_TIMESTAMPS'
-        ? 'from the messages’ own timestamps, normalised onto Studio’s clock'
+        ? 'from the messages’ own timestamps, normalised onto Rahdar’s clock'
         : 'observed between sample ticks, so it cannot resolve anything shorter',
   };
 }
 
-/** What the clocks on the two sides claim, when either is ahead of Studio's. */
+/** What the clocks on the two sides claim, when either is ahead of Rahdar's. */
 function skewItem(f: Flow): DescriptionItem {
   const request =
     f.requestSkewMs == null ? '' : `the request claimed to be produced ${f.requestSkewMs}ms in the future`;

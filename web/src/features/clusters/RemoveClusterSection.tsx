@@ -14,7 +14,7 @@ import styles from './RemoveClusterSection.module.css';
 const REMOVE: ActionVerb = { verb: 'Remove', past: 'Removed', progressive: 'Removing' };
 
 /**
- * Settings section: remove this cluster from Studio (cluster-registration spec). It lives here, last in the
+ * Settings section: remove this cluster from Rahdar (cluster-registration spec). It lives here, last in the
  * cluster's settings, rather than above every view of the cluster. What goes and what stays is stated before
  * the typed name arms the button (non-negotiable #2).
  */
@@ -36,7 +36,7 @@ export function RemoveClusterSection({ clusterId }: Readonly<{ clusterId: string
     <div className={styles.danger}>
       <Stack gap="sm">
         <Text size="sm">
-          Removing <strong>{name}</strong> deletes what Studio keeps for it:
+          Removing <strong>{name}</strong> deletes what Rahdar keeps for it:
         </Text>
         <List size="sm" spacing={2}>
           <List.Item>its registration, nodes and stored broker credentials;</List.Item>
@@ -82,7 +82,7 @@ export function RemoveClusterSection({ clusterId }: Readonly<{ clusterId: string
               </Text>
             ) : null}
             <span>
-              Removes <strong>{name}</strong> from Studio, with its registration, nodes, stored broker credentials,
+              Removes <strong>{name}</strong> from Rahdar, with its registration, nodes, stored broker credentials,
               alert rules, request-reply flows, message-index subscriptions and configuration history. Nothing on the
               broker changes.
             </span>

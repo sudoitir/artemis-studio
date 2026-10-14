@@ -185,8 +185,8 @@ export const KEY_HELP: Record<string, KeyHelp> = {
   },
   slowConsumerPolicy: {
     summary:
-      'What to do with a slow consumer: NOTIFY emits a management notification Studio can alert on; KILL also disconnects it.',
-    example: 'NOTIFY — see it in Studio before deciding.',
+      'What to do with a slow consumer: NOTIFY emits a management notification Rahdar can alert on; KILL also disconnects it.',
+    example: 'NOTIFY — see it in Rahdar before deciding.',
   },
   autoCreateQueues: {
     summary:
@@ -241,13 +241,13 @@ export const KEY_HELP: Record<string, KeyHelp> = {
     example: 'false — leave never-used addresses.',
   },
   managementBrowsePageSize: {
-    summary: 'How many messages a management browse (the console, Studio) returns per page.',
+    summary: 'How many messages a management browse (the console, Rahdar) returns per page.',
     example: '200 — the broker default.',
   },
   managementMessageAttributeSizeLimit: {
     summary:
-      'How many bytes of a message body or property a management browse returns before truncating. -1 removes the limit, which is what a full body view in Studio needs.',
-    example: '-1 — show whole bodies in Studio.',
+      'How many bytes of a message body or property a management browse returns before truncating. -1 removes the limit, which is what a full body view in Rahdar needs.',
+    example: '-1 — show whole bodies in Rahdar.',
   },
   defaultMaxConsumers: {
     summary: 'The consumer limit for auto-created queues. -1 means unlimited.',

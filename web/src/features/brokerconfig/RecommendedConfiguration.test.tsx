@@ -12,7 +12,7 @@ import { RecommendedConfiguration } from './RecommendedConfiguration.tsx';
 const SETTING: ConfigRecommendationView = {
   capability: 'management-size-limit',
   title: 'Raise the management message size limit',
-  rationale: 'Studio reads large attributes through management messages.',
+  rationale: 'Rahdar reads large attributes through management messages.',
   appliable: true,
   section: 'ADDRESS_SETTING',
   match: 'activemq.management#',
@@ -64,13 +64,13 @@ describe('RecommendedConfiguration', () => {
     renderWithProviders(<RecommendedConfiguration clusterId="c1" recommendations={view()} />);
 
     expect(screen.getByText('Nothing to recommend')).toBeInTheDocument();
-    expect(screen.getByText(/There is nothing Studio would change/)).toBeInTheDocument();
+    expect(screen.getByText(/There is nothing Rahdar would change/)).toBeInTheDocument();
   });
 
-  it('shows both halves as sections: what Studio can apply and what still needs broker.xml', () => {
+  it('shows both halves as sections: what Rahdar can apply and what still needs broker.xml', () => {
     renderWithProviders(<RecommendedConfiguration clusterId="c1" recommendations={view(SETTING, MANUAL)} />);
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Studio can apply these' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Rahdar can apply these' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'These still need a broker.xml edit' })).toBeInTheDocument();
     // The key this sets is shown; the keys it writes back as they are wait behind one disclosure.
     expect(screen.getByText('managementMessageAttributeSizeLimit', { selector: 'code' })).toBeInTheDocument();
@@ -138,7 +138,7 @@ describe('RecommendedConfiguration', () => {
     expect(screen.getByRole('button', { name: 'Declare & review the plan' })).toBeDisabled();
   });
 
-  it("says the roles were read from Studio's account, and which of them the broker already names", () => {
+  it("says the roles were read from Rahdar's account, and which of them the broker already names", () => {
     const fromAccount: ConfigRecommendationView = {
       ...SECURITY,
       roles: { manage: ['amq'] },
@@ -149,7 +149,7 @@ describe('RecommendedConfiguration', () => {
 
     expect(
       screen.getByText(
-        "Read from Studio's broker account (amq, ops). Narrowed to the roles the broker already names for this address.",
+        "Read from Rahdar's broker account (amq, ops). Narrowed to the roles the broker already names for this address.",
       ),
     ).toBeInTheDocument();
     // Only the role the broker already names is prefilled, not every role the account holds.
@@ -162,7 +162,7 @@ describe('RecommendedConfiguration', () => {
 
     expect(
       screen.getByText(
-        "Studio's account roles could not be read: the broker has no user store to list. These are the roles the broker names for this address.",
+        "Rahdar's account roles could not be read: the broker has no user store to list. These are the roles the broker names for this address.",
       ),
     ).toBeInTheDocument();
   });

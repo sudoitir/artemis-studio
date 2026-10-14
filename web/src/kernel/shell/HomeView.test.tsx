@@ -6,7 +6,7 @@ import { createRoute } from '@tanstack/react-router';
 import { paged } from '../api/paging.ts';
 import { renderAppAt } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
-import { CONTRACT, defineFeature, type StudioFeature } from '../feature.ts';
+import { CONTRACT, defineFeature, type RahdarFeature } from '../feature.ts';
 import { FeatureProvider } from '../FeatureProvider.tsx';
 import { rootRoute } from '../routing/roots.ts';
 import { HomeView } from './HomeView.tsx';
@@ -21,7 +21,7 @@ const route = createRoute({
   ),
 });
 
-const features: StudioFeature[] = [
+const features: RahdarFeature[] = [
   defineFeature({
     contract: CONTRACT,
     id: 'clusters',

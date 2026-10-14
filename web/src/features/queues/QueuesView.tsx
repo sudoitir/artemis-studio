@@ -112,7 +112,7 @@ function QueuesEmpty({
             ? `${unreachable[0]} could not be reached`
             : `${unreachable.length} nodes could not be reached`
         }
-        description={`There may be queues here that Studio cannot currently see. ${
+        description={`There may be queues here that Rahdar cannot currently see. ${
           unreachable.length === 1 ? 'This node' : 'These nodes'
         } did not answer the last scrape, so this is an incomplete view rather than an empty cluster.`}
         nodes={unreachable}
@@ -134,7 +134,7 @@ function QueuesEmpty({
       title={reach === 'teams' ? 'No queues in your teams on this cluster' : 'No queues yet'}
       description={
         <>
-          A queue is where messages wait for a consumer. Studio fills this grid from each broker's{' '}
+          A queue is where messages wait for a consumer. Rahdar fills this grid from each broker's{' '}
           <code>listQueues</code>, so a queue appears here within a scrape tick of being created or of the first message
           produced to its address.
         </>
@@ -272,7 +272,7 @@ export function QueuesView() {
   const mayCreate = can('queue:create', clusterId) || (createPatterns(clusterId, 'queue')?.length ?? 0) > 0;
 
   // An empty grid has three quite different causes, and presenting an absence as
-  // a fact is the one that misleads: a node Studio could not reach contributes no
+  // a fact is the one that misleads: a node Rahdar could not reach contributes no
   // rows, which looks exactly like a cluster with no queues.
   const cluster = useCluster(clusterId);
   // Offered while grants load, and never hidden: an operator without the grant sees why (non-negotiable #5).

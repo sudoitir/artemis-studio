@@ -64,7 +64,7 @@ const status = (webauthn: { available: boolean; reason?: string | null } = { ava
 const totp = http.post('*/api/v1/auth/mfa/totp', () =>
   HttpResponse.json({
     secret: SECRET,
-    otpauthUri: `otpauth://totp/Artemis%20Studio:alice?secret=${SECRET}&issuer=Artemis%20Studio`,
+    otpauthUri: `otpauth://totp/Artemis%20Rahdar:alice?secret=${SECRET}&issuer=Artemis%20Rahdar`,
   }),
 );
 
@@ -218,7 +218,7 @@ describe('EnrolSecondFactorView', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Download' }));
     await user.click(within(dialog).getByRole('button', { name: 'Copy all' }));
 
-    expect(filename).toBe('artemis-studio-recovery-codes.txt');
+    expect(filename).toBe('rahdar-recovery-codes.txt');
     expect(await within(dialog).findByText('Recovery codes copied to the clipboard.')).toBeInTheDocument();
     expect((await navigator.clipboard.readText()).split('\n')).toHaveLength(10);
     click.mockRestore();
@@ -230,10 +230,7 @@ describe('EnrolSecondFactorView', () => {
       status(),
       totp,
       http.post('*/api/v1/auth/mfa/totp/confirm', () =>
-        HttpResponse.json(
-          { type: 'https://artemis-studio.dev/problems/invalid-value', title: 'Invalid' },
-          { status: 400 },
-        ),
+        HttpResponse.json({ type: 'https://rahdar.dev/problems/invalid-value', title: 'Invalid' }, { status: 400 }),
       ),
     );
     const user = userEvent.setup();
@@ -253,7 +250,7 @@ describe('EnrolSecondFactorView', () => {
       me(),
       status({
         available: false,
-        reason: "Studio's public address is not set. Set artemis-studio.public-url to use passkeys.",
+        reason: "Rahdar's public address is not set. Set rahdar.public-url to use passkeys.",
       }),
       totp,
     );
@@ -262,7 +259,7 @@ describe('EnrolSecondFactorView', () => {
 
     const passkey = await screen.findByRole('radio', { name: 'Passkey' });
     await waitFor(() =>
-      expect(passkey).toHaveAccessibleDescription(/Not available\. Studio's public address is not set/),
+      expect(passkey).toHaveAccessibleDescription(/Not available\. Rahdar's public address is not set/),
     );
     expect(passkey).toHaveAttribute('aria-disabled', 'true');
     await user.click(passkey);

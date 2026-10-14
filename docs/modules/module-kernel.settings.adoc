@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.kernel.settings`
+|`io.github.sudoitir.rahdar.kernel.settings`
 |Spring components
 |_Controllers_
 
@@ -17,7 +17,7 @@ _Others_
 
 * `i.g.s.a.k.s.SettingsContribution` (via `i.g.s.a.k.s.SessionSettings`)
 * `i.g.s.a.k.s.SettingsReader`
-* `i.g.s.a.k.s.StudioInstance`
+* `i.g.s.a.k.s.RahdarInstance`
 |Bean references
 |* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
 * `i.g.s.a.k.g.ApprovalProviderRegistry` (in Approval gate contract)
@@ -27,7 +27,7 @@ _Others_
 * `i.g.s.a.k.s.ActorResolver` (in Security)
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.s.SessionAuthentication` (in Security)
-* `i.g.s.a.k.r.StudioBus` (in Replicas)
+* `i.g.s.a.k.r.RahdarBus` (in Replicas)
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 
 * `i.g.s.a.k.r.BusResumed` 

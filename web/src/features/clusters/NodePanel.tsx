@@ -45,7 +45,7 @@ export function NodePanelPlaceholder() {
   return (
     <Section title="Node details" variant="card">
       <Text size="sm" c="dimmed">
-        Choose a node, in the graph or in the table, to read its role, liveness, pair and version here, and how Studio
+        Choose a node, in the graph or in the table, to read its role, liveness, pair and version here, and how Rahdar
         found it.
       </Text>
     </Section>

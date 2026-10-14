@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines how an operator queries and views the historical metric samples Studio already
+Defines how an operator queries and views the historical metric samples Rahdar already
 collects — bucketed time-series reads over `metric_sample`, the partition lifecycle that
 keeps that table bounded, and the charts that present depth, throughput, consumer count,
 and request-reply latency for a cluster or a single queue.

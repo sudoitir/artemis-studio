@@ -35,7 +35,7 @@ type EnvironmentView = components['schemas']['EnvironmentView'];
 
 /**
  * One approval request: what it will do, who asked and why, what happened to it, and — for an approver while it
- * waits — the decision. Generic: every gated operation, Studio's or a plugin's, reads the same way, and an
+ * waits — the decision. Generic: every gated operation, Rahdar's or a plugin's, reads the same way, and an
  * installed approval provider adds its own controls through the `approval.decision` slot.
  */
 export function ApprovalView() {
@@ -115,7 +115,7 @@ function Request({ detail, refresh }: Readonly<{ detail: HeldOperationDetail; re
       <Section title="Request">
         {detail.requesterLacksPermission && !isClosed(operation.state) ? (
           <Notice tone="warning" title="The requester lost the permission">
-            {operation.requesterUsername} no longer holds the permission this operation needs. Studio checks it again
+            {operation.requesterUsername} no longer holds the permission this operation needs. Rahdar checks it again
             before running, so if it is approved it is refused then and nothing changes.
           </Notice>
         ) : null}
@@ -166,7 +166,7 @@ function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
     case 'EXECUTING':
       return (
         <Notice tone="neutral" title="In progress">
-          {approver} approved it, and Studio is running it now.
+          {approver} approved it, and Rahdar is running it now.
         </Notice>
       );
     case 'SUCCEEDED':
@@ -184,13 +184,13 @@ function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
     case 'REFUSED':
       return (
         <Notice tone="danger" title="Nothing was changed">
-          {outcome ?? 'Studio checked it again before running it and refused.'}
+          {outcome ?? 'Rahdar checked it again before running it and refused.'}
         </Notice>
       );
     case 'OUTCOME_UNKNOWN':
       return (
         <Notice tone="warning" title="Check the target">
-          {outcome ? `${outcome} ` : ''}Studio started it but cannot tell whether it finished, so it will never run it
+          {outcome ? `${outcome} ` : ''}Rahdar started it but cannot tell whether it finished, so it will never run it
           again. Check the target before requesting it again.
         </Notice>
       );
@@ -219,8 +219,8 @@ function Outcome({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
 function ApprovedNotice({ detail, approver }: Readonly<{ detail: HeldOperationDetail; approver: string }>) {
   if (detail.mode !== 'BY_REQUESTER') {
     return (
-      <Notice tone="neutral" title="Studio runs it next">
-        {approver} approved it. Studio runs it next.
+      <Notice tone="neutral" title="Rahdar runs it next">
+        {approver} approved it. Rahdar runs it next.
       </Notice>
     );
   }
@@ -268,7 +268,7 @@ function WhatHappens({ detail }: Readonly<{ detail: HeldOperationDetail }>) {
         label="Affects"
         value={effect ? effect.count.toLocaleString('en-US') : null}
         unit={effect?.unit}
-        unavailableReason="Studio could not estimate the effect. Read the changes above before deciding."
+        unavailableReason="Rahdar could not estimate the effect. Read the changes above before deciding."
       />
       {effect?.detail ? <Text size="sm">{effect.detail}</Text> : null}
       <DescriptionList items={scopeItems(detail)} />
@@ -291,7 +291,7 @@ function scopeItems(detail: HeldOperationDetail): DescriptionItem[] {
   const items: DescriptionItem[] = [];
   if (operation.clusterId) items.push({ term: 'Cluster', value: <ClusterName id={operation.clusterId} /> });
   if (detail.environmentId) items.push({ term: 'Environment', value: <EnvironmentName id={detail.environmentId} /> });
-  if (!operation.clusterId && !detail.environmentId) items.push({ term: 'Scope', value: 'This Studio installation' });
+  if (!operation.clusterId && !detail.environmentId) items.push({ term: 'Scope', value: 'This Rahdar installation' });
   items.push({
     term: 'Operation',
     value: (
@@ -369,7 +369,7 @@ function Timeline({ detail, now }: Readonly<{ detail: HeldOperationDetail; now: 
             <Text span fw={600} size="sm">
               {eventWord(event)}
             </Text>{' '}
-            by {event.actorUsername ?? 'Studio'}
+            by {event.actorUsername ?? 'Rahdar'}
           </Text>
           <Text size="sm" c="dimmed">
             <Ago at={event.at} now={now} />

@@ -25,7 +25,7 @@ body = """
 {%- set subject = parts | first | trim | replace(from="\n", to=" ") %}
 {%- set rest = parts | slice(start=1) | join(sep="\n\n") %}
 {%- set body = [rest, commit.body | default(value="")] | join(sep="\n\n") | trim %}
-- **{{ subject | upper_first }}** ([{{ commit.id | truncate(length=8, end="") }}](https://github.com/sudoitir/artemis-studio/commit/{{ commit.id }}))
+- **{{ subject | upper_first }}** ([{{ commit.id | truncate(length=8, end="") }}](https://github.com/sudoitir/rahdar/commit/{{ commit.id }}))
 {%- if body %}
 
   {{ body | replace(from="\n", to="\n  ") }}

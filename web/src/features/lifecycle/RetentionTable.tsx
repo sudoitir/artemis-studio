@@ -41,7 +41,7 @@ export function RetentionTable() {
           <EmptyState
             kind="empty"
             title="No store is registered"
-            description="A store is a table that grows with use, such as recorded events or samples, and has a retention and a quota. Studio's features and the plugins that keep data each register theirs, and none has registered one here yet. Enable such a feature or install such a plugin, and its store is listed here to set its policy."
+            description="A store is a table that grows with use, such as recorded events or samples, and has a retention and a quota. Rahdar's features and the plugins that keep data each register theirs, and none has registered one here yet. Enable such a feature or install such a plugin, and its store is listed here to set its policy."
           />
         }
       />

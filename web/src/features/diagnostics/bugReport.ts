@@ -25,7 +25,7 @@ export function environmentMarkdown(env: BugEnvironment): string {
   };
   const plugins = env.plugins.length ? env.plugins.map(plugin).join(', ') : 'none';
   const rows: [string, string][] = [
-    ['Studio', s ? `${s.studioVersion} (plugin contract ${s.contractVersion})` : 'unknown'],
+    ['Rahdar', s ? `${s.rahdarVersion} (plugin contract ${s.contractVersion})` : 'unknown'],
     ['Java', s?.java ?? 'unknown'],
     ['OS', s?.os ?? 'unknown'],
     ['Database', s?.database ?? 'unknown'],

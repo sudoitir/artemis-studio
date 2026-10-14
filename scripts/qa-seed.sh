@@ -5,7 +5,7 @@
 # demo-seed.sh makes a stack look like a working estate; this makes it awkward on purpose, because
 # layout breaks on the value nobody typed by hand: a queue name past 120 characters, a 200-character
 # address, a dead-letter message with a 16 KB body and 400-character headers, an alert rule whose name
-# fills a line twice over. Everything goes through Studio's own REST API, as demo-seed.sh does, and
+# fills a line twice over. Everything goes through Rahdar's own REST API, as demo-seed.sh does, and
 # nothing writes to a table directly.
 #
 # What it builds:
@@ -25,7 +25,7 @@
 # Idempotent by name; a second run reports what already exists and changes nothing.
 set -euo pipefail
 
-STUDIO=${STUDIO:?set STUDIO to the isolated stack, e.g. http://127.0.0.1:18080}
+RAHDAR=${RAHDAR:?set RAHDAR to the isolated stack, e.g. http://127.0.0.1:18080}
 ADMIN_USER=${ADMIN_USER:-admin}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the admin password}
 # The built-in ADMIN role requires a second factor (ADR-0143): the secret `just qa-up` enrolled.
@@ -84,14 +84,14 @@ ensure() {
   echo "$id"
 }
 
-say "waiting for Studio to answer"
+say "waiting for Rahdar to answer"
 for _ in $(seq 1 60); do
-  curl -fsS "$STUDIO/actuator/health" >/dev/null 2>&1 && break
+  curl -fsS "$RAHDAR/actuator/health" >/dev/null 2>&1 && break
   sleep 3
 done
 
-say "signing in to Studio"
-studio_sign_in "" || exit 1
+say "signing in to Rahdar"
+rahdar_sign_in "" || exit 1
 
 say "finding the cluster the sweep opens"
 cluster=$(find_id /clusters name demo)
@@ -218,7 +218,7 @@ if [ -z "$(find_id /users username qa-reader)" ]; then
     COOKIES=$(mktemp)
     trap 'rm -f "$COOKIES"' EXIT
     ADMIN_USER=qa-reader ADMIN_PASSWORD=$initial
-    studio_sign_in "$QA_USER_PASSWORD" QA_USER_PASSWORD
+    rahdar_sign_in "$QA_USER_PASSWORD" QA_USER_PASSWORD
   ) || failed=$((failed + 1))
 fi
 reader_id=$(find_id /users username qa-reader)
@@ -243,4 +243,4 @@ if [ "$failed" -gt 0 ]; then
   say "$failed required step(s) failed; the content above is incomplete"
   exit 1
 fi
-say "done. Studio: $STUDIO, cluster $cluster"
+say "done. Rahdar: $RAHDAR, cluster $cluster"

@@ -40,7 +40,7 @@ describe('AdoptionSuggestion', () => {
     expect(read).toHaveBeenCalledTimes(1);
   });
 
-  it('says the reason Studio does not adopt on its own from a control that takes focus', async () => {
+  it('says the reason Rahdar does not adopt on its own from a control that takes focus', async () => {
     server.use(
       http.post('*/api/v1/clusters/c1/config/adopt', () =>
         HttpResponse.json({ document: EMPTY, notes: [], disagreements: [], closes: [] }),
@@ -49,9 +49,9 @@ describe('AdoptionSuggestion', () => {
     const user = userEvent.setup();
     renderWithProviders(<Harness d={UNDECLARED} />);
 
-    await user.click(await screen.findByRole('button', { name: /Why does Studio not do this for me/ }));
+    await user.click(await screen.findByRole('button', { name: /Why does Rahdar not do this for me/ }));
     expect(
-      await screen.findByText(/Studio adopts only when an operator says so: when registering a cluster, or here/),
+      await screen.findByText(/Rahdar adopts only when an operator says so: when registering a cluster, or here/),
     ).toBeInTheDocument();
   });
 

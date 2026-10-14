@@ -1,4 +1,4 @@
--- Run by scripts/load.sh against Studio's database after the simulation (psql, output in the report).
+-- Run by scripts/load.sh against Rahdar's database after the simulation (psql, output in the report).
 -- It answers two questions the HTTP load cannot: how the history queries without a node filter are planned over
 -- uq_metric_sample, and how many events per second the single writer under the broker_event write lock can flush.
 \set ON_ERROR_STOP off

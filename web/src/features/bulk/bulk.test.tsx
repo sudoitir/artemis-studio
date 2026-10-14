@@ -154,7 +154,7 @@ function capturePreview() {
 }
 
 const problem = (status: number, type: string, title: string, detail: string) =>
-  HttpResponse.json({ type: `https://artemis-studio.dev/problems/${type}`, title, status, detail }, { status });
+  HttpResponse.json({ type: `https://rahdar.dev/problems/${type}`, title, status, detail }, { status });
 
 async function openPreview(user: ReturnType<typeof userEvent.setup>, label = 'Delete…') {
   await waitFor(() => expect(screen.getByRole('button', { name: label })).toBeEnabled());
@@ -325,7 +325,7 @@ describe('BulkPreviewDialog', () => {
     expect(await within(dialog).findByText(/Delete 2 queues on 2 nodes/)).toBeInTheDocument();
     // An incomplete estimate is a floor, and the gap is stated rather than read as zero.
     expect(within(dialog).getByText(/at least 40 messages/)).toBeInTheDocument();
-    expect(within(dialog).getByText(/1 queue has a figure Studio does not know/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/1 queue has a figure Rahdar does not know/)).toBeInTheDocument();
     expect(within(dialog).getByText(/1 queue is refused and will not be touched/)).toBeInTheDocument();
     expect(within(dialog).getByText('It has consumers attached')).toBeInTheDocument();
     expect(within(dialog).getAllByText('unknown').length).toBeGreaterThan(0);

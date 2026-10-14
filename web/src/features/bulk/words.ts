@@ -55,7 +55,7 @@ export function runStatus(status: BulkRunView['status']): { text: string; tone: 
     case 'STOPPED':
       return { text: 'Stopped by an operator', tone: 'warning' };
     case 'INTERRUPTED':
-      return { text: 'Interrupted: Studio stopped while it ran, and did not resume it', tone: 'danger' };
+      return { text: 'Interrupted: Rahdar stopped while it ran, and did not resume it', tone: 'danger' };
   }
 }
 

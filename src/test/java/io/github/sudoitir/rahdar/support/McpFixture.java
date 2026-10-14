@@ -1,0 +1,121 @@
+package io.github.sudoitir.rahdar.support;
+
+import io.github.sudoitir.rahdar.feature.apitokens.ApiTokenService;
+import io.github.sudoitir.rahdar.kernel.security.Grant;
+import io.github.sudoitir.rahdar.kernel.security.TokenGrant;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserEntity;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserRepository;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.RoleEntity;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.RolePermissionEntity;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.RolePermissionRepository;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleEntity;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleRepository;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * Test-side plumbing for the MCP surface: mint a real API key with real grants,
+ * and speak JSON-RPC to {@code /mcp} through the real filter chain.
+ *
+ * <p>The key is minted through {@link ApiTokenService}, not stubbed, because the
+ * property under test in every MCP test is that the token path — prefix lookup,
+ * hash compare, grant intersection with the owner's live grants — is the same one
+ * the REST API uses (ADR-0046). A fake principal would prove none of it.
+ */
+public final class McpFixture {
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
+    private McpFixture() {}
+
+    /** A user holding {@code permissions} at {@code scope}, and an API key narrowed to exactly the same. */
+    public record Key(UUID userId, String username, String plaintext) {
+
+        public String bearer() {
+            return "Bearer " + plaintext;
+        }
+    }
+
+    public static Key mintKey(
+            AppUserRepository users,
+            RoleRepository roles,
+            RolePermissionRepository rolePermissions,
+            UserRoleRepository userRoles,
+            ApiTokenService tokens,
+            Grant.ScopeType scopeType,
+            UUID scopeId,
+            Set<String> permissions) {
+        return mintKey(users, roles, rolePermissions, userRoles, tokens, scopeType, scopeId, permissions, List.of());
+    }
+
+    /** As above, with the key restricted to the named MCP tools; empty means every tool. */
+    public static Key mintKey(
+            AppUserRepository users,
+            RoleRepository roles,
+            RolePermissionRepository rolePermissions,
+            UserRoleRepository userRoles,
+            ApiTokenService tokens,
+            Grant.ScopeType scopeType,
+            UUID scopeId,
+            Set<String> permissions,
+            List<String> mcpTools) {
+        // user_role.scope_id and api_token_grant.scope_id are NOT NULL; a GLOBAL row
+        // carries the nil UUID sentinel (kernel/security 0001-baseline.sql), not null. The token/owner
+        // grant intersection compares scope ids for equality, so both sides must use it.
+        UUID scope = scopeType == Grant.ScopeType.GLOBAL
+                ? io.github.sudoitir.rahdar.kernel.security.ScopeIds.GLOBAL
+                : scopeId;
+        String username = "mcp-" + UUID.randomUUID();
+        AppUserEntity user = AppUserEntity.local(username, username + "@example.test", "{noop}unused");
+        user.setMustChangePassword(false);
+        users.save(user);
+
+        RoleEntity role = roles.save(new RoleEntity("role-" + UUID.randomUUID(), false));
+        for (String action : permissions) {
+            rolePermissions.save(new RolePermissionEntity(role.getId(), action));
+        }
+        userRoles.save(new UserRoleEntity(user.getId(), role.getId(), scopeType.name(), scope));
+
+        var minted = tokens.mint(
+                user.getId(),
+                "mcp-test-key",
+                Instant.now().plus(Duration.ofDays(1)),
+                permissions.stream()
+                        .map(p -> TokenGrant.of(scopeType, scope, p))
+                        .toList(),
+                mcpTools,
+                false);
+        return new Key(user.getId(), username, minted.plaintext());
+    }
+
+    /** One JSON-RPC round trip against {@code /mcp}. Returns the parsed envelope. */
+    public static JsonNode rpc(MockMvc mvc, Key key, String method, Object params) throws Exception {
+        String body = JSON.writeValueAsString(
+                params == null
+                        ? java.util.Map.of("jsonrpc", "2.0", "id", 1, "method", method)
+                        : java.util.Map.of("jsonrpc", "2.0", "id", 1, "method", method, "params", params));
+        String raw = mvc.perform(MockMvcRequestBuilders.post("/mcp")
+                        .header("Authorization", key.bearer())
+                        .contentType("application/json")
+                        .accept("application/json", "text/event-stream")
+                        .content(body))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return JSON.readTree(raw);
+    }
+
+    /** {@code tools/call}, returning the {@code result} object (which may carry {@code isError}). */
+    public static JsonNode callTool(MockMvc mvc, Key key, String tool, java.util.Map<String, Object> arguments)
+            throws Exception {
+        return rpc(mvc, key, "tools/call", java.util.Map.of("name", tool, "arguments", arguments));
+    }
+}

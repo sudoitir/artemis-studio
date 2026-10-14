@@ -1,23 +1,23 @@
 # performance-sizing Specification
 
 ## Purpose
-How much Studio handles on stated hardware: a load test that drives a replicated Studio through its real API, a sizing guide that publishes each dimension's measured ceiling and first degradation, the hardware requirements derived from them, and a regression check against those figures (ADR-0198).
+How much Rahdar handles on stated hardware: a load test that drives a replicated Rahdar through its real API, a sizing guide that publishes each dimension's measured ceiling and first degradation, the hardware requirements derived from them, and a regression check against those figures (ADR-0198).
 
 ## Requirements
 
 ### Requirement: Sizing targets are measured and published
-Studio SHALL publish a sizing guide stating, for a reference machine of 4 vCPU and 8 GB of memory, the supported number of clusters, nodes per cluster, queues and messages per node, with the measured result behind each figure.
+Rahdar SHALL publish a sizing guide stating, for a reference machine of 4 vCPU and 8 GB of memory, the supported number of clusters, nodes per cluster, queues and messages per node, with the measured result behind each figure.
 
 #### Scenario: A figure has a measurement
 - **WHEN** a target appears in the guide
-- **THEN** the guide names the load profile, the machine, the Studio version, the date and the result that support it
+- **THEN** the guide names the load profile, the machine, the Rahdar version, the date and the result that support it
 
 #### Scenario: Targets are stated as limits
 - **WHEN** an operator reads the guide
 - **THEN** each dimension has a tested ceiling and says what degrades first beyond it
 
 ### Requirement: The load test is repeatable from the repository
-The repository SHALL contain a load test that a contributor can run locally with one documented command against a replicated Studio and a simulated or real broker set, and that reports the same metrics the guide cites. The same test SHALL also run through a workflow that is started by hand. Its profiles SHALL cover ordinary UI reads, event-stream clients that read fast and clients that stall, exports, and the SQL console.
+The repository SHALL contain a load test that a contributor can run locally with one documented command against a replicated Rahdar and a simulated or real broker set, and that reports the same metrics the guide cites. The same test SHALL also run through a workflow that is started by hand. Its profiles SHALL cover ordinary UI reads, event-stream clients that read fast and clients that stall, exports, and the SQL console.
 
 #### Scenario: A contributor reruns the test
 - **WHEN** the documented command is run on a clean checkout
@@ -39,11 +39,11 @@ Each run that changes a published figure SHALL update the guide with the new fig
 - **THEN** the guide shows the new figure with its version and date
 
 ### Requirement: The README states hardware requirements from measurements
-The README SHALL have a short hardware section giving a minimum and a recommended size for the Studio node and for Postgres, for a single instance and for a replicated deployment. Each figure SHALL be derived from the load test and the section SHALL link to the sizing guide.
+The README SHALL have a short hardware section giving a minimum and a recommended size for the Rahdar node and for Postgres, for a single instance and for a replicated deployment. Each figure SHALL be derived from the load test and the section SHALL link to the sizing guide.
 
 #### Scenario: An operator plans a deployment
 - **WHEN** an operator reads the README before installing
-- **THEN** they find minimum and recommended sizes for Studio and Postgres, single and replicated, and a link to the measurements behind them
+- **THEN** they find minimum and recommended sizes for Rahdar and Postgres, single and replicated, and a link to the measurements behind them
 
 #### Scenario: A measurement changes a figure
 - **WHEN** a load-test run changes a figure in the sizing guide that the README states

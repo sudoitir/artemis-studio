@@ -9,7 +9,7 @@ const BYTES_PER_ROW = 16;
  *
  * A binary body is never `TextDecoder`ed into the code block: that renders as
  * mojibake, which an operator reads as corruption in their payload rather than as
- * Studio decoding bytes that were never text.
+ * Rahdar decoding bytes that were never text.
  */
 export function HexDump({ bytes, max = 512 }: Readonly<{ bytes: Uint8Array; max?: number }>) {
   const shown = bytes.subarray(0, max);

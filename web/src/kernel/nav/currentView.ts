@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useLocation } from '@tanstack/react-router';
 
-import type { NavContribution, StudioFeature } from '../feature.ts';
+import type { NavContribution, RahdarFeature } from '../feature.ts';
 import { useFeatures } from '../features.ts';
 import { NAV_GROUPS } from './groups.ts';
 
@@ -26,7 +26,7 @@ function trimTrailingSlashes(path: string): string {
  * prefix of the path after `/clusters/<id>/`, so a queue's message browser is under Queues and a
  * bulk run under Bulk runs. Null outside any cluster.
  */
-export function matchView(pathname: string, features: StudioFeature[]): CurrentView | null {
+export function matchView(pathname: string, features: RahdarFeature[]): CurrentView | null {
   const match = CLUSTER_PATH.exec(pathname);
   if (!match) return null;
   const clusterId = decodeURIComponent(match[1]);

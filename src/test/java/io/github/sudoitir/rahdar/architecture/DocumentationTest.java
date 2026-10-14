@@ -1,0 +1,64 @@
+package io.github.sudoitir.rahdar.architecture;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.sudoitir.rahdar.RahdarApplication;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
+import org.springframework.modulith.core.ApplicationModules;
+import org.springframework.modulith.docs.Documenter;
+
+/**
+ * Writes the module diagrams and canvases into {@code docs/modules/} (ADR-0069), so the documented
+ * module graph is the one {@link ModularityTest} verifies. Committed like {@code openapi.json}: a
+ * module or dependency change shows up in the diff of the change that made it.
+ */
+class DocumentationTest {
+
+    private static final Path OUTPUT = Path.of("docs", "modules");
+
+    @Test
+    void writesModuleDocumentation() throws IOException {
+        ApplicationModules modules = ApplicationModules.of(RahdarApplication.class);
+        new Documenter(modules, Documenter.Options.defaults().withOutputFolder(OUTPUT.toString()))
+                .writeModulesAsPlantUml()
+                .writeIndividualModulesAsPlantUml()
+                .writeModuleCanvases();
+        List<Path> diagrams;
+        try (Stream<Path> files = Files.list(OUTPUT)) {
+            diagrams = files.filter(p -> p.toString().endsWith(".puml")).toList();
+        }
+        for (Path diagram : diagrams) {
+            Files.write(diagram, sortRelations(Files.readAllLines(diagram)));
+        }
+        assertThat(diagrams).isNotEmpty();
+    }
+
+    /**
+     * The documenter emits relations and components in no fixed order, which would rewrite every
+     * diagram on every run. Each run of consecutive {@code Rel(} or {@code Component(} lines is
+     * sorted, so a diagram changes only when the module graph does.
+     */
+    private static List<String> sortRelations(List<String> lines) {
+        List<String> out = new ArrayList<>(lines.size());
+        List<String> relations = new ArrayList<>();
+        for (String line : lines) {
+            if (line.startsWith("Rel(") || line.strip().startsWith("Component(")) {
+                relations.add(line);
+                continue;
+            }
+            relations.sort(null);
+            out.addAll(relations);
+            relations.clear();
+            out.add(line);
+        }
+        relations.sort(null);
+        out.addAll(relations);
+        return out;
+    }
+}

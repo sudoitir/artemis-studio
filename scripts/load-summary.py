@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarise a load run: Gatling's statistics, Studio's own metrics and the published figures.
+"""Summarise a load run: Gatling's statistics, Rahdar's own metrics and the published figures.
 
 usage: load-summary.py --profile NAME --version V --gatling DIR --scrape DIR --counts FILE --sizing FILE --out DIR
 
@@ -26,15 +26,15 @@ WANTED = [
     ("hikari_pending", re.compile(r"^hikaricp_connections_pending\b")),
     ("hikari_acquire_seconds_max", re.compile(r"^hikaricp_connections_acquire_seconds_max\b")),
     ("cpu_usage", re.compile(r"^process_cpu_usage\b")),
-    ("sse_dropped", re.compile(r"^studio_sse_dropped_total\{[^}]*reason=\"(overflow|blocked|replay)\"")),
-    ("sse_coalesced", re.compile(r"^studio_sse_dropped_total\{[^}]*reason=\"coalesced\"")),
-    ("stream_clients", re.compile(r"^studio_stream_clients")),
-    ("job_lag_seconds_max", re.compile(r"^studio_job_lag_seconds(_max)?\b")),
-    ("job_overruns", re.compile(r"^studio_job_overruns")),
-    ("job_timeouts", re.compile(r"^studio_job_timeouts")),
-    ("broker_calls", re.compile(r"^studio_broker_calls_total\b")),
-    ("broker_requests", re.compile(r"^studio_broker_requests_seconds_count\b")),
-    ("permit_timeouts", re.compile(r"^studio_broker_permit_timeouts")),
+    ("sse_dropped", re.compile(r"^rahdar_sse_dropped_total\{[^}]*reason=\"(overflow|blocked|replay)\"")),
+    ("sse_coalesced", re.compile(r"^rahdar_sse_dropped_total\{[^}]*reason=\"coalesced\"")),
+    ("stream_clients", re.compile(r"^rahdar_stream_clients")),
+    ("job_lag_seconds_max", re.compile(r"^rahdar_job_lag_seconds(_max)?\b")),
+    ("job_overruns", re.compile(r"^rahdar_job_overruns")),
+    ("job_timeouts", re.compile(r"^rahdar_job_timeouts")),
+    ("broker_calls", re.compile(r"^rahdar_broker_calls_total\b")),
+    ("broker_requests", re.compile(r"^rahdar_broker_requests_seconds_count\b")),
+    ("permit_timeouts", re.compile(r"^rahdar_broker_permit_timeouts")),
 ]
 LINE = re.compile(r"^([a-zA-Z_:][a-zA-Z0-9_:]*(?:\{[^}]*\})?)\s+([-+0-9.eE]+|NaN|[+-]Inf)\s*$")
 
@@ -115,7 +115,7 @@ families = {name: family(prefix) for name, prefix in [("ui", "ui."), ("stream", 
 
 counts = json.load(open(args.counts)) if os.path.exists(args.counts) else {}
 
-# --- Studio's metrics: before, after, and the peak over the run's samples, per replica ---
+# --- Rahdar's metrics: before, after, and the peak over the run's samples, per replica ---
 before, after, samples = replica_series("before-*.prom"), replica_series("after-*.prom"), replica_series("sample-*.prom")
 peaks, growth = {}, {}
 for replica, rows in samples.items():
@@ -163,7 +163,7 @@ if "sse_dropped" in peaks or "sse_coalesced" in peaks:
 if "heap_used_bytes" in peaks:
     figures["heap_peak_mb"] = round(peaks["heap_used_bytes"] / 1048576, 1)
 if "cpu_usage" in peaks:
-    figures["studio_cpu_peak_percent"] = round(peaks["cpu_usage"] * 100, 1)
+    figures["rahdar_cpu_peak_percent"] = round(peaks["cpu_usage"] * 100, 1)
 if counts.get("stalledOpened"):
     figures["stalled_closed_percent"] = round(100.0 * counts.get("stalledClosedByServer", 0) / counts["stalledOpened"], 1)
 
@@ -195,7 +195,7 @@ summary = {
     "families": families,
     "simulation": counts,
     "figures": figures,
-    "studio_metrics": {"delta": delta, "peak": peaks, "heap_growth_mb_by_replica": growth},
+    "rahdar_metrics": {"delta": delta, "peak": peaks, "heap_growth_mb_by_replica": growth},
     "targets": {k: f"{op} {v:g}" for k, (op, v) in targets.items()},
     "targets_checked": checked,
     "regressions": regressions,
@@ -203,7 +203,7 @@ summary = {
 os.makedirs(args.out, exist_ok=True)
 json.dump(summary, open(os.path.join(args.out, "summary.json"), "w"), indent=2, sort_keys=True)
 
-md = [f"# Load run: profile `{args.profile}`, Studio `{args.version}`", "", "## Requests", "",
+md = [f"# Load run: profile `{args.profile}`, Rahdar `{args.version}`", "", "## Requests", "",
       "| Request | Count | Failed | p50 ms | p95 ms | p99 ms | Max ms |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
 for name, r in sorted(requests.items()):
     md.append(f"| `{name}` | {r['count']} | {r['failed']} | {r['p50_ms']} | {r['p95_ms']} | {r['p99_ms']} | {r['max_ms']} |")
@@ -212,7 +212,7 @@ md += ["", "## Simulation counts", "", "```json", json.dumps(counts, indent=1), 
 for key, value in sorted(figures.items()):
     t = summary["targets"].get(key, "none published")
     md.append(f"| `{key}` | {value:g} | {t if checked or key not in targets else t + ' (not checked: profile ' + args.profile + ')'} |")
-md += ["", "## Studio metrics over the run (sum of replicas)", "", "| Series | Change | Peak |", "| --- | ---: | ---: |"]
+md += ["", "## Rahdar metrics over the run (sum of replicas)", "", "| Series | Change | Peak |", "| --- | ---: | ---: |"]
 for key in sorted(set(delta) | set(peaks)):
     md.append(f"| `{key}` | {delta.get(key, 0.0):g} | {peaks.get(key, 0.0):g} |")
 md.append("")

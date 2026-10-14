@@ -321,7 +321,7 @@ describe('FlowView', () => {
   it('folds the overview map away and remembers the choice', async () => {
     // The minimap covers the corner of a graph the size of a real estate, and
     // the operator's choice has to survive the next visit to be worth making.
-    window.localStorage.removeItem('artemis-studio.flow.minimap');
+    window.localStorage.removeItem('rahdar.flow.minimap');
     serve(graph());
     const { unmount } = renderWithProviders(<FlowView />);
 
@@ -531,7 +531,7 @@ describe('FlowView controls', () => {
     const user = userEvent.setup();
     renderWithProviders(<FlowView />);
 
-    expect(await screen.findByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(await screen.findByText('Rahdar failed to complete the request')).toBeInTheDocument();
     expect(screen.getByText('No node answered.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(asked).toBe(2));

@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: The chart installs Studio with hardened defaults
+### Requirement: The chart installs Rahdar with hardened defaults
 The chart SHALL by default run as non-root with a read-only root filesystem, drop capabilities, set resource requests, define probes, a NetworkPolicy and a PodDisruptionBudget, and store no secret in plain values.
 
 #### Scenario: Default install
@@ -18,8 +18,8 @@ The chart SHALL run two or more replicas with the probes and shutdown behaviour 
 - **WHEN** replicas is set to two
 - **THEN** both serve traffic and one can be removed without dropping sessions
 
-### Requirement: The chart is released with Studio and verified
-The chart SHALL be versioned and published with each Studio release and be linted and installed in a test cluster in CI.
+### Requirement: The chart is released with Rahdar and verified
+The chart SHALL be versioned and published with each Rahdar release and be linted and installed in a test cluster in CI.
 
 #### Scenario: Release
 - **WHEN** a release is made
@@ -30,14 +30,14 @@ The chart SHALL be versioned and published with each Studio release and be linte
 - **THEN** CI fails
 
 ### Requirement: Brokers managed by the operator are discovered
-Studio SHALL discover brokers managed by the ArkMQ operator in the namespaces it is allowed to read and offer them for registration, without registering any automatically unless configured.
+Rahdar SHALL discover brokers managed by the ArkMQ operator in the namespaces it is allowed to read and offer them for registration, without registering any automatically unless configured.
 
 #### Scenario: A broker appears
 - **WHEN** an operator-managed broker exists
 - **THEN** it is offered for registration with its connection details
 
 #### Scenario: No access
-- **WHEN** Studio has no rights in a namespace
+- **WHEN** Rahdar has no rights in a namespace
 - **THEN** that namespace is not scanned and nothing else is affected
 
 ### Requirement: Clusters can be registered declaratively
@@ -64,4 +64,4 @@ The documentation SHALL describe install, upgrade, values, RBAC, network policy 
 
 #### Scenario: A new user follows the guide
 - **WHEN** they follow it on a fresh cluster
-- **THEN** Studio is reachable with a registered cluster
+- **THEN** Rahdar is reachable with a registered cluster

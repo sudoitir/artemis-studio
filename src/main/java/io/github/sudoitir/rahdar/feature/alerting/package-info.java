@@ -1,0 +1,24 @@
+/**
+ * Alert rules, evaluation, firing and notification delivery.
+ */
+@ApplicationModule(
+        displayName = "Alerting",
+        allowedDependencies = {
+            "kernel.audit",
+            "kernel.auditfeed",
+            "kernel.core",
+            "kernel.jobs",
+            "kernel.lifecycle",
+            "kernel.plugin",
+            "kernel.plugin :: descriptor",
+            "kernel.security",
+            "kernel.settings",
+            "kernel.stream",
+            "platform.broker",
+            "platform.clusters",
+            "platform.mcp",
+            "platform.scrape"
+        })
+package io.github.sudoitir.rahdar.feature.alerting;
+
+import org.springframework.modulith.ApplicationModule;

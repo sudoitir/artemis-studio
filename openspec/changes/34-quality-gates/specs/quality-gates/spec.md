@@ -1,25 +1,25 @@
 ## ADDED Requirements
 
-### Requirement: Studio is tested against Artemis HA pairs and clusters
-The test suite SHALL run Studio against real Artemis live and backup pairs and multi-node clusters in containers and SHALL assert Studio's behaviour through a failover.
+### Requirement: Rahdar is tested against Artemis HA pairs and clusters
+The test suite SHALL run Rahdar against real Artemis live and backup pairs and multi-node clusters in containers and SHALL assert Rahdar's behaviour through a failover.
 
 #### Scenario: Failover
 - **WHEN** the live broker of a pair is stopped
-- **THEN** Studio reports the change of node role, keeps its data consistent and recovers its subscriptions
+- **THEN** Rahdar reports the change of node role, keeps its data consistent and recovers its subscriptions
 
 #### Scenario: Cluster
 - **WHEN** a node of a cluster is stopped
 - **THEN** the other nodes' views stay correct and the lost node is reported
 
 ### Requirement: Failure modes have specified, tested behaviour
-For broker kill, network partition and database restart, the expected Studio behaviour SHALL be written down and tested, including what is shown to users and what is not lost.
+For broker kill, network partition and database restart, the expected Rahdar behaviour SHALL be written down and tested, including what is shown to users and what is not lost.
 
 #### Scenario: Database restart
 - **WHEN** the database restarts
-- **THEN** Studio degrades, reports it in health, and resumes without a restart
+- **THEN** Rahdar degrades, reports it in health, and resumes without a restart
 
 #### Scenario: Partition
-- **WHEN** the network between Studio and a broker is cut
+- **WHEN** the network between Rahdar and a broker is cut
 - **THEN** the node is reported unreachable, not empty, and recovers when restored
 
 ### Requirement: The interface meets WCAG 2.2 AA

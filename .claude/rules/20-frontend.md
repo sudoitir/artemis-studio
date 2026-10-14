@@ -4,7 +4,7 @@ The binding source is the `operator-ui` capability in `openspec/specs/`. This fi
 is the working summary — if the two ever disagree, the spec wins and this file is
 the thing that is wrong.
 
-Studio's UI is an operations console. The operator is usually tired, often on
+Rahdar's UI is an operations console. The operator is usually tired, often on
 call, and about to do something they cannot undo. Every rule below exists because
 the alternative misleads someone in that state.
 
@@ -66,7 +66,7 @@ the alternative misleads someone in that state.
 
 ## Navigation and layout
 
-Load the `studio-navigation-and-layout` skill before touching any of this.
+Load the `rahdar-navigation-and-layout` skill before touching any of this.
 
 - **One navigation row and one group heading:** `kernel/shell/NavItem.tsx` and `NavGroup.tsx`. A
   list of a page's sections is `kernel/shell/SectionNav.tsx` (links to `?tab=<id>`, `aria-current`), never
@@ -80,7 +80,7 @@ Load the `studio-navigation-and-layout` skill before touching any of this.
 
 ## Interaction safety
 
-Load the `studio-safe-interactions` skill before a form with paired fields, a confirmation, or anything
+Load the `rahdar-safe-interactions` skill before a form with paired fields, a confirmation, or anything
 the approval gate holds.
 
 - **A pair of fields that go together** (a username and its password, a new password and its

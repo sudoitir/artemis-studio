@@ -105,7 +105,7 @@ function LookupState({
       <ErrorState
         error={error}
         variant="inline"
-        next="Studio could not read the queue list just now. Try again in a moment."
+        next="Rahdar could not read the queue list just now. Try again in a moment."
       />
     );
   }

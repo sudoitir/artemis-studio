@@ -1,0 +1,11 @@
+package io.github.sudoitir.rahdar.feature.brokerconfig.internal.persistence;
+
+import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface BrokerConfigApplyRepository extends JpaRepository<BrokerConfigApplyEntity, Long> {
+
+    Page<BrokerConfigApplyEntity> findByClusterIdOrderByStartedAtDesc(UUID clusterId, Pageable pageable);
+}

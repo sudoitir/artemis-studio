@@ -151,7 +151,7 @@ describe('TeamPatterns preview', () => {
       http.post('*/api/v1/teams/t-orders/patterns', () =>
         HttpResponse.json(
           {
-            type: 'https://studio/problems/team-pattern-overlap',
+            type: 'https://rahdar/problems/team-pattern-overlap',
             title: 'Overlap',
             detail: 'orders.x.# overlaps orders.# of team Billing.',
           },

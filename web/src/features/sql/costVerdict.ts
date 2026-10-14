@@ -62,20 +62,20 @@ function planned(plan: SqlPlanView): CostVerdict {
     return {
       badge: 'Index',
       tone: 'neutral',
-      sentence: `Reads Studio's index, up to ${quantity(plan.effectiveLimit, 'row')} from ${count(queues, 'queue')}. No broker is read.`,
+      sentence: `Reads Rahdar's index, up to ${quantity(plan.effectiveLimit, 'row')} from ${count(queues, 'queue')}. No broker is read.`,
     };
   }
   if (plan.requiresScan) {
     return {
       badge: 'Scan',
       tone: 'warning',
-      sentence: `Studio reads and examines about ${quantity(plan.estimatedMessagesExamined, 'message')} on ${count(queues, 'queue')} across ${count(nodes, 'node')}.`,
+      sentence: `Rahdar reads and examines about ${quantity(plan.estimatedMessagesExamined, 'message')} on ${count(queues, 'queue')} across ${count(nodes, 'node')}.`,
     };
   }
   return {
     badge: 'Broker-filtered',
     tone: 'neutral',
-    sentence: `The brokers filter; Studio examines at most ${quantity(plan.effectiveLimit, 'message')} from ${count(queues, 'queue')}.`,
+    sentence: `The brokers filter; Rahdar examines at most ${quantity(plan.effectiveLimit, 'message')} from ${count(queues, 'queue')}.`,
   };
 }
 
@@ -90,6 +90,6 @@ export function costVerdict({ text, debounced, blockedReason, plan, planError, p
     return { badge: 'Estimating', tone: 'neutral', sentence: 'Estimating the edited query…' };
   }
   if (planError) return failed(planError);
-  if (!plan) return unavailable('Not estimated: Studio has no plan for this query.');
+  if (!plan) return unavailable('Not estimated: Rahdar has no plan for this query.');
   return planned(plan);
 }

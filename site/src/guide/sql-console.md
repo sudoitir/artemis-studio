@@ -53,11 +53,11 @@ This is the part worth knowing. Every top-level `AND` conjunct is classified:
 | Class | Meaning |
 |---|---|
 | **Target** | Chooses which queues are read. Costs nothing. |
-| **Pushdown** | Becomes a JMS selector, so the broker filters and Studio never sees the non-matches. Costs nothing. |
-| **Scan** | Studio examines every message the broker returned. |
+| **Pushdown** | Becomes a JMS selector, so the broker filters and Rahdar never sees the non-matches. Costs nothing. |
+| **Scan** | Rahdar examines every message the broker returned. |
 
 Headers and application properties push down. The body never can — nothing but
-Studio can read it. The **cost line** under the editor tells you which your query
+Rahdar can read it. The **cost line** under the editor tells you which your query
 is **before it runs**, in one sentence of words and numbers, and over the configured
 cost ceiling the query is refused with the estimate, the ceiling and a hint for
 narrowing it. It is refused rather than truncated: a truncated result is
@@ -66,9 +66,9 @@ reads it as "not there".
 
 | The line says | It means |
 |---|---|
-| **Broker-filtered** | The brokers filter. Studio examines at most the row limit of messages from the queues. |
-| **Scan** | Studio reads and examines about *n* messages on the queues across the nodes. Narrow it with a header predicate. |
-| **Index** | The query reads Studio's index, up to the row limit. No broker is read. |
+| **Broker-filtered** | The brokers filter. Rahdar examines at most the row limit of messages from the queues. |
+| **Scan** | Rahdar reads and examines about *n* messages on the queues across the nodes. Narrow it with a header predicate. |
+| **Index** | The query reads Rahdar's index, up to the row limit. No broker is read. |
 | **No cost** | No queue matches the `FROM` pattern, so nothing is read. |
 | **Estimating** | The text has changed since the plan was asked for. |
 | **Unavailable** | The estimate cannot be made, and the line says why: the editor is empty, you may not read messages here, the query has a syntax error, or the plan failed. An estimate that is not available is never shown as zero. |
@@ -89,7 +89,7 @@ a slow one.
 The editor sits above its results in one workspace. Drag the separator between them,
 or focus it and press **↑** or **↓** (5% a step, 10% with **Shift**), or **Home** and
 **End** for the smallest and largest editor. The smallest editor still shows three lines and
-the cost line under them. Studio remembers the split in this browser.
+the cost line under them. Rahdar remembers the split in this browser.
 
 **Run** and **Cancel** sit side by side in the Query toolbar above the workspace, so they stay
 in view however small the editor is. **Ctrl .** (**⌘ .** on a Mac)

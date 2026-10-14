@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.feature.identitylocal`
+|`io.github.sudoitir.rahdar.feature.identitylocal`
 |Spring components
 |_Services_
 

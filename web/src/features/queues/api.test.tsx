@@ -15,7 +15,7 @@ function Probe({ clusterId }: { clusterId: string }) {
  * The command palette mounts on every route and has no cluster id outside one.
  * Before this guard it requested `/clusters//queues`, a 400, and an errored
  * observed query puts the whole shell into its offline state — so every
- * cluster-less screen claimed Studio had lost contact with the brokers.
+ * cluster-less screen claimed Rahdar had lost contact with the brokers.
  */
 describe('useQueues without a cluster', () => {
   it('requests nothing, and reports no error', async () => {

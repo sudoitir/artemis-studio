@@ -3,7 +3,7 @@
 ## Purpose
 
 Defines how an operator sets a condition worth being told about — a metric crossing a
-threshold, or a cluster entering a bad HA state — and how Studio debounces, tracks,
+threshold, or a cluster entering a bad HA state — and how Rahdar debounces, tracks,
 and delivers that condition to a Slack, Microsoft Teams, PagerDuty, email or signed webhook
 channel until it clears.
 
@@ -116,7 +116,7 @@ elapsed time.
 
 #### Scenario: The debounce survives a restart
 
-- **WHEN** Studio restarts while a (rule, subject) is PENDING
+- **WHEN** Rahdar restarts while a (rule, subject) is PENDING
 - **THEN** the elapsed time toward FIRING is preserved and evaluation resumes from
   where it left off
 
@@ -176,7 +176,7 @@ notification per subject.
 
 A queued notification SHALL be retried with increasing delay on failure, up to a
 bounded number of attempts, after which it SHALL be marked permanently failed rather
-than retried forever. Queued notifications SHALL survive a Studio restart and resume
+than retried forever. Queued notifications SHALL survive a Rahdar restart and resume
 being retried afterward.
 
 #### Scenario: A transient failure is retried
@@ -191,8 +191,8 @@ being retried afterward.
 
 #### Scenario: A pending notification survives a restart
 
-- **WHEN** Studio restarts while a notification delivery is queued or awaiting retry
-- **THEN** the notification is still retried after Studio comes back up
+- **WHEN** Rahdar restarts while a notification delivery is queued or awaiting retry
+- **THEN** the notification is still retried after Rahdar comes back up
 
 ### Requirement: A Slack channel delivers a readable message
 
@@ -209,7 +209,7 @@ permanently failed without retry.
 ### Requirement: A webhook channel's delivery is signed and rate-limit aware
 
 A generic webhook channel SHALL sign each delivery so the receiver can verify it
-originated from Studio and was not replayed or altered, and SHALL include an
+originated from Rahdar and was not replayed or altered, and SHALL include an
 identifier a receiver can use to deduplicate retried deliveries. The system SHALL
 honor a receiver's request to slow down before retrying.
 
@@ -239,7 +239,7 @@ and SHALL NOT return it in plaintext from any read.
 #### Scenario: An operator can test a channel without guessing its secret
 
 - **WHEN** an operator triggers a test notification on an existing channel
-- **THEN** Studio sends the test using the stored secret without requiring the
+- **THEN** Rahdar sends the test using the stored secret without requiring the
   operator to re-enter it
 
 ### Requirement: Rule and channel changes are audited; firings and deliveries are not
@@ -364,7 +364,7 @@ when the rule is scoped to a node.
 - **WHEN** a subject has only one sample in the rate window
 - **THEN** it produces no verdict this tick, neither firing nor resolving
 
-### Requirement: Studio's own slow-consumer detection states its attribution limit
+### Requirement: Rahdar's own slow-consumer detection states its attribution limit
 
 Where the system derives slow-consumer state itself, it SHALL attribute that state to a
 queue on a node and SHALL state in the interface that it cannot attribute it to an
@@ -374,7 +374,7 @@ broker's own slow-consumer notification.
 
 #### Scenario: The limit is disclosed, not implied
 
-- **WHEN** an operator views a slow-consumer firing derived by Studio
+- **WHEN** an operator views a slow-consumer firing derived by Rahdar
 - **THEN** the firing names the queue and node and states that per-consumer attribution
   is available only from the broker's own detection
 
@@ -559,7 +559,7 @@ Values from a rule or a subject SHALL NOT be able to add or alter a message head
 
 A Teams channel SHALL deliver each notification as an Adaptive Card message. The card
 SHALL state the severity in words, and SHALL name the cluster, the rule and each
-transition. When a link to Studio is available, the card SHALL offer it as an action.
+transition. When a link to Rahdar is available, the card SHALL offer it as an action.
 A response saying the webhook no longer exists, or is not authorised, SHALL be
 permanent. A response asking the sender to slow down SHALL be honoured before the
 next retry.
@@ -594,12 +594,12 @@ channel for another service region or a PagerDuty-compatible receiver.
 - **THEN** the retry resends all three with the same deduplication keys, and PagerDuty
   still holds one incident per subject
 
-### Requirement: A notification can be read without opening Studio
+### Requirement: A notification can be read without opening Rahdar
 
 Every notification, whatever its channel kind, SHALL name the cluster by name. It SHALL
 name each subject in readable form: a node by its name, not an internal identifier,
 and a queue by its name. It SHALL state the observed value where there is one, and
-the time of each transition. When a public URL for Studio is configured, it SHALL
+the time of each transition. When a public URL for Rahdar is configured, it SHALL
 include a link to the cluster's alerts. The generic webhook payload SHALL carry these
 as additional fields, and SHALL keep every field it carried before with an unchanged
 meaning.
@@ -607,7 +607,7 @@ meaning.
 #### Scenario: A node subject is named
 
 - **WHEN** a node-down rule fires for a node
-- **THEN** the notification names the node, not the identifier Studio stores for it
+- **THEN** the notification names the node, not the identifier Rahdar stores for it
 
 #### Scenario: Existing webhook receivers keep working
 
@@ -702,13 +702,13 @@ rule.
 
 ### Requirement: An alert rule can be about the installation rather than a cluster
 An alert rule SHALL be either cluster-scoped or installation-scoped. An installation-scoped rule SHALL
-evaluate a condition of the Studio installation itself, such as storage quotas and storage health,
+evaluate a condition of the Rahdar installation itself, such as storage quotas and storage health,
 once per installation, and SHALL otherwise behave like any rule: debounce, history, channels, editing,
-disabling. Studio SHALL seed one `STORAGE_QUOTA` and one `STORAGE_HEALTH` rule per installation,
+disabling. Rahdar SHALL seed one `STORAGE_QUOTA` and one `STORAGE_HEALTH` rule per installation,
 enabled and bound to no channel.
 
 #### Scenario: Seeded once
-- **WHEN** Studio starts on a new installation, with or without registered clusters
+- **WHEN** Rahdar starts on a new installation, with or without registered clusters
 - **THEN** exactly one `STORAGE_QUOTA` and one `STORAGE_HEALTH` installation rule exist
 
 #### Scenario: Fires once, not per cluster
@@ -721,12 +721,12 @@ enabled and bound to no channel.
 
 ### Requirement: Plugins SHALL send notices through the configured channels
 
-A plugin SHALL be able to list the notification channels by name and kind, without their configuration or secrets, and send a notice to one of them. The notice SHALL be delivered with the same retry, signature and delivery history as alerts. A notice's link SHALL be built by Studio from its public address and a path within Studio. Studio SHALL limit the rate and size of notices per plugin.
+A plugin SHALL be able to list the notification channels by name and kind, without their configuration or secrets, and send a notice to one of them. The notice SHALL be delivered with the same retry, signature and delivery history as alerts. A notice's link SHALL be built by Rahdar from its public address and a path within Rahdar. Rahdar SHALL limit the rate and size of notices per plugin.
 
 #### Scenario: Webhook notice
 
 - **WHEN** a plugin sends a notice to a webhook channel
-- **THEN** the webhook receives a signed notice payload with a link into Studio
+- **THEN** the webhook receives a signed notice payload with a link into Rahdar
 
 #### Scenario: Channel secrets
 

@@ -41,7 +41,7 @@ A replay SHALL send within a configurable rate limit, be stoppable, and report s
 - **THEN** the rate is capped at the administrator's maximum
 
 ### Requirement: The target is validated before anything is sent
-Studio SHALL check that the target exists, the user has permission to send to it and each message fits its size limit, and SHALL refuse the replay otherwise.
+Rahdar SHALL check that the target exists, the user has permission to send to it and each message fits its size limit, and SHALL refuse the replay otherwise.
 
 #### Scenario: Target missing
 - **WHEN** the queue does not exist
@@ -72,6 +72,6 @@ Captured content is stored masked, with originals of sensitive values sealed. A 
 ### Requirement: A replay survives interruption without loss or duplicates and carries provenance
 A replay SHALL follow the guarantees of a cross-broker transfer: an interruption SHALL neither lose nor duplicate a message, and each replayed message SHALL carry provenance naming the original.
 
-#### Scenario: Studio restarts mid-replay
-- **WHEN** Studio stops after sending half of a batch and starts again
+#### Scenario: Rahdar restarts mid-replay
+- **WHEN** Rahdar stops after sending half of a batch and starts again
 - **THEN** the replay resumes and each message is sent exactly once in total

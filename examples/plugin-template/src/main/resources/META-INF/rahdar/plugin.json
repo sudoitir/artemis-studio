@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "acme-notes",
+  "name": "acme-notes",
+  "title": "Notes",
+  "version": "${project.version}",
+  "vendor": { "name": "Acme", "url": "https://acme.example" },
+  "description": "Notes on queues, shared with everyone who operates the cluster.",
+  "license": "Apache-2.0",
+  "changeNotes": "First release.",
+  "basePackage": "com.acme.notes",
+  "configuration": "com.acme.notes.NotesConfiguration",
+  "contract": ${rahdar.contract},
+  "rahdar": { "since": "${rahdar.since}" },
+  "ui": true,
+  "activation": "AUTO",
+  "permissions": [
+    {
+      "action": "acme-notes:read",
+      "description": "Read the notes on a queue",
+      "scope": "resource",
+      "resourceKinds": ["queue"],
+      "requires": ["queue:read"]
+    },
+    {
+      "action": "acme-notes:write",
+      "description": "Write and delete the notes on a queue",
+      "scope": "resource",
+      "resourceKinds": ["queue"],
+      "requires": ["acme-notes:read"]
+    }
+  ],
+  "settingKeys": ["acme-notes.max-length"],
+  "streamTopics": ["acme-notes"],
+  "mcpTools": [
+    {
+      "name": "acme_notes_list",
+      "posture": "read",
+      "scope": "resource",
+      "permission": "acme-notes:read",
+      "resourceArg": "queue",
+      "resourceKind": "queue",
+      "description": "Lists the notes on a queue."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "acme-notes:notes",
+      "description": "Notes left on each queue.",
+      "unit": "count",
+      "subject": "queue",
+      "permission": "acme-notes:read"
+    }
+  ],
+  "alertRules": [
+    {
+      "key": "many-notes",
+      "name": "Many notes on a queue",
+      "metric": "acme-notes:notes",
+      "comparator": "GT",
+      "threshold": 50,
+      "forSeconds": 0,
+      "severity": "INFO"
+    }
+  ]
+}

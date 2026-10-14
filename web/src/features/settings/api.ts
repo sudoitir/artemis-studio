@@ -19,7 +19,7 @@ export type SettingChange = Schemas['SettingChangeRequest'];
 export type ChangePreview = Schemas['ChangePreview'];
 export type SecretsStatus = Schemas['SecretsStatus'];
 export type RotationView = Schemas['RotationView'];
-export type StudioHealth = Schemas['StudioHealth'];
+export type RahdarHealth = Schemas['RahdarHealth'];
 export type JobHealth = Schemas['JobHealth'];
 export type NodeHealth = Schemas['NodeHealth'];
 export type ReplicaHealth = Schemas['ReplicaHealth'];
@@ -82,11 +82,11 @@ export function useStartRotation() {
   });
 }
 
-/** Studio's own jobs, broker calls, pool and streams, refreshed every 5 s. */
-export function useStudioHealth(): UseQueryResult<StudioHealth, ApiError> {
+/** Rahdar's own jobs, broker calls, pool and streams, refreshed every 5 s. */
+export function useRahdarHealth(): UseQueryResult<RahdarHealth, ApiError> {
   return useQuery({
     queryKey: HEALTH_KEY,
-    queryFn: () => request<StudioHealth>('/system/health'),
+    queryFn: () => request<RahdarHealth>('/system/health'),
     refetchInterval: 5_000,
   });
 }

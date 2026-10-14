@@ -15,41 +15,41 @@ top to bottom direction
 !include <C4/C4_Context>
 !include <C4/C4_Component>
 
-System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
-  Container_Boundary("ArtemisStudioApplication.ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Auditdelivery, "Audit delivery", $techn="Module", $descr="", $tags="", $link="")
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "Audit log", $techn="Module", $descr="", $tags="", $link="")
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Core, "Core", $techn="Module", $descr="", $tags="", $link="")
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "Plugin contract", $techn="Module", $descr="", $tags="", $link="")
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, "Scheduled jobs", $techn="Module", $descr="", $tags="", $link="")
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Security, "Security", $techn="Module", $descr="", $tags="", $link="")
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Settings, "Settings", $techn="Module", $descr="", $tags="", $link="")
+System_Boundary("RahdarApplication_boundary", "RahdarApplication", $tags="") {
+  Container_Boundary("RahdarApplication.RahdarApplication_boundary", "RahdarApplication", $tags="") {
+    Component(RahdarApplication.RahdarApplication.Auditdelivery, "Audit delivery", $techn="Module", $descr="", $tags="", $link="")
+    Component(RahdarApplication.RahdarApplication.Auditlog, "Audit log", $techn="Module", $descr="", $tags="", $link="")
+    Component(RahdarApplication.RahdarApplication.Core, "Core", $techn="Module", $descr="", $tags="", $link="")
+    Component(RahdarApplication.RahdarApplication.Plugincontract, "Plugin contract", $techn="Module", $descr="", $tags="", $link="")
+    Component(RahdarApplication.RahdarApplication.Scheduledjobs, "Scheduled jobs", $techn="Module", $descr="", $tags="", $link="")
+    Component(RahdarApplication.RahdarApplication.Security, "Security", $techn="Module", $descr="", $tags="", $link="")
+    Component(RahdarApplication.RahdarApplication.Settings, "Settings", $techn="Module", $descr="", $tags="", $link="")
   }
 
 }
 
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditdelivery, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditdelivery, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditdelivery, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "listens to", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditdelivery, ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditdelivery, ArtemisStudioApplication.ArtemisStudioApplication.Security, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditdelivery, ArtemisStudioApplication.ArtemisStudioApplication.Settings, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Core, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Security, "listens to", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "listens to", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Security, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Settings, ArtemisStudioApplication.ArtemisStudioApplication.Auditlog, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Settings, ArtemisStudioApplication.ArtemisStudioApplication.Core, "depends on", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Settings, ArtemisStudioApplication.ArtemisStudioApplication.Plugincontract, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Settings, ArtemisStudioApplication.ArtemisStudioApplication.Scheduledjobs, "uses", $techn="", $tags="", $link="")
-Rel(ArtemisStudioApplication.ArtemisStudioApplication.Settings, ArtemisStudioApplication.ArtemisStudioApplication.Security, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Auditdelivery, RahdarApplication.RahdarApplication.Auditlog, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Auditdelivery, RahdarApplication.RahdarApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Auditdelivery, RahdarApplication.RahdarApplication.Plugincontract, "listens to", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Auditdelivery, RahdarApplication.RahdarApplication.Scheduledjobs, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Auditdelivery, RahdarApplication.RahdarApplication.Security, "depends on", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Auditdelivery, RahdarApplication.RahdarApplication.Settings, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Auditlog, RahdarApplication.RahdarApplication.Core, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Auditlog, RahdarApplication.RahdarApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Auditlog, RahdarApplication.RahdarApplication.Security, "listens to", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Auditlog, RahdarApplication.RahdarApplication.Security, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Plugincontract, RahdarApplication.RahdarApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Scheduledjobs, RahdarApplication.RahdarApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Scheduledjobs, RahdarApplication.RahdarApplication.Plugincontract, "depends on", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Scheduledjobs, RahdarApplication.RahdarApplication.Security, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Security, RahdarApplication.RahdarApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Security, RahdarApplication.RahdarApplication.Plugincontract, "listens to", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Security, RahdarApplication.RahdarApplication.Plugincontract, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Settings, RahdarApplication.RahdarApplication.Auditlog, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Settings, RahdarApplication.RahdarApplication.Core, "depends on", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Settings, RahdarApplication.RahdarApplication.Plugincontract, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Settings, RahdarApplication.RahdarApplication.Scheduledjobs, "uses", $techn="", $tags="", $link="")
+Rel(RahdarApplication.RahdarApplication.Settings, RahdarApplication.RahdarApplication.Security, "uses", $techn="", $tags="", $link="")
 
 SHOW_LEGEND(true)
 hide stereotypes

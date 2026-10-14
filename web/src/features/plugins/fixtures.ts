@@ -112,7 +112,7 @@ export function inventory(plugins: PluginView[], restart: Partial<PluginsView['r
       needed: false,
       restarting: false,
       allowedAt: null,
-      command: 'docker compose restart studio',
+      command: 'docker compose restart rahdar',
       unreleased: [],
       ...restart,
     },

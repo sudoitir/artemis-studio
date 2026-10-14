@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: Backup and restore are documented and tested
-The documentation SHALL describe backing up and restoring the Studio database including plugin schemas, and CI SHALL restore a backup into a fresh instance and check that Studio starts and serves its data.
+The documentation SHALL describe backing up and restoring the Rahdar database including plugin schemas, and CI SHALL restore a backup into a fresh instance and check that Rahdar starts and serves its data.
 
 #### Scenario: Restore test
 - **WHEN** CI restores a backup
-- **THEN** Studio starts and shows the restored clusters, roles and plugin data
+- **THEN** Rahdar starts and shows the restored clusters, roles and plugin data
 
 ### Requirement: Configuration can be exported as a versioned document
-Studio SHALL export clusters with their current declarations, environments, roles and group mappings, alert rules, notification channels and settings as a document that states its format version. Secrets SHALL be left out and listed as needing re-entry, unless the administrator supplies a key for the target, in which case they SHALL be encrypted to that key.
+Rahdar SHALL export clusters with their current declarations, environments, roles and group mappings, alert rules, notification channels and settings as a document that states its format version. Secrets SHALL be left out and listed as needing re-entry, unless the administrator supplies a key for the target, in which case they SHALL be encrypted to that key.
 
 #### Scenario: Export
 - **WHEN** an administrator exports

@@ -51,7 +51,7 @@ describe('the composed route tree', () => {
     renderAppAt('/clusters/c1/sql');
 
     expect(await screen.findByRole('heading', { name: 'sql is disabled on this installation' })).toBeInTheDocument();
-    expect(screen.getByText('artemis-studio.features.sql.enabled=true')).toBeInTheDocument();
+    expect(screen.getByText('rahdar.features.sql.enabled=true')).toBeInTheDocument();
     // The cluster's context strip, contributed by the clusters feature, still frames the page. It is not
     // a heading: each view's page header is the page's one h1.
     expect(await screen.findByRole('group', { name: 'Cluster prod-eu' })).toBeInTheDocument();

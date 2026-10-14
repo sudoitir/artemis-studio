@@ -247,7 +247,7 @@ describe('QueuesView rows', () => {
     renderWithProviders(<QueuesView />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     // The failure stands in place of the rows, not of the view: the filter is still there.
     expect(screen.getByRole('textbox', { name: 'Filter queues' })).toBeInTheDocument();

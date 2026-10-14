@@ -52,10 +52,9 @@ export function installerColumns(deps: {
   ];
 }
 
-/** The keys Studio trusts, with the plugins each signed and the control that removes one. */
+/** The keys Rahdar trusts, with the plugins each signed and the control that removes one. */
 /** Why a key pinned by configuration cannot be removed here, and where it can. */
-export const CONFIGURED_REASON =
-  'Set by configuration. Remove it from artemis-studio.plugins.trusted-keys and restart Studio.';
+export const CONFIGURED_REASON = 'Set by configuration. Remove it from rahdar.plugins.trusted-keys and restart Rahdar.';
 
 export function keyColumns(deps: {
   signedPlugins: Readonly<Record<string, string[]>>;

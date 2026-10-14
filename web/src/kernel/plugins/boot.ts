@@ -1,5 +1,5 @@
 import { onLoginPage } from '../api/request.ts';
-import { CONTRACT, type StudioFeature } from '../feature.ts';
+import { CONTRACT, type RahdarFeature } from '../feature.ts';
 import type { ManifestFeatureView, ManifestView } from '../manifest.ts';
 import { checkPlugin } from './validate.ts';
 
@@ -12,7 +12,7 @@ export interface Boot {
   manifest?: ManifestView;
   /** Why the manifest could not be read; the built-in screens load regardless. */
   manifestError?: string;
-  plugins: StudioFeature[];
+  plugins: RahdarFeature[];
   /** Plugin id → why its screens are not here. */
   failures: Map<string, string>;
 }
@@ -78,7 +78,7 @@ type Federation = Pick<typeof import('@module-federation/runtime'), 'registerRem
 /**
  * Loads every active plugin's bundle, each bounded by {@link REMOTE_TIMEOUT_MS}, and keeps the
  * ones that pass {@link checkPlugin}. A bundle that fails, is slow or breaks the rules is left
- * out with its reason; nothing a plugin does here can keep Studio's own screens from loading.
+ * out with its reason; nothing a plugin does here can keep Rahdar's own screens from loading.
  */
 export async function loadPlugins(
   entries: ManifestFeatureView[],
@@ -100,7 +100,7 @@ export async function loadPlugins(
       ).then((module) => checkPlugin(entry, module?.default)),
     ),
   );
-  const plugins: StudioFeature[] = [];
+  const plugins: RahdarFeature[] = [];
   settled.forEach((result, index) => {
     const id = withUi[index].id;
     if (result.status === 'rejected') {

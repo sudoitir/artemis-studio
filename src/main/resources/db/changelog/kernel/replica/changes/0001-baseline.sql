@@ -4,8 +4,8 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:kernel-replica-0001-baseline splitStatements:true
-CREATE TABLE studio_replica (
+--changeset rahdar:kernel-replica-0001-baseline splitStatements:true
+CREATE TABLE rahdar_replica (
     started_at timestamp with time zone NOT NULL,
     heartbeat_at timestamp with time zone NOT NULL,
     stopped_at timestamp with time zone,
@@ -13,10 +13,10 @@ CREATE TABLE studio_replica (
     version text NOT NULL,
     state text NOT NULL,
     id uuid DEFAULT uuidv7() NOT NULL,
-    CONSTRAINT ck_studio_replica_state CHECK ((state = ANY (ARRAY['starting'::text, 'ready'::text, 'draining'::text, 'stopped'::text])))
+    CONSTRAINT ck_rahdar_replica_state CHECK ((state = ANY (ARRAY['starting'::text, 'ready'::text, 'draining'::text, 'stopped'::text])))
 )
 WITH (fillfactor='50', autovacuum_vacuum_scale_factor='0.0', autovacuum_vacuum_threshold='50');
 
-ALTER TABLE ONLY studio_replica
-    ADD CONSTRAINT pk_studio_replica PRIMARY KEY (id);
---rollback DROP TABLE IF EXISTS studio_replica CASCADE;
+ALTER TABLE ONLY rahdar_replica
+    ADD CONSTRAINT pk_rahdar_replica PRIMARY KEY (id);
+--rollback DROP TABLE IF EXISTS rahdar_replica CASCADE;

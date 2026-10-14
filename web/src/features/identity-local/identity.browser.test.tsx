@@ -36,7 +36,7 @@ describe.each(SCHEMES)('the recovery codes dialog in the %s scheme', (scheme) =>
 describe.each(SCHEMES)('the setup QR code in the %s scheme', (scheme) => {
   it('is a named image of one fixed size, with no accessibility violations', async () => {
     const { container } = renderThemed(
-      <QrCode value="otpauth://totp/Studio:alice?secret=JBSWY3DPEHPK3PXP" label="QR code for your authenticator app" />,
+      <QrCode value="otpauth://totp/Rahdar:alice?secret=JBSWY3DPEHPK3PXP" label="QR code for your authenticator app" />,
       scheme,
     );
 

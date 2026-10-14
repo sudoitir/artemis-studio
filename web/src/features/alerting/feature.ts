@@ -43,7 +43,7 @@ export const alertingFeature = defineFeature({
       {
         id: 'alerting-channels',
         order: 70,
-        group: 'studio',
+        group: 'rahdar',
         title: 'Notification channels',
         Component: ChannelsSection,
       },

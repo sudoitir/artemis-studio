@@ -108,7 +108,7 @@ describe('FlowDetail', () => {
     expect(await screen.findByText('7ms')).toBeInTheDocument();
   });
 
-  it('states which clocks run ahead of Studio, separating both sides', async () => {
+  it('states which clocks run ahead of Rahdar, separating both sides', async () => {
     serve(flow({ requestSkewMs: 1500, replySkewMs: 300 }));
     open();
 
@@ -220,7 +220,7 @@ describe('FlowDetail', () => {
     open();
 
     const alert = await screen.findByRole('alert');
-    expect(within(alert).getByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(within(alert).getByText('Rahdar failed to complete the request')).toBeInTheDocument();
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 

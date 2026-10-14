@@ -1,12 +1,12 @@
 ## Purpose
 
-Defines how Artemis Studio subscribes to a broker's `activemq.notifications`
+Defines how Rahdar subscribes to a broker's `activemq.notifications`
 stream over the Core protocol, turns each notification into a typed domain
 event, and keeps a bounded, queryable history of those events per cluster.
 
 ## Requirements
 
-### Requirement: Studio subscribes to notifications on every serving node
+### Requirement: Rahdar subscribes to notifications on every serving node
 
 The system SHALL maintain one subscription to the `activemq.notifications`
 address per serving node of every registered cluster, using the Core protocol
@@ -19,7 +19,7 @@ other nodes or other clusters.
 #### Scenario: Subscription opens for a live node
 
 - **WHEN** a cluster has a live node with a reachable Core URL and notifications permitted
-- **THEN** Studio holds an open subscription to `activemq.notifications` on that node
+- **THEN** Rahdar holds an open subscription to `activemq.notifications` on that node
 
 #### Scenario: Subscription follows failover
 
@@ -31,7 +31,7 @@ other nodes or other clusters.
 - **WHEN** the subscription to one node cannot be established
 - **THEN** subscriptions to the other nodes and clusters remain open and that node's failure reason is recorded
 
-### Requirement: Reconnect is Studio-driven and does not block callers
+### Requirement: Reconnect is Rahdar-driven and does not block callers
 
 The system SHALL drive its own reconnection for a dropped or failed Core
 subscription, with a bounded exponential backoff between attempts, rather than
@@ -42,7 +42,7 @@ node SHALL NOT block scrape ticks or operator requests.
 #### Scenario: A dropped subscription is retried with backoff
 
 - **WHEN** an established subscription drops
-- **THEN** Studio retries on an increasing interval up to a ceiling until it reconnects or the node stops serving
+- **THEN** Rahdar retries on an increasing interval up to a ceiling until it reconnects or the node stops serving
 
 #### Scenario: An unreachable Core endpoint does not stall other work
 
@@ -72,7 +72,7 @@ events.
 
 #### Scenario: An unknown notification type is preserved
 
-- **WHEN** a notification carries a `_AMQ_NotifType` value Studio does not recognise
+- **WHEN** a notification carries a `_AMQ_NotifType` value Rahdar does not recognise
 - **THEN** an event is still produced, flagged as an unknown type, with the raw properties retained
 
 #### Scenario: One consumer's failure does not affect another
@@ -139,7 +139,7 @@ When the broker emits its own slow-consumer notification, the system SHALL norma
 like any other notification, SHALL retain the consumer identity the notification carries,
 and SHALL publish it on the realtime stream's consumer-oriented topic rather than leaving
 it unrouted. The broker's notification SHALL be treated as authoritative for slow-consumer
-state on that queue, ahead of any state Studio derives itself.
+state on that queue, ahead of any state Rahdar derives itself.
 
 If the persisted event history cannot record this event type, the type SHALL be made
 recordable by a new migration; a released migration SHALL NOT be edited.
@@ -157,7 +157,7 @@ recordable by a new migration; a released migration SHALL NOT be edited.
 
 #### Scenario: The broker's verdict wins
 
-- **WHEN** the broker reports a queue's consumer as slow and Studio's own derivation does
+- **WHEN** the broker reports a queue's consumer as slow and Rahdar's own derivation does
   not
 - **THEN** the operator is shown the broker's verdict as the authoritative one
 

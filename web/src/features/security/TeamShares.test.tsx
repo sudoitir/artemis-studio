@@ -104,7 +104,7 @@ describe('TeamShares', () => {
     server.use(
       http.post('*/api/v1/teams/t-orders/shares', () =>
         HttpResponse.json(
-          { type: 'https://studio/problems/share-outside-owner', title: 'Refused', detail: 'outside' },
+          { type: 'https://rahdar/problems/share-outside-owner', title: 'Refused', detail: 'outside' },
           { status: 422 },
         ),
       ),

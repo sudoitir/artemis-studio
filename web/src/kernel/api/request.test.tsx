@@ -65,7 +65,7 @@ describe('request() 401 handling', () => {
     server.use(
       http.post('*/api/v1/auth/second-factor', () =>
         HttpResponse.json(
-          { type: 'https://artemis-studio.dev/problems/second-factor-invalid', title: 'Code not accepted' },
+          { type: 'https://rahdar.dev/problems/second-factor-invalid', title: 'Code not accepted' },
           { status: 401 },
         ),
       ),
@@ -236,7 +236,7 @@ describe('request() held operations', () => {
       http.post('*/api/v1/purge', () =>
         HttpResponse.json(
           {
-            type: 'https://artemis-studio.dev/problems/operation-denied',
+            type: 'https://rahdar.dev/problems/operation-denied',
             title: 'Denied',
             detail: 'Outside the window',
           },

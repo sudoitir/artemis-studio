@@ -13,7 +13,7 @@
 # Exit status is the number of failed checks.
 set -uo pipefail
 
-STUDIO=${STUDIO:-http://localhost:8080}
+RAHDAR=${RAHDAR:-http://localhost:8080}
 ADMIN_USER=${ADMIN_USER:-admin}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the password just dev-up printed}
 # Once the admin has two-step verification (config-e2e.sh enrols it), the secret that run printed.
@@ -43,7 +43,7 @@ py() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
 
 # `config-e2e.sh` rotates the bootstrap password on its first run against a fresh stack, so the same
 # fallback applies here: try what was given, then what that script would have set.
-studio_sign_in "$NEW_PASSWORD" || die "could not sign in to Studio"
+rahdar_sign_in "$NEW_PASSWORD" || die "could not sign in to Rahdar"
 
 say "registering $CLUSTER_NAME and minting an MCP key"
 existing=$(api GET /clusters | py "next((c['id'] for c in d if c['name']=='$CLUSTER_NAME'), '')")
@@ -79,7 +79,7 @@ rpc() {
   RPC_ID=$((RPC_ID + 1))
   local body headers
   headers=$(mktemp)
-  body=$(curl -sS -D "$headers" "$STUDIO/mcp" \
+  body=$(curl -sS -D "$headers" "$RAHDAR/mcp" \
     -H "Authorization: Bearer $KEY" \
     -H 'Content-Type: application/json' \
     -H 'Accept: application/json, text/event-stream' \
@@ -104,7 +104,7 @@ say "1. the handshake a real client performs"
 init=$(rpc initialize '{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"config-e2e","version":"1"}}')
 server=$(py "d['result']['serverInfo']['name']" <<<"$init" 2>/dev/null || echo "")
 [ -n "$server" ] && pass "initialize negotiated with $server" || fail "initialize failed: $(head -c 300 <<<"$init")"
-curl -sS -o /dev/null "$STUDIO/mcp" -H "Authorization: Bearer $KEY" \
+curl -sS -o /dev/null "$RAHDAR/mcp" -H "Authorization: Bearer $KEY" \
   -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
   ${SESSION:+-H "Mcp-Session-Id: $SESSION"} \
   -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
@@ -172,8 +172,8 @@ done
 say "cleaning up"
 # The broker keeps a runtime setting across restarts (ADR-0065), so the
 # declaration going away is not enough: without removing what this run applied,
-# the next run finds the broker already matching and plans nothing. Studio removes
-# only what Studio applied (ADR-0067 D6), which is exactly this.
+# the next run finds the broker already matching and plans nothing. Rahdar removes
+# only what Rahdar applied (ADR-0067 D6), which is exactly this.
 EMPTY='{"version":1,"addresses":[],"addressSettings":[],"securitySettings":[],"diverts":[]}'
 tool broker_config_change "{\"clusterId\":\"$CLUSTER\",\"op\":\"declare\",\"document\":$(python3 -c 'import json,sys;print(json.dumps(sys.argv[1]))' "$EMPTY"),\"dryRun\":false,\"confirm\":\"$CLUSTER_NAME\"}" >/dev/null
 teardown=$(tool broker_config_change "{\"clusterId\":\"$CLUSTER\",\"op\":\"apply\"}")
@@ -184,7 +184,7 @@ grep -q '"outcome":"APPLIED"' <<<"$removed" \
   && pass "what this run applied was removed again, so the run repeats" \
   || note "nothing to remove (the broker had no leftover from this run)"
 
-# The cluster is deliberately left registered. Studio removes only what Studio
+# The cluster is deliberately left registered. Rahdar removes only what Rahdar
 # applied, and that record belongs to the cluster: deleting and re-registering
 # would orphan the setting on the broker and the next run would find it already
 # matching and plan nothing. Re-running reuses this cluster by name.

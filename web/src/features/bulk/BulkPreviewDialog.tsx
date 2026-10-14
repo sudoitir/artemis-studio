@@ -78,7 +78,7 @@ function PreviewStatus({
           </Text>
           {unknown > 0 ? (
             <Text size="sm">
-              {plural(unknown, 'queue')} {unknown === 1 ? 'has a figure' : 'have figures'} Studio does not know, because
+              {plural(unknown, 'queue')} {unknown === 1 ? 'has a figure' : 'have figures'} Rahdar does not know, because
               a node has not answered recently; the total is a floor.
             </Text>
           ) : null}

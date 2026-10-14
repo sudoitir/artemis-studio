@@ -1,6 +1,6 @@
 ---
 layout: home
-title: Artemis Studio
+title: Rahdar
 titleTemplate: یک کنسول برای همهٔ کلاسترهای Artemis
 head:
   - - meta
@@ -8,7 +8,7 @@ head:
       content: مدیریت و مشاهده‌پذیری در سطح کلاستر برای Apache ActiveMQ Artemis — توپولوژی زندهٔ live/backup، صف‌ها در همهٔ نودها، عملیات امن روی پیام‌ها، ردیابی request-reply و SQL روی پیام‌ها.
 
 hero:
-  name: Artemis Studio
+  name: Rahdar
   text: یک کنسول برای همهٔ کلاسترهای Artemis
   tagline: توپولوژی زنده، صف‌ها در همهٔ نودها، عملیات امن روی پیام‌ها و SQL روی پیام‌ها — برای هر کلاستر Apache ActiveMQ Artemis که اجرا می‌کنید، از یک نمونهٔ واحد.
   actions:
@@ -20,7 +20,7 @@ hero:
       link: /fa/guide/
     - theme: alt
       text: GitHub
-      link: https://github.com/sudoitir/artemis-studio
+      link: https://github.com/sudoitir/rahdar
 
 features:
   - title: کل کلاستر، نه یک بروکر
@@ -36,7 +36,7 @@ features:
     details: هر فراخوانی تغییردهنده ‎?dryRun=true‎ می‌پذیرد و تعداد متأثرشده را بدون انجام کار برمی‌گرداند. purge و delete نیازمند تایپ‌کردن نام صف هستند. همه‌چیز در همان تراکنشِ فرمان ممیزی می‌شود.
     link: /fa/guide/
   - title: ردیابی request-reply
-    details: هر درخواست به پاسخش، در سراسر آدرس‌ها و نودها، متناظر می‌شود؛ همراه با آمار تأخیر و timeout در برابر انتظاراتی که خودتان اعلام می‌کنید. ساعت بروکرها روی ساعت Studio نرمال‌سازی و اختلاف آن افشا می‌شود.
+    details: هر درخواست به پاسخش، در سراسر آدرس‌ها و نودها، متناظر می‌شود؛ همراه با آمار تأخیر و timeout در برابر انتظاراتی که خودتان اعلام می‌کنید. ساعت بروکرها روی ساعت Rahdar نرمال‌سازی و اختلاف آن افشا می‌شود.
     link: /fa/guide/
   - title: یک سرور MCP با همان دسترسی‌ها
     details: از یک دستیار بپرسید چرا ORDERS.DLQ انباشته شده و بگذارید روی کلاسترهای واقعی‌تان پاسخ دهد — با حدود دوازده ابزار مبتنی بر قصد، زیر همان مجوزها و همان مسیر ممیزی یک کاربر انسانی.
@@ -45,19 +45,19 @@ features:
 
 ## ببینیدش که کار می‌کند
 
-![Artemis Studio: توپولوژی، جدول صف‌ها در همهٔ نودها، و پیامی که به صف dead-letter رفته است](/img/demo.gif)
+![Rahdar: توپولوژی، جدول صف‌ها در همهٔ نودها، و پیامی که به صف dead-letter رفته است](/img/demo.gif)
 
 یک نشست واقعی روی یک جفت کلاستر واقعی: توپولوژی، جدول صف‌ها در سراسر نودها، و پیامی که سر از صف dead-letter درآورده است.
 
 ## با یک فرمان نصبش کنید
 
 ```bash
-git clone https://github.com/sudoitir/artemis-studio && cd artemis-studio
-just up          # دو replica از Studio + HAProxy + Postgres، با کلیدهای تولیدشده و پین‌شده به آخرین انتشار
+git clone https://github.com/sudoitir/rahdar && cd rahdar
+just up          # دو replica از Rahdar + HAProxy + Postgres، با کلیدهای تولیدشده و پین‌شده به آخرین انتشار
 ```
 
-بروکرهای شما از پیش وجود دارند — Studio آن‌ها را ثبت می‌کند، اجرا نمی‌کند. جز فعال‌کردن endpointهای مدیریتی که تقریباً حتماً همین حالا هم دارید، نیازی به بازنویسی `broker.xml` نیست. [شروع سریع کامل ←](/fa/guide/quickstart)
+بروکرهای شما از پیش وجود دارند — Rahdar آن‌ها را ثبت می‌کند، اجرا نمی‌کند. جز فعال‌کردن endpointهای مدیریتی که تقریباً حتماً همین حالا هم دارید، نیازی به بازنویسی `broker.xml` نیست. [شروع سریع کامل ←](/fa/guide/quickstart)
 
 ::: warning نسخهٔ آلفا
-در حال توسعهٔ فعال و هنوز کامل نیست. ایمیج‌های منتشرشده buildهای dev پیش از پایدار هستند (`sudoit1/artemis-studio:dev`، هنوز بدون `:latest`). تغییرات ناسازگار را انتظار داشته باشید.
+در حال توسعهٔ فعال و هنوز کامل نیست. ایمیج‌های منتشرشده buildهای dev پیش از پایدار هستند (`sudoit1/rahdar:dev`، هنوز بدون `:latest`). تغییرات ناسازگار را انتظار داشته باشید.
 :::

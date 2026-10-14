@@ -182,7 +182,7 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
   return (
     <Section
       title="Traced addresses"
-      description="Declare which request-reply addresses Studio should reconstruct flows for. Tracing is sampled — see the Latency tab for what that means for reported numbers."
+      description="Declare which request-reply addresses Rahdar should reconstruct flows for. Tracing is sampled — see the Latency tab for what that means for reported numbers."
     >
       {denied ? (
         <Text size="sm" role="status">
@@ -254,7 +254,7 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
               <EmptyState
                 kind="empty"
                 title="No addresses declared yet"
-                description="Traffic on this cluster is not being traced. A declared address is a request address Studio reconstructs request-reply flows for; add one with the form above."
+                description="Traffic on this cluster is not being traced. A declared address is a request address Rahdar reconstructs request-reply flows for; add one with the form above."
               />
             }
           />
@@ -271,7 +271,7 @@ export function ExpectationsView({ clusterId }: Readonly<{ clusterId: string }>)
         consequence={
           removing ? (
             <>
-              Studio stops reconstructing request-reply flows for <strong>{removing.requestAddress}</strong>. Its
+              Rahdar stops reconstructing request-reply flows for <strong>{removing.requestAddress}</strong>. Its
               settings (reply addresses, deadline, sample rate and payload capture) are deleted and cannot be restored.
               Flows already recorded stay.
             </>

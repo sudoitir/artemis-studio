@@ -34,7 +34,7 @@ A firing alert SHALL be able to include a chosen report generated at that time.
 - **THEN** the notification carries a fresh report
 
 ### Requirement: Each run happens once per installation
-Across multiple Studio instances, a scheduled run SHALL execute and deliver exactly once.
+Across multiple Rahdar instances, a scheduled run SHALL execute and deliver exactly once.
 
 #### Scenario: Two instances
 - **WHEN** two instances share a database

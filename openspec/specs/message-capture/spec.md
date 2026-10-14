@@ -2,9 +2,9 @@
 
 ## Purpose
 Defines complete message capture: an opt-in, per-queue tap that copies every message routed
-to an address into a Studio-owned, bounded queue so that the SQL Console, the message index
+to an address into a Rahdar-owned, bounded queue so that the SQL Console, the message index
 and request-reply correlation observe what actually passed through rather than what happened
-to still be sitting on a queue when Studio last looked.
+to still be sitting on a queue when Rahdar last looked.
 
 ## Requirements
 
@@ -15,7 +15,7 @@ subscription naming the queue. Running a query, browsing a queue, tailing a queu
 registering a cluster SHALL NOT create one.
 
 Creating, modifying or deleting a capture subscription SHALL require a permission distinct
-from the one that governs Studio's own settings, because capture mutates the broker. It
+from the one that governs Rahdar's own settings, because capture mutates the broker. It
 SHALL be audited, naming the queue, the retention period and the operator.
 
 #### Scenario: No subscription means no broker mutation
@@ -31,7 +31,7 @@ SHALL be audited, naming the queue, the retention period and the operator.
 ### Requirement: Capture states its full blast radius before it can be armed
 
 The interface that creates a capture subscription SHALL state, before it can be confirmed:
-the broker objects that will be created and on which nodes; that Studio will store complete
+the broker objects that will be created and on which nodes; that Rahdar will store complete
 message bodies for the chosen retention period; and how the capture will be removed.
 
 Where the estate is configuration-managed, the system SHALL show the equivalent broker
@@ -53,11 +53,11 @@ The capture queue SHALL be bounded to a fixed number of messages, and the captur
 SHALL be configured to drop rather than block, page or fail when that bound is reached.
 
 The system SHALL NOT be capable of causing a broker to block a producer, page to disk, or
-grow without limit as a consequence of capture, whether or not Studio is draining the queue.
+grow without limit as a consequence of capture, whether or not Rahdar is draining the queue.
 
 #### Scenario: An undrained capture queue stays bounded
 
-- **WHEN** Studio stops draining a capture queue and messages continue to be routed to the source address
+- **WHEN** Rahdar stops draining a capture queue and messages continue to be routed to the source address
 - **THEN** the capture queue discards its oldest messages and the broker continues to accept and route production traffic unaffected
 
 #### Scenario: Production routing is unaffected by capture
@@ -68,7 +68,7 @@ grow without limit as a consequence of capture, whether or not Studio is drainin
 ### Requirement: Loss is measured and reported, never silent
 
 Where the system cannot record every captured message — because the capture queue dropped
-messages, because Studio could not keep up, or because a configured ingest rate limit was
+messages, because Rahdar could not keep up, or because a configured ingest rate limit was
 reached — it SHALL report the estimated number not recorded, per subscription.
 
 A capture subscription that is losing messages SHALL be reported as degraded rather than as
@@ -138,24 +138,24 @@ restrict access to the capture queue.
 
 #### Scenario: Capture is refused when it cannot be secured
 
-- **WHEN** Studio lacks the authority to restrict access to the capture queue on a node
+- **WHEN** Rahdar lacks the authority to restrict access to the capture queue on a node
 - **THEN** capture is refused on that node with the reason and the configuration that would grant it, and no capture queue is created there
 
 ### Requirement: The captured copy is protected on the broker
 
 A capture queue holds a complete copy of the traffic routed to its source address. The
-system SHALL restrict access to it to Studio's own broker identity, and SHALL NOT create a
+system SHALL restrict access to it to Rahdar's own broker identity, and SHALL NOT create a
 capture queue it has been unable to restrict.
 
 #### Scenario: The capture queue is restricted at creation
 
 - **WHEN** a capture tap is installed
-- **THEN** access to the capture queue is restricted to Studio's broker identity as part of the same installation
+- **THEN** access to the capture queue is restricted to Rahdar's broker identity as part of the same installation
 
 ### Requirement: Capture is bounded in what it stores as well as what it observes
 
 A captured message body larger than the configured per-message limit SHALL be stored
-truncated and marked as truncated, and SHALL NOT be transferred to Studio in full.
+truncated and marked as truncated, and SHALL NOT be transferred to Rahdar in full.
 
 A capture subscription SHALL be bounded by a stored-size limit as well as by a retention
 period, and SHALL report what it currently holds against both. What a subscription holds,
@@ -198,14 +198,14 @@ to that address.
 - **WHEN** a captured row is displayed
 - **THEN** it is described as what was routed to the address, and no interface element asserts that it was delivered or consumed
 
-### Requirement: Only one Studio instance reconciles a cluster's capture
+### Requirement: Only one Rahdar instance reconciles a cluster's capture
 
-Where more than one Studio instance is running against the same estate, at most one SHALL
+Where more than one Rahdar instance is running against the same estate, at most one SHALL
 perform capture reconciliation for a given cluster at a time.
 
 #### Scenario: A second instance does not reconcile concurrently
 
-- **WHEN** two Studio instances run against the same cluster
+- **WHEN** two Rahdar instances run against the same cluster
 - **THEN** only one performs capture reconciliation for it, and the other does not create or destroy that cluster's capture objects
 
 ### Requirement: Captured messages are stored governed
@@ -242,12 +242,12 @@ received before acknowledging it.
 
 #### Scenario: A database outage loses nothing within the bound
 
-- **WHEN** Studio's database is unavailable for a period during which fewer messages are routed than the capture queue's bound, and then becomes available
+- **WHEN** Rahdar's database is unavailable for a period during which fewer messages are routed than the capture queue's bound, and then becomes available
 - **THEN** every message routed during the outage is stored once, and none is acknowledged before it was stored
 
 #### Scenario: A database outage beyond the bound is reported
 
-- **WHEN** Studio's database is unavailable long enough that the capture queue reaches its bound
+- **WHEN** Rahdar's database is unavailable long enough that the capture queue reaches its bound
 - **THEN** the dropped messages are counted as loss with the database outage named as the cause, and production traffic is unaffected
 
 #### Scenario: Draining pauses while storing fails

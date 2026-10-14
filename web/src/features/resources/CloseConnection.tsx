@@ -158,7 +158,7 @@ export function CloseDialog({
   let blocked: string | undefined;
   if (!target) {
     blocked = previewFailed
-      ? 'Studio cannot tell you what this would disconnect, so the close is not offered until the read succeeds.'
+      ? 'Rahdar cannot tell you what this would disconnect, so the close is not offered until the read succeeds.'
       : 'Reading what this would disconnect…';
   }
 
@@ -384,7 +384,7 @@ function AddressConsequence({
           <ErrorState
             variant="inline"
             error={previewFailed}
-            next="The count could not be taken. The close can still proceed, but Studio cannot tell you how many consumers it would disconnect."
+            next="The count could not be taken. The close can still proceed, but Rahdar cannot tell you how many consumers it would disconnect."
           />
         ) : null}
 

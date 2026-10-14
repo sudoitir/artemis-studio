@@ -51,7 +51,7 @@ export function StuckPanel({
           <EmptyState
             kind="empty"
             title="No flow is stuck"
-            description="A flow is stuck when its request timed out, was never answered, or was answered by a responder Studio could not match to it. None is in that state right now, which is the healthy answer."
+            description="A flow is stuck when its request timed out, was never answered, or was answered by a responder Rahdar could not match to it. None is in that state right now, which is the healthy answer."
           />
         }
         onSelect={onSelect}

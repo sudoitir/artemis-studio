@@ -133,7 +133,7 @@ export function useCheckConnectionEdit(clusterId: string) {
   });
 }
 
-/** Saves an edited connection; Studio rediscovers the nodes at once. */
+/** Saves an edited connection; Rahdar rediscovers the nodes at once. */
 export function useUpdateConnection(clusterId: string) {
   const qc = useQueryClient();
   return useMutation<ClusterConnectionView, ApiError, UpdateClusterRequest>({

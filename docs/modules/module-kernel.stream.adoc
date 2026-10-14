@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.kernel.stream`
+|`io.github.sudoitir.rahdar.kernel.stream`
 |Spring components
 |_Event listeners_
 
@@ -20,7 +20,7 @@ _Others_
 * `i.g.s.a.k.s.UserSignals`
 |Bean references
 |* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.k.r.StudioBus` (in Replicas)
+* `i.g.s.a.k.r.RahdarBus` (in Replicas)
 * `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
 * `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
 * `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)

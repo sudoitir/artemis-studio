@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.kernel.plugin`
+|`io.github.sudoitir.rahdar.kernel.plugin`
 |Spring components
 |_Services_
 
@@ -20,15 +20,15 @@ _Configuration properties_
 _Others_
 
 * `i.g.s.a.k.p.PluginBridge` (via `i.g.s.a.k.p.FeatureRegistry`)
-* `i.g.s.a.k.p.StudioVersion`
+* `i.g.s.a.k.p.RahdarVersion`
 * `i.g.s.a.k.p.internal.descriptor.PluginDescriptorParser`
-* `i.g.s.a.k.p.internal.host.StudioRestart`
+* `i.g.s.a.k.p.internal.host.RahdarRestart`
 * `i.g.s.a.k.p.PluginRuntimeStatus` (via `i.g.s.a.k.p.internal.runtime.PluginRuntimeStatusImpl`)
 * `i.g.s.a.k.p.internal.trust.PluginTrust`
 * `i.g.s.a.k.p.internal.trust.PluginTrustHealthIndicator`
 * `i.g.s.a.k.p.internal.validation.PluginValidator`
 |Bean references
-|* `i.g.s.a.k.r.StudioBus` (in Replicas)
+|* `i.g.s.a.k.r.RahdarBus` (in Replicas)
 * `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
 |Events listened to
 |* `i.g.s.a.k.r.BusResumed` 

@@ -377,7 +377,7 @@ describe('TransferRunView', () => {
 
 describe('TransfersView', () => {
   it('is one page with a single h1 and the stranded-staging section below it', async () => {
-    const orphan: OrphanView = { nodeId: 'n1', nodeName: 'node-a', stagingQueue: 'studio.transfer.r9', depth: null };
+    const orphan: OrphanView = { nodeId: 'n1', nodeName: 'node-a', stagingQueue: 'rahdar.transfer.r9', depth: null };
     server.use(
       meHandler(),
       ...clusterHandlers(),
@@ -390,7 +390,7 @@ describe('TransfersView', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Staging queues with no run' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     // An unknown depth is stated, never shown as zero.
-    expect(screen.getByText(/studio\.transfer\.r9 on node-a — depth unknown/)).toBeInTheDocument();
+    expect(screen.getByText(/rahdar\.transfer\.r9 on node-a — depth unknown/)).toBeInTheDocument();
   });
 
   it('says it could not check for stranded staging, and offers to retry', async () => {
@@ -415,7 +415,7 @@ describe('TransfersView', () => {
   });
 
   it('asks for the queue to return to, beside its field, instead of leaving the button dead', async () => {
-    const orphan: OrphanView = { nodeId: 'n1', nodeName: 'node-a', stagingQueue: 'studio.transfer.r9', depth: 42 };
+    const orphan: OrphanView = { nodeId: 'n1', nodeName: 'node-a', stagingQueue: 'rahdar.transfer.r9', depth: 42 };
     const bodies: unknown[] = [];
     server.use(
       meHandler(),
@@ -424,7 +424,7 @@ describe('TransfersView', () => {
       http.get('*/api/v1/clusters/c1/transfers/orphans', () => HttpResponse.json(paged([orphan]))),
       http.post('*/api/v1/clusters/c1/transfers/orphans/return', async ({ request }) => {
         bodies.push(await request.json());
-        return HttpResponse.json({ stagingQueue: 'studio.transfer.r9', returned: 42, remaining: 0, removed: true });
+        return HttpResponse.json({ stagingQueue: 'rahdar.transfer.r9', returned: 42, remaining: 0, removed: true });
       }),
     );
     const user = userEvent.setup();
@@ -453,7 +453,7 @@ describe('TransfersView', () => {
   });
 
   it('lists staging with no run, and returns it to a named queue', async () => {
-    const orphan: OrphanView = { nodeId: 'n1', nodeName: 'node-a', stagingQueue: 'studio.transfer.r9', depth: 42 };
+    const orphan: OrphanView = { nodeId: 'n1', nodeName: 'node-a', stagingQueue: 'rahdar.transfer.r9', depth: 42 };
     const bodies: unknown[] = [];
     server.use(
       meHandler(),
@@ -462,13 +462,13 @@ describe('TransfersView', () => {
       http.get('*/api/v1/clusters/c1/transfers/orphans', () => HttpResponse.json(paged([orphan]))),
       http.post('*/api/v1/clusters/c1/transfers/orphans/return', async ({ request }) => {
         bodies.push(await request.json());
-        return HttpResponse.json({ stagingQueue: 'studio.transfer.r9', returned: 42, remaining: 0, removed: true });
+        return HttpResponse.json({ stagingQueue: 'rahdar.transfer.r9', returned: 42, remaining: 0, removed: true });
       }),
     );
     const user = userEvent.setup();
     renderWithProviders(<TransfersView />);
 
-    expect(await screen.findByText(/studio\.transfer\.r9 on node-a — 42 messages/)).toBeInTheDocument();
+    expect(await screen.findByText(/rahdar\.transfer\.r9 on node-a — 42 messages/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Return to…' }));
 
     const dialog = await screen.findByRole('dialog');
@@ -476,7 +476,7 @@ describe('TransfersView', () => {
     await holdButton(within(dialog).getByRole('button', { name: 'Return the messages' }));
 
     await waitFor(() => expect(bodies).toHaveLength(1));
-    expect(bodies[0]).toEqual({ nodeId: 'n1', stagingQueue: 'studio.transfer.r9', targetQueue: 'orders' });
-    expect(await screen.findByText(/42 messages returned from studio\.transfer\.r9\./)).toBeInTheDocument();
+    expect(bodies[0]).toEqual({ nodeId: 'n1', stagingQueue: 'rahdar.transfer.r9', targetQueue: 'orders' });
+    expect(await screen.findByText(/42 messages returned from rahdar\.transfer\.r9\./)).toBeInTheDocument();
   });
 });

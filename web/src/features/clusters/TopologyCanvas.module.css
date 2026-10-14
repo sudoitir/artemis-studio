@@ -190,7 +190,7 @@ button.node:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-/* A release outside what Studio supports says so in words beside its number. */
+/* A release outside what Rahdar supports says so in words beside its number. */
 .flag {
   font-family: var(--mantine-font-family);
   font-weight: 600;

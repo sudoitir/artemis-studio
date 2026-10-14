@@ -368,7 +368,7 @@ export function AddressSettingEditor({
             />
             {shownRest.length === 0 ? (
               <Text size="xs" c="dimmed">
-                No key matches “{filter}”. A key Studio does not know cannot be declared: the broker would accept it and
+                No key matches “{filter}”. A key Rahdar does not know cannot be declared: the broker would accept it and
                 silently ignore it.
               </Text>
             ) : (

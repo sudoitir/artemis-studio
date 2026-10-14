@@ -18,7 +18,7 @@ const STATUS = {
   recoveryCodesRemaining: 10,
   webauthn: {
     available: false,
-    reason: 'Set ARTEMIS_STUDIO_PUBLIC_URL to the address people open Studio at to enable passkeys.',
+    reason: 'Set RAHDAR_PUBLIC_URL to the address people open Rahdar at to enable passkeys.',
   },
   passkeys: [],
   trustedDevices: [],

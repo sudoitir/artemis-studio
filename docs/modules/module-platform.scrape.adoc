@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.platform.scrape`
+|`io.github.sudoitir.rahdar.platform.scrape`
 |Spring components
 |_Repositories_
 

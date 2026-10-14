@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
-### Requirement: The CLI is a single cross-platform binary released with Studio
-Each Studio release SHALL publish the CLI as a single binary for Linux, macOS and Windows on amd64 and arm64, versioned with Studio.
+### Requirement: The CLI is a single cross-platform binary released with Rahdar
+Each Rahdar release SHALL publish the CLI as a single binary for Linux, macOS and Windows on amd64 and arm64, versioned with Rahdar.
 
 #### Scenario: Release
 - **WHEN** a version is released
@@ -33,11 +33,11 @@ Commands SHALL print table, JSON or YAML as chosen, and SHALL exit with document
 - **THEN** the output is valid JSON only
 
 #### Scenario: Denied
-- **WHEN** Studio denies a call
+- **WHEN** Rahdar denies a call
 - **THEN** the exit code is the documented denial code
 
 ### Requirement: Profiles and token authentication work non-interactively
-The CLI SHALL keep named profiles for Studio addresses and authenticate with an API token from a flag, the environment or a profile, without prompting; a token SHALL never be printed.
+The CLI SHALL keep named profiles for Rahdar addresses and authenticate with an API token from a flag, the environment or a profile, without prompting; a token SHALL never be printed.
 
 #### Scenario: CI run
 - **WHEN** a CI job supplies a token through the environment
@@ -55,17 +55,17 @@ The CLI SHALL generate completion for common shells.
 - **THEN** commands and flags complete
 
 ### Requirement: The CLI uses only the published API
-The CLI SHALL call only endpoints in the published API contract and SHALL report a clear error when the Studio version is incompatible.
+The CLI SHALL call only endpoints in the published API contract and SHALL report a clear error when the Rahdar version is incompatible.
 
-#### Scenario: Old Studio
+#### Scenario: Old Rahdar
 - **WHEN** the server lacks an endpoint the CLI needs
-- **THEN** the CLI reports the required Studio version
+- **THEN** the CLI reports the required Rahdar version
 
-### Requirement: The CLI verifies Studio's TLS certificate
-The CLI SHALL verify Studio's certificate against the system trust store or a CA file named in the profile, and SHALL NOT turn verification off unless a flag that names the risk is given, which it SHALL warn about on every run.
+### Requirement: The CLI verifies Rahdar's TLS certificate
+The CLI SHALL verify Rahdar's certificate against the system trust store or a CA file named in the profile, and SHALL NOT turn verification off unless a flag that names the risk is given, which it SHALL warn about on every run.
 
 #### Scenario: Private CA
-- **WHEN** a profile names the CA that signed Studio's certificate
+- **WHEN** a profile names the CA that signed Rahdar's certificate
 - **THEN** the connection verifies without disabling anything
 
 #### Scenario: Wrong certificate

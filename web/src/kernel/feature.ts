@@ -7,7 +7,7 @@ import type { NavGroupId } from './nav/groups.ts';
 import type { SlotContributions } from './slots.ts';
 
 /** The extension contract version, shared with the backend's `Contract.VERSION` (ADR-0070). */
-export const CONTRACT = 14;
+export const CONTRACT = 15;
 
 /** The module ids the backend manifest reports. A frontend feature uses the same id as its backend module. */
 export const FEATURE_IDS = [
@@ -116,7 +116,7 @@ export type TopicHandler = (frame: {
 }) => void;
 
 /** What a frontend feature contributes to the shell (ADR-0070). */
-export interface StudioFeature {
+export interface RahdarFeature {
   contract: typeof CONTRACT;
   /** A built-in's module id, or a plugin's id (a plugin is loaded from its own bundle at startup). */
   id: ModuleId;
@@ -131,6 +131,6 @@ export interface StudioFeature {
   streamTopics?: Record<string, TopicHandler>;
 }
 
-export function defineFeature<T extends StudioFeature>(feature: T): T {
+export function defineFeature<T extends RahdarFeature>(feature: T): T {
   return feature;
 }

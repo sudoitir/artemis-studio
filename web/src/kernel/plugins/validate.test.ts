@@ -67,7 +67,7 @@ describe('checkPlugin', () => {
     [
       'a contribution to a built-in link',
       plugin({ slots: { 'queue.link': [{ id: 'acme-notes.link', order: 0, Component: Panel }] } }),
-      /links to built-in resources are Studio's own/,
+      /links to built-in resources are Rahdar's own/,
     ],
     [
       'a row action with no section',

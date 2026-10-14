@@ -18,7 +18,7 @@ export function Notice({
   action,
   children,
 }: Readonly<{
-  /** What the notice is about, in words: "Studio needs a restart". */
+  /** What the notice is about, in words: "Rahdar needs a restart". */
   title: string;
   tone?: 'neutral' | 'info' | 'warning' | 'danger';
   /** The next step, as a control. */

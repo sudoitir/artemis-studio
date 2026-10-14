@@ -5,7 +5,7 @@ type CapabilityView = components['schemas']['CapabilityView'];
 export type GateVerdict =
   { kind: 'allowed'; uncertain: boolean } | { kind: 'blocked'; reason: string; snippet?: string | null };
 
-/** What a permission is held on: one cluster, or Studio itself. */
+/** What a permission is held on: one cluster, or Rahdar itself. */
 export type GateScope = 'cluster' | 'installation';
 
 /** What is known of a refusal on one queue or address: the permission, and who owns it, to say who can grant it. */
@@ -31,7 +31,7 @@ export interface ResourceDenial {
  * </ul>
  *
  * <p>`scope` is what the permission is held on, so the reason names the right place: `cluster` for
- * an action on one cluster (the usual one), `installation` for one on Studio itself, such as its
+ * an action on one cluster (the usual one), `installation` for one on Rahdar itself, such as its
  * settings, users or plugins.
  */
 export function gateFor(

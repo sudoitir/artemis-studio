@@ -1,0 +1,63 @@
+package io.github.sudoitir.rahdar.feature.identitylocal;
+
+import io.github.sudoitir.rahdar.kernel.security.CredentialIdentityProvider;
+import io.github.sudoitir.rahdar.kernel.security.IdentityProviders;
+import io.github.sudoitir.rahdar.kernel.security.RahdarPrincipal;
+import io.github.sudoitir.rahdar.kernel.security.UserAccounts;
+import io.github.sudoitir.rahdar.kernel.security.UserAccounts.Account;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
+
+/**
+ * The {@code local} credential provider: accounts whose passwords Rahdar stores, hashed, in
+ * {@code app_user} (identity-and-sessions spec).
+ */
+@Component
+class LocalIdentity implements IdentityProviders, CredentialIdentityProvider {
+
+    private final UserAccounts accounts;
+    private final PasswordEncoder passwordEncoder;
+    /** A hash from the same encoder, checked against when there is no real one. */
+    private final String dummyHash;
+
+    LocalIdentity(UserAccounts accounts, PasswordEncoder passwordEncoder) {
+        this.accounts = accounts;
+        this.passwordEncoder = passwordEncoder;
+        this.dummyHash = passwordEncoder.encode(UUID.randomUUID().toString());
+    }
+
+    @Override
+    public List<LocalIdentity> providers() {
+        return List.of(this);
+    }
+
+    @Override
+    public String id() {
+        return IdentityLocalModule.PROVIDER_ID;
+    }
+
+    @Override
+    public String label() {
+        return "Password";
+    }
+
+    @Override
+    public Optional<RahdarPrincipal> authenticate(String username, String password) {
+        Account user = accounts.byUsername(username).orElse(null);
+        boolean hasPassword = user != null && user.passwordHash() != null;
+        // Exactly one hash check whether or not the account exists, so the time taken does not
+        // say which usernames do.
+        boolean matches = passwordEncoder.matches(password, hasPassword ? user.passwordHash() : dummyHash);
+        if (!hasPassword || !matches) {
+            return Optional.empty();
+        }
+        if (user.disabled()) {
+            throw new DisabledException("Account disabled");
+        }
+        return Optional.of(RahdarPrincipal.live(user.id(), user.username(), user.mustChangePassword()));
+    }
+}

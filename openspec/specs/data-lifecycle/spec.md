@@ -6,7 +6,7 @@ Every store that grows with use, core or plugin, has one bounded retention polic
 ## Requirements
 
 ### Requirement: Every store has one retention policy in one place
-Studio SHALL expose a retention policy for every store that grows with use: metrics, message index,
+Rahdar SHALL expose a retention policy for every store that grows with use: metrics, message index,
 captured payloads, broker events, request-reply flows, audit, bulk runs, transfer runs, alert history,
 broker configuration history, setup reviews, classification findings, expired sessions, API token usage and storage
 samples. Each policy SHALL have a default and an enforced minimum and maximum, and SHALL be editable on
@@ -38,7 +38,7 @@ purge, without a restart. These policies SHALL NOT also be listed on the Setting
 - **THEN** it is rejected with the store's retention as the maximum
 
 ### Requirement: A policy change can be previewed before it applies
-Studio SHALL offer a dry run that reports, for one store and a proposed retention, how many rows (or
+Rahdar SHALL offer a dry run that reports, for one store and a proposed retention, how many rows (or
 partitions) and about how many bytes a purge would remove, without deleting anything.
 
 #### Scenario: Dry run
@@ -58,7 +58,7 @@ percentage (default 80). A store whose usage crosses the warning SHALL raise an 
 - **THEN** it never raises a quota alert
 
 ### Requirement: Storage health is observable
-Studio SHALL show, per table, its size, its growth over the last 7 days, its dead tuples, its last
+Rahdar SHALL show, per table, its size, its growth over the last 7 days, its dead tuples, its last
 vacuum and, for partitioned tables, whether partitions exist for today and the next three days. It SHALL
 mark unhealthy tables and raise a `STORAGE_HEALTH` installation alert for them.
 
@@ -72,7 +72,7 @@ mark unhealthy tables and raise a `STORAGE_HEALTH` installation alert for them.
 
 ### Requirement: Plugins register their stores through a housekeeping contract
 The plugin API SHALL let a plugin contribute stores through `HousekeepingContributor`, each with its
-retention bounds, usage, dry run and batched purge. Studio SHALL list, preview, purge and report a
+retention bounds, usage, dry run and batched purge. Rahdar SHALL list, preview, purge and report a
 plugin store like a core store, and SHALL remove it when the plugin is uninstalled.
 
 #### Scenario: Plugin store listed
@@ -108,10 +108,10 @@ children first, in bounded batches, and the parents last.
 - **THEN** the child rows are deleted first in bounded batches and no single statement deletes an unbounded cascade
 
 ### Requirement: High-volume history is time-partitioned and kept ahead
-History that grows in proportion to traffic SHALL be stored in time partitions with UTC bounds, and SHALL have no default partition. Studio SHALL create the partitions for the coming period at start-up, before scraping and jobs begin, and again every hour. A write that finds no partition for its time SHALL trigger their creation and be retried once. The health report SHALL show the partitions as DOWN when the current period has none. A partition that has closed SHALL be frozen and analyzed once, and each partitioned parent SHALL be analyzed daily, because the planner does not see statistics of a parent through its partitions.
+History that grows in proportion to traffic SHALL be stored in time partitions with UTC bounds, and SHALL have no default partition. Rahdar SHALL create the partitions for the coming period at start-up, before scraping and jobs begin, and again every hour. A write that finds no partition for its time SHALL trigger their creation and be retried once. The health report SHALL show the partitions as DOWN when the current period has none. A partition that has closed SHALL be frozen and analyzed once, and each partitioned parent SHALL be analyzed daily, because the planner does not see statistics of a parent through its partitions.
 
 #### Scenario: Start-up creates partitions
-- **WHEN** Studio starts against a database whose newest partition has expired
+- **WHEN** Rahdar starts against a database whose newest partition has expired
 - **THEN** the partitions for the current and coming periods exist before the first scrape or job runs
 
 #### Scenario: The hourly run keeps ahead
@@ -120,7 +120,7 @@ History that grows in proportion to traffic SHALL be stored in time partitions w
 
 #### Scenario: A write finds no partition
 - **WHEN** a write fails because no partition covers its time
-- **THEN** Studio creates the partition and retries the write once, and the write succeeds
+- **THEN** Rahdar creates the partition and retries the write once, and the write succeeds
 
 #### Scenario: The current period has no partition
 - **WHEN** the current period has no partition and creation fails

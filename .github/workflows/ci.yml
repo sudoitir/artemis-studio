@@ -21,7 +21,7 @@ permissions:
 # Anonymous pull works, so PR builds (no login) can still warm from it; only the
 # release job writes it. Survives across runs without GHA's 10 GB eviction.
 env:
-  BUILDCACHE: sudoit1/artemis-studio:buildcache
+  BUILDCACHE: sudoit1/rahdar:buildcache
   # Pinned: the changelog is a published artifact, not a best-effort render.
   GIT_CLIFF: git-cliff@2.13.1
 
@@ -76,7 +76,7 @@ jobs:
             web:
               - *ci
               - 'web/**'
-            # The plugin template and the SDK package: built and run against Studio (ADR-0102).
+            # The plugin template and the SDK package: built and run against Rahdar (ADR-0102).
             plugin:
               - *ci
               - 'examples/plugin-template/**'
@@ -271,9 +271,9 @@ jobs:
           cache-dependency-path: clients/java/pom.xml
       - run: ./mvnw -B -f clients/java/pom.xml verify
 
-  # The plugin kit, end to end (ADR-0102): build the template plugin against this Studio's API
+  # The plugin kit, end to end (ADR-0102): build the template plugin against this Rahdar's API
   # jar and SDK, check it exactly as an upload would, then install, use, update, roll back and
-  # remove it through a running Studio's API and UI.
+  # remove it through a running Rahdar's API and UI.
   plugin-template:
     needs: changes
     if: >-
@@ -286,12 +286,12 @@ jobs:
       postgres:
         image: postgres:18
         env:
-          POSTGRES_DB: artemis_studio
-          POSTGRES_USER: artemis_studio
-          POSTGRES_PASSWORD: artemis_studio
+          POSTGRES_DB: rahdar
+          POSTGRES_USER: rahdar
+          POSTGRES_PASSWORD: rahdar
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U artemis_studio" --health-interval 5s --health-retries 30
+          --health-cmd "pg_isready -U rahdar" --health-interval 5s --health-retries 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -307,7 +307,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - name: Build Studio (runnable jar with its UI; API jar into the local repository)
+      - name: Build Rahdar (runnable jar with its UI; API jar into the local repository)
         run: ./mvnw -B -Pfrontend -DskipTests install
 
       - name: Pack the plugin SDK from this build
@@ -316,7 +316,7 @@ jobs:
           node packages/plugin-sdk/build.mjs 2026.01.0
           (cd packages/plugin-sdk/dist && npm pack)
 
-      - name: Build the template as 1.0.0 and 1.0.1, signed with a throwaway key and checked as Studio will check it
+      - name: Build the template as 1.0.0 and 1.0.1, signed with a throwaway key and checked as Rahdar will check it
         run: |
           set -euo pipefail
           SDK=$(ls "$GITHUB_WORKSPACE"/web/packages/plugin-sdk/dist/*.tgz)
@@ -331,36 +331,36 @@ jobs:
             rm -rf "$RUNNER_TEMP/tpl" && cp -r examples/plugin-template "$RUNNER_TEMP/tpl"
             sed -i "0,/<version>1.0.0<\/version>/s//<version>$V<\/version>/" "$RUNNER_TEMP/tpl/pom.xml"
             ./mvnw -B -f "$RUNNER_TEMP/tpl/pom.xml" verify \
-              -Dstudio.version=0.1.0-SNAPSHOT -Dstudio.since=2026.01.0 -Dstudio.sdk="$SDK" \
+              -Drahdar.version=0.1.0-SNAPSHOT -Drahdar.since=2026.01.0 -Drahdar.sdk="$SDK" \
               -Dplugin.signing.keystore="$RUNNER_TEMP/ci.p12" -Dplugin.signing.alias=ci \
-              -Dartemis-studio.plugin.certificate="$RUNNER_TEMP/publisher.pem"
+              -Drahdar.plugin.certificate="$RUNNER_TEMP/publisher.pem"
             cp "$RUNNER_TEMP/tpl/target/acme-notes-$V.jar" "$RUNNER_TEMP/"
           done
 
-      - name: Start Studio
+      - name: Start Rahdar
         run: |
           set -euo pipefail
-          ARTEMIS_STUDIO_DB_URL=jdbc:postgresql://localhost:5432/artemis_studio \
-          ARTEMIS_STUDIO_DB_USER=artemis_studio ARTEMIS_STUDIO_DB_PASSWORD=artemis_studio \
-          ARTEMIS_STUDIO_SECRET_KEY="$(openssl rand -base64 32)" \
-            nohup java -jar target/artemis-studio-exec.jar > "$RUNNER_TEMP/studio.log" 2>&1 &
+          RAHDAR_DB_URL=jdbc:postgresql://localhost:5432/rahdar \
+          RAHDAR_DB_USER=rahdar RAHDAR_DB_PASSWORD=rahdar \
+          RAHDAR_SECRET_KEY="$(openssl rand -base64 32)" \
+            nohup java -jar target/rahdar-exec.jar > "$RUNNER_TEMP/rahdar.log" 2>&1 &
           timeout 180 bash -c 'until curl -sf http://localhost:8080/actuator/health >/dev/null; do sleep 2; done'
-          timeout 60 bash -c "until grep -q 'password:' '$RUNNER_TEMP/studio.log'; do sleep 1; done"
-          echo "ADMIN_PASSWORD=$(awk '/password:/ {print $2; exit}' "$RUNNER_TEMP/studio.log")" >> "$GITHUB_ENV"
+          timeout 60 bash -c "until grep -q 'password:' '$RUNNER_TEMP/rahdar.log'; do sleep 1; done"
+          echo "ADMIN_PASSWORD=$(awk '/password:/ {print $2; exit}' "$RUNNER_TEMP/rahdar.log")" >> "$GITHUB_ENV"
 
       - name: Install, use, update, roll back and remove the plugin
         working-directory: web
         run: |
           npm ci
           npx playwright install --with-deps chromium
-          STUDIO=http://localhost:8080 NEW_PASSWORD="ci-$(openssl rand -hex 12)" \
+          RAHDAR=http://localhost:8080 NEW_PASSWORD="ci-$(openssl rand -hex 12)" \
           JAR_V1="$RUNNER_TEMP/acme-notes-1.0.0.jar" JAR_V2="$RUNNER_TEMP/acme-notes-1.0.1.jar" \
           PUBLISHER_CERT="$RUNNER_TEMP/publisher.pem" \
             node --experimental-strip-types scripts/plugin-e2e.ts
 
-      - name: Studio's log
+      - name: Rahdar's log
         if: failure()
-        run: tail -300 "$RUNNER_TEMP/studio.log"
+        run: tail -300 "$RUNNER_TEMP/rahdar.log"
 
   # The Dockerfile still builds, and two replicas of the image built here survive a kill and a rolling stop
   # (ADR-0152). Single-arch, no push, in parallel with the tests.
@@ -371,7 +371,7 @@ jobs:
     timeout-minutes: 30
     env:
       # `just ha-failover` runs the same stack and script.
-      COMPOSE: docker compose -p artemis-studio-ha-test --env-file deploy/compose/dev/ha/test.env -f deploy/compose/compose.ha.yaml -f deploy/compose/dev/compose.ha.test.yaml
+      COMPOSE: docker compose -p rahdar-ha-test --env-file deploy/compose/dev/ha/test.env -f deploy/compose/compose.ha.yaml -f deploy/compose/dev/compose.ha.test.yaml
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -383,7 +383,7 @@ jobs:
           context: .
           push: false
           load: true
-          tags: artemis-studio:ci
+          tags: rahdar:ci
           # Warm from the release job's registry cache (anonymous pull); keep a
           # per-branch GHA layer so successive PR pushes stay incremental.
           cache-from: |
@@ -412,7 +412,7 @@ jobs:
           node --experimental-strip-types web/scripts/ha-failover.ts
       - name: The replicas' logs
         if: failure()
-        run: $COMPOSE logs --tail 300 studio-1 studio-2 lb
+        run: $COMPOSE logs --tail 300 rahdar-1 rahdar-2 lb
       - name: Remove the failover stack
         if: always()
         run: $COMPOSE down -v
@@ -425,7 +425,7 @@ jobs:
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
               -v "$RUNNER_TEMP/grype:/cache" -e GRYPE_DB_CACHE_DIR=/cache \
               anchore/grype:v0.119.0@sha256:8c2c9234a345577a6d321a4753aa3ee1276d8975c8452d2344a56b57733ecad3 \
-              artemis-studio:ci "$@"
+              rahdar:ci "$@"
           }
           echo "Every finding:"; grype
           echo "Fixable findings (fails on high or critical):"; grype --only-fixed --fail-on high
@@ -524,8 +524,8 @@ jobs:
         run: |
           docker run --rm --entrypoint promtool -v "$PWD/deploy/observability/prometheus:/rules:ro" \
             prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996 \
-            check rules /rules/studio-alerts.yml
-          jq empty deploy/observability/grafana/studio-overview.json
+            check rules /rules/rahdar-alerts.yml
+          jq empty deploy/observability/grafana/rahdar-overview.json
 
   # The backend shards' coverage as one report: merged with the JaCoCo CLI (resolved through Maven,
   # so its checksum is verified) against the compiled classes. Informational (ADR-0128).
@@ -558,7 +558,7 @@ jobs:
           mkdir -p target/site/jacoco
           $CLI report target/jacoco.exec --classfiles target/classes --sourcefiles src/main/java \
             --html target/site/jacoco --csv target/site/jacoco/jacoco.csv --xml target/site/jacoco/jacoco.xml \
-            --name "Artemis Studio"
+            --name "Rahdar"
       - name: Coverage summary
         run: |
           python3 - >> "$GITHUB_STEP_SUMMARY" <<'PY'
@@ -738,37 +738,37 @@ jobs:
       - name: Stage release assets
         run: |
           V=${{ steps.ver.outputs.version }}
-          cp target/artemis-studio-exec.jar "artemis-studio-$V.jar"
-          sha256sum "artemis-studio-$V.jar" > "artemis-studio-$V.jar.sha256"
+          cp target/rahdar-exec.jar "rahdar-$V.jar"
+          sha256sum "rahdar-$V.jar" > "rahdar-$V.jar.sha256"
           # The Grafana dashboard and Prometheus rules, as their own asset (ADR-0147).
-          tar -czf "artemis-studio-observability-$V.tar.gz" deploy/observability
-          sha256sum "artemis-studio-observability-$V.tar.gz" > "artemis-studio-observability-$V.tar.gz.sha256"
+          tar -czf "rahdar-observability-$V.tar.gz" deploy/observability
+          sha256sum "rahdar-observability-$V.tar.gz" > "rahdar-observability-$V.tar.gz.sha256"
           # The API document of this release, with the release as its version (ADR-0151).
-          jq --arg v "$V" '.info.version = $v' web/openapi.json > "artemis-studio-$V.openapi.json"
-          sha256sum "artemis-studio-$V.openapi.json" > "artemis-studio-$V.openapi.json.sha256"
+          jq --arg v "$V" '.info.version = $v' web/openapi.json > "rahdar-$V.openapi.json"
+          sha256sum "rahdar-$V.openapi.json" > "rahdar-$V.openapi.json.sha256"
 
       # Signed SLSA provenance and a CycloneDX SBOM for the jar, verifiable with
       # `gh attestation verify` and no key of ours (ADR-0139). The bundle is a release asset too.
       - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
-          file: artemis-studio-${{ steps.ver.outputs.version }}.jar
+          file: rahdar-${{ steps.ver.outputs.version }}.jar
           format: cyclonedx-json
-          output-file: artemis-studio-${{ steps.ver.outputs.version }}.jar.cdx.json
+          output-file: rahdar-${{ steps.ver.outputs.version }}.jar.cdx.json
           upload-artifact: false
       - name: Attest the jar's provenance
         id: jar-provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: artemis-studio-${{ steps.ver.outputs.version }}.jar
+          subject-path: rahdar-${{ steps.ver.outputs.version }}.jar
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: artemis-studio-${{ steps.ver.outputs.version }}.jar
-          sbom-path: artemis-studio-${{ steps.ver.outputs.version }}.jar.cdx.json
+          subject-path: rahdar-${{ steps.ver.outputs.version }}.jar
+          sbom-path: rahdar-${{ steps.ver.outputs.version }}.jar.cdx.json
       - name: Stage the jar's provenance bundle
-        run: cp "${{ steps.jar-provenance.outputs.bundle-path }}" "artemis-studio-${{ steps.ver.outputs.version }}.jar.intoto.jsonl"
+        run: cp "${{ steps.jar-provenance.outputs.bundle-path }}" "rahdar-${{ steps.ver.outputs.version }}.jar.intoto.jsonl"
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: artemis-studio-${{ steps.ver.outputs.version }}.openapi.json
+          subject-path: rahdar-${{ steps.ver.outputs.version }}.openapi.json
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -823,11 +823,11 @@ jobs:
             type=gha
           cache-to: type=registry,ref=${{ env.BUILDCACHE }},mode=max,image-manifest=true,oci-mediatypes=true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio:${{ steps.ver.outputs.version }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio:${{ steps.ver.outputs.month }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio:dev
+            ${{ secrets.DOCKERHUB_USERNAME }}/rahdar:${{ steps.ver.outputs.version }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/rahdar:${{ steps.ver.outputs.month }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/rahdar:dev
           labels: |
-            org.opencontainers.image.title=Artemis Studio
+            org.opencontainers.image.title=Rahdar
             org.opencontainers.image.description=Cluster-wide management and observability for Apache ActiveMQ Artemis
             org.opencontainers.image.version=${{ steps.ver.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -838,20 +838,20 @@ jobs:
       # Provenance and a CycloneDX SBOM for the image, signed and stored next to it on Docker Hub.
       - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
-          image: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio@${{ steps.push.outputs.digest }}
+          image: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/rahdar@${{ steps.push.outputs.digest }}
           format: cyclonedx-json
-          output-file: artemis-studio-${{ steps.ver.outputs.version }}.image.cdx.json
+          output-file: rahdar-${{ steps.ver.outputs.version }}.image.cdx.json
           upload-artifact: false
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-name: index.docker.io/${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio
+          subject-name: index.docker.io/${{ secrets.DOCKERHUB_USERNAME }}/rahdar
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-name: index.docker.io/${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio
+          subject-name: index.docker.io/${{ secrets.DOCKERHUB_USERNAME }}/rahdar
           subject-digest: ${{ steps.push.outputs.digest }}
-          sbom-path: artemis-studio-${{ steps.ver.outputs.version }}.image.cdx.json
+          sbom-path: rahdar-${{ steps.ver.outputs.version }}.image.cdx.json
           push-to-registry: true
 
       - name: Create GitHub release
@@ -862,28 +862,28 @@ jobs:
           body_path: release-notes.md
           prerelease: true
           files: |
-            artemis-studio-${{ steps.ver.outputs.version }}.jar
-            artemis-studio-${{ steps.ver.outputs.version }}.jar.sha256
-            artemis-studio-observability-${{ steps.ver.outputs.version }}.tar.gz
-            artemis-studio-observability-${{ steps.ver.outputs.version }}.tar.gz.sha256
-            artemis-studio-${{ steps.ver.outputs.version }}.openapi.json
-            artemis-studio-${{ steps.ver.outputs.version }}.openapi.json.sha256
-            artemis-studio-${{ steps.ver.outputs.version }}.jar.intoto.jsonl
-            artemis-studio-${{ steps.ver.outputs.version }}.jar.cdx.json
-            artemis-studio-${{ steps.ver.outputs.version }}.image.cdx.json
+            rahdar-${{ steps.ver.outputs.version }}.jar
+            rahdar-${{ steps.ver.outputs.version }}.jar.sha256
+            rahdar-observability-${{ steps.ver.outputs.version }}.tar.gz
+            rahdar-observability-${{ steps.ver.outputs.version }}.tar.gz.sha256
+            rahdar-${{ steps.ver.outputs.version }}.openapi.json
+            rahdar-${{ steps.ver.outputs.version }}.openapi.json.sha256
+            rahdar-${{ steps.ver.outputs.version }}.jar.intoto.jsonl
+            rahdar-${{ steps.ver.outputs.version }}.jar.cdx.json
+            rahdar-${{ steps.ver.outputs.version }}.image.cdx.json
 
       # What users run (site/src/guide/verify-releases.md): if it fails here, the release fails.
       - name: Verify the attestations as a user would
         env:
           GH_TOKEN: ${{ github.token }}
-          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/rahdar
         run: |
           set -euo pipefail
           V=${{ steps.ver.outputs.version }}
           SIGNER=(--repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml")
-          gh attestation verify "artemis-studio-$V.jar" "${SIGNER[@]}"
-          gh attestation verify "artemis-studio-$V.jar" "${SIGNER[@]}" --predicate-type https://cyclonedx.org/bom
-          gh attestation verify "artemis-studio-$V.openapi.json" "${SIGNER[@]}"
+          gh attestation verify "rahdar-$V.jar" "${SIGNER[@]}"
+          gh attestation verify "rahdar-$V.jar" "${SIGNER[@]}" --predicate-type https://cyclonedx.org/bom
+          gh attestation verify "rahdar-$V.openapi.json" "${SIGNER[@]}"
           gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}"
           gh attestation verify "oci://docker.io/$IMAGE:$V" "${SIGNER[@]}" --predicate-type https://cyclonedx.org/bom
           # Docker Hub lists a freshly pushed referrer only after a delay, which has run past a
@@ -916,7 +916,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ secrets.DOCKERHUB_USERNAME }}/artemis-studio
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/rahdar
           # Its own file, not README.md: the repository landing page carries
           # contributing notes and a trademark section that mean nothing to
           # someone reading a tag list.
@@ -951,7 +951,7 @@ jobs:
         id: needed
         run: |
           V="${{ needs.release.outputs.version }}"
-          LAST=$(curl -sf https://repo1.maven.org/maven2/io/github/sudoitir/artemis-studio/maven-metadata.xml \
+          LAST=$(curl -sf https://repo1.maven.org/maven2/io/github/sudoitir/rahdar/maven-metadata.xml \
             | sed -n 's:.*<release>\(.*\)</release>.*:\1:p' || true)
           if [ -n "$LAST" ] && git rev-parse -q --verify "refs/tags/$LAST" >/dev/null \
             && git diff --quiet "$LAST" "$V" -- src/main pom.xml; then
@@ -977,7 +977,7 @@ jobs:
           else
             PREV=$(git tag -l | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]+$' | sort -V | awk -v v="$V" '$0 == v { print p; exit } { p = $0 }')
           fi
-          FILE=src/main/java/io/github/sudoitir/artemisstudio/kernel/plugin/Contract.java
+          FILE=src/main/java/io/github/sudoitir/rahdar/kernel/plugin/Contract.java
           contract() { git show "$1:$FILE" | sed -n 's/.*int VERSION = \([0-9]*\);.*/\1/p'; }
           NOW=$(contract "$V")
           [ -n "$NOW" ] || { echo "::error::no Contract.VERSION in $FILE at $V"; exit 1; }
@@ -1010,7 +1010,7 @@ jobs:
           server-id: central
           server-username-env-var: MAVEN_USERNAME
           server-password-env-var: MAVEN_PASSWORD
-      - name: Publish io.github.sudoitir:artemis-studio:${{ needs.release.outputs.version }}
+      - name: Publish io.github.sudoitir:rahdar:${{ needs.release.outputs.version }}
         if: steps.needed.outputs.publish == 'true'
         env:
           MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
@@ -1026,10 +1026,10 @@ jobs:
         if: steps.needed.outputs.publish == 'true'
         with:
           subject-path: |
-            target/artemis-studio*.jar
+            target/rahdar*.jar
             pom.xml
 
-  # The plugin SDK on npm (ADR-0102), versioned like Studio (2026.09.0 is npm 2026.9.0). Only when
+  # The plugin SDK on npm (ADR-0102), versioned like Rahdar (2026.09.0 is npm 2026.9.0). Only when
   # what the SDK is built from changed since the newest version on npm (ADR-0126). Trusted
   # publishing through GitHub's OIDC: npmjs.com trusts this workflow file, so no npm token is stored.
   publish-sdk:
@@ -1054,7 +1054,7 @@ jobs:
         id: needed
         run: |
           V="${{ needs.release.outputs.version }}"
-          NPM=$(npm view @artemis-studio/plugin-sdk version 2>/dev/null || true)
+          NPM=$(npm view @rahdar/plugin-sdk version 2>/dev/null || true)
           # npm drops the month's leading zero: 2026.9.3 is the tag 2026.09.3.
           LAST=$([ -n "$NPM" ] && echo "$NPM" | awk -F. '{ printf "%d.%02d.%d", $1, $2, $3 }' || true)
           if [ -n "$LAST" ] && git rev-parse -q --verify "refs/tags/$LAST" >/dev/null \
@@ -1065,7 +1065,7 @@ jobs:
             echo "SDK changed since ${LAST:-nothing on npm}: publishing $V."
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Build @artemis-studio/plugin-sdk
+      - name: Build @rahdar/plugin-sdk
         if: steps.needed.outputs.publish == 'true'
         working-directory: web
         run: |
@@ -1079,7 +1079,7 @@ jobs:
           npx -y semver@7 -r '>=11.5.1' "$(npm -v)" >/dev/null || { echo "npm $(npm -v) is too old to publish"; exit 1; }
           npm publish --access public --provenance
 
-  # The TypeScript client on npm (ADR-0151), versioned like Studio (2026.09.0 is npm 2026.9.0) and
+  # The TypeScript client on npm (ADR-0151), versioned like Rahdar (2026.09.0 is npm 2026.9.0) and
   # built from the release's own OpenAPI document, so every release publishes one. Trusted
   # publishing through GitHub's OIDC, as for the SDK; the package's trusted publisher is set up once
   # on npmjs.com (workflow ci.yml, no environment).
@@ -1100,7 +1100,7 @@ jobs:
           node-version: "24"
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - name: Build @artemis-studio/client
+      - name: Build @rahdar/client
         working-directory: web
         run: |
           npm ci
@@ -1145,7 +1145,7 @@ jobs:
           server-id: central
           server-username-env-var: MAVEN_USERNAME
           server-password-env-var: MAVEN_PASSWORD
-      - name: Publish io.github.sudoitir:artemis-studio-client:${{ needs.release.outputs.version }}
+      - name: Publish io.github.sudoitir:rahdar-client:${{ needs.release.outputs.version }}
         env:
           MAVEN_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
@@ -1158,5 +1158,5 @@ jobs:
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: |
-            clients/java/target/artemis-studio-client*.jar
+            clients/java/target/rahdar-client*.jar
             clients/java/pom.xml

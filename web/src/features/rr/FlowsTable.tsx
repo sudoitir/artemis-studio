@@ -30,7 +30,7 @@ export function FlowsTable({
   toolbar?: TableToolbar;
   onSelect: (flowId: string) => void;
 }>) {
-  // Ticking, and on Studio's clock rather than the workstation's — an age is a
+  // Ticking, and on Rahdar's clock rather than the workstation's — an age is a
   // server timestamp subtracted from now, so the two must be the same clock.
   const now = useServerNow(5_000);
   const columns = useMemo(() => flowColumns(now), [now]);

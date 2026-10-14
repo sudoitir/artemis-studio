@@ -18,7 +18,7 @@ export interface KindInfo {
 export const CHANNEL_KINDS: Record<ChannelKind, KindInfo> = {
   SLACK: {
     label: 'Slack',
-    description: 'A Slack incoming webhook. Posts a formatted message with a link back to Studio.',
+    description: 'A Slack incoming webhook. Posts a formatted message with a link back to Rahdar.',
     secretLabel: 'Webhook URL',
     secretDescription: 'From Slack: Apps → Incoming Webhooks → Add New Webhook to Workspace.',
     secretPlaceholder: 'https://hooks.slack.com/services/…',

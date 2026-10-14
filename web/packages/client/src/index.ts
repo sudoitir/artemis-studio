@@ -4,7 +4,7 @@ import type { paths } from './schema.js';
 
 export type { components, operations, paths } from './schema.js';
 
-/** An RFC 9457 `application/problem+json` answer. `type` is one of Studio's stable problem URIs. */
+/** An RFC 9457 `application/problem+json` answer. `type` is one of Rahdar's stable problem URIs. */
 export class ProblemError extends Error {
   readonly status: number;
   readonly type: string;
@@ -22,8 +22,8 @@ export class ProblemError extends Error {
   }
 }
 
-export interface StudioClientOptions {
-  /** Where Studio is served, for example `https://studio.example.com`. */
+export interface RahdarClientOptions {
+  /** Where Rahdar is served, for example `https://rahdar.example.com`. */
   baseUrl: string;
   /** An API token; sent as `Authorization: Bearer <token>`. */
   token: string;
@@ -32,7 +32,7 @@ export interface StudioClientOptions {
 }
 
 /** Sends the token, and turns every non-2xx `problem+json` answer into a thrown {@link ProblemError}. */
-const studio = (token: string): Middleware => ({
+const rahdar = (token: string): Middleware => ({
   onRequest({ request }) {
     request.headers.set('Authorization', `Bearer ${token}`);
     return request;
@@ -43,9 +43,9 @@ const studio = (token: string): Middleware => ({
   },
 });
 
-/** A typed client for the Studio API: `client.GET('/api/v1/clusters')`, and so on. */
-export function createStudioClient({ baseUrl, token, fetch }: StudioClientOptions): Client<paths> {
+/** A typed client for the Rahdar API: `client.GET('/api/v1/clusters')`, and so on. */
+export function createRahdarClient({ baseUrl, token, fetch }: RahdarClientOptions): Client<paths> {
   const client = createClient<paths>({ baseUrl, fetch });
-  client.use(studio(token));
+  client.use(rahdar(token));
   return client;
 }

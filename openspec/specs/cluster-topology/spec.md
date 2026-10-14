@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines how Artemis Studio learns and maintains a cluster's node topology from
+Defines how Rahdar learns and maintains a cluster's node topology from
 a seed, how it identifies logical nodes by their shared `NodeID`, how manual
 address overrides are preserved across rediscovery, and how it derives
 live-node, replication-state, and split-brain signals from periodic reads.
@@ -16,12 +16,12 @@ with a live side and a backup side, not as two independent nodes.
 #### Scenario: Synced backup shares the primary's NodeID
 
 - **WHEN** a backup reports the same `NodeID` as its primary
-- **THEN** Studio groups both endpoints under that one `NodeID`
+- **THEN** Rahdar groups both endpoints under that one `NodeID`
 
 #### Scenario: Survivor keeps the NodeID through failover
 
 - **WHEN** a backup becomes live and continues to report the pair's `NodeID`
-- **THEN** Studio still treats it as the same logical node
+- **THEN** Rahdar still treats it as the same logical node
 
 ### Requirement: Discovered connectors that are not management URLs are surfaced, not dialed
 
@@ -43,7 +43,7 @@ management URL, not as an error. The connector itself SHALL never be dialed as a
 - **THEN** the URL is not attached, and the node is marked as needing a management URL because a different broker answered
 
 #### Scenario: Internal hostname advertised
-- **WHEN** a discovered node's connector is an internal host name Studio cannot reach
+- **WHEN** a discovered node's connector is an internal host name Rahdar cannot reach
 - **THEN** the node is stored with its connector and no management URL, and marked as needing one because the derived URL did not answer
 
 #### Scenario: Operator supplies the management URL
@@ -77,7 +77,7 @@ least one of the two.
 
 #### Scenario: Missing side is not a deletion
 - **WHEN** a topology response omits the `backup` entry for a pair (for example right after failover)
-- **THEN** Studio treats the backup side as not currently announced and does not delete the node row
+- **THEN** Rahdar treats the backup side as not currently announced and does not delete the node row
 
 ### Requirement: Live node and replication state are read, never configured
 
@@ -231,7 +231,7 @@ rendered as plain text and not as a control that cannot be used.
 ### Requirement: The graph states its empty and loading conditions
 
 A cluster whose topology holds no nodes SHALL render an explanation of why the graph is
-empty, and that Studio keeps looking on its own schedule, and not a blank frame.
+empty, and that Rahdar keeps looking on its own schedule, and not a blank frame.
 The add-a-management-URL flow is deliberately NOT offered here: it attaches a URL to a
 discovered endpoint, and a cluster with no nodes has none. While the topology is loading,
 the canvas frame SHALL be occupied by a placeholder of the graph's own size rather than a
@@ -240,7 +240,7 @@ bare spinner in an empty area.
 #### Scenario: Empty cluster
 
 - **WHEN** a cluster's topology contains no nodes
-- **THEN** the graph area explains that Studio learns topology from the first broker it
+- **THEN** the graph area explains that Rahdar learns topology from the first broker it
   reaches, that nothing has answered on the seed address, and that it keeps looking
 
 #### Scenario: Loading

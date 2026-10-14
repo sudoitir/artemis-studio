@@ -21,7 +21,7 @@ const BUNDLE = {
   createdAt: new Date().toISOString(),
   expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
   sections: [
-    section('about', 'About', '{ "studio" : "2026.09.4" }'),
+    section('about', 'About', '{ "rahdar" : "2026.09.4" }'),
     section('logs', 'Logs', 'started\nlogin failed password=[redacted]\nready', 1),
   ],
 };
@@ -159,7 +159,7 @@ describe('DiagnosticsPanel', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Prepare bundle' }));
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(alert).toHaveTextContent('Database unavailable');
     // The cause is stated with the next step, and trying again is one press.
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();

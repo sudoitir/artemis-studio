@@ -19,7 +19,7 @@ export function Recap({ detail, reason }: Readonly<{ detail: HeldOperationDetail
   const items: DescriptionItem[] = [
     {
       term: 'Effect',
-      value: effect ? effectLabel(effect) : 'Unavailable: Studio could not estimate it',
+      value: effect ? effectLabel(effect) : 'Unavailable: Rahdar could not estimate it',
       hint: effect?.detail ?? undefined,
     },
     ...display.slice(0, RECAP_ROWS).map((row) => ({

@@ -1,4 +1,4 @@
-# Artemis Studio — project context for OpenSpec
+# Rahdar — project context for OpenSpec
 
 ## What this is
 

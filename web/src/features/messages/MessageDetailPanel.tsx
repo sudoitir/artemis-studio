@@ -240,7 +240,7 @@ function TruncationNotice({ m }: Readonly<{ m: MessageDetailView }>) {
         <Text size="sm">
           The broker clipped this message's body and property values at {m.observedLimitBytes ?? 'its'} bytes (
           <code>management-message-attribute-size-limit</code>). To see the whole message, raise the limit in{' '}
-          <code>broker.xml</code> and re-browse, or connect the Core client so Studio can read it faithfully:
+          <code>broker.xml</code> and re-browse, or connect the Core client so Rahdar can read it faithfully:
         </Text>
         <CodeHighlight code={RAISE_LIMIT_SNIPPET} language="xml" />
       </Stack>

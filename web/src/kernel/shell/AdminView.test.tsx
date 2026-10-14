@@ -8,7 +8,7 @@ import { createRoute } from '@tanstack/react-router';
 import { paged } from '../api/paging.ts';
 import { renderAppAt } from '../../test/render.tsx';
 import { server } from '../../test/setup.ts';
-import { CONTRACT, defineFeature, type StudioFeature } from '../feature.ts';
+import { CONTRACT, defineFeature, type RahdarFeature } from '../feature.ts';
 import { FeatureProvider } from '../FeatureProvider.tsx';
 import { rootRoute } from '../routing/roots.ts';
 import { Section } from '../../ui/Section.tsx';
@@ -55,7 +55,7 @@ function UsersPanel() {
 
 // Contributed out of group order, and with no Governance tab, so the page's own order and the hidden
 // empty group are what the tests see.
-const features: StudioFeature[] = [
+const features: RahdarFeature[] = [
   defineFeature({
     contract: CONTRACT,
     id: 'security',

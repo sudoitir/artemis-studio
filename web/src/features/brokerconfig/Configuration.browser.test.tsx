@@ -150,7 +150,7 @@ function seeded(): QueryClient {
       {
         capability: 'metrics-plugin',
         title: 'Install the metrics plugin',
-        rationale: 'No management operation writes a plugin, so Studio cannot apply it.',
+        rationale: 'No management operation writes a plugin, so Rahdar cannot apply it.',
         appliable: false,
         section: null,
         match: null,

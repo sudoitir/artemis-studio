@@ -1,15 +1,15 @@
 {
-  "name": "@artemis-studio/plugin-sdk",
+  "name": "@rahdar/plugin-sdk",
   "version": "0.0.0",
   "private": true,
-  "description": "Build the UI of an Artemis Studio plugin: typings for the Studio APIs a plugin may use, and a Vite preset.",
+  "description": "Build the UI of a Rahdar plugin: typings for the Rahdar APIs a plugin may use, and a Vite preset.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sudoitir/artemis-studio.git",
+    "url": "git+https://github.com/sudoitir/rahdar.git",
     "directory": "web/packages/plugin-sdk"
   },
-  "homepage": "https://sudoitir.github.io/artemis-studio/guide/plugins",
+  "homepage": "https://rahdar.dev/guide/plugins",
   "type": "module",
   "exports": {
     ".": {

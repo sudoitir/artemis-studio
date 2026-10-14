@@ -3,7 +3,7 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
 import { request, type ApiError } from './api/request.ts';
 import type { components } from './api/schema.d.ts';
-import type { ModuleId, StudioFeature } from './feature.ts';
+import type { ModuleId, RahdarFeature } from './feature.ts';
 
 export type ManifestView = components['schemas']['ManifestView'];
 export type ManifestFeatureView = components['schemas']['ManifestFeatureView'];
@@ -33,7 +33,7 @@ export function useManifestFeature(id: ModuleId): ManifestFeatureView | undefine
  * The given features less those this installation has disabled. Until the manifest answers, every
  * feature counts as enabled: hiding a view before then would state something nobody has checked.
  */
-export function useEnabledFeatures(features: StudioFeature[]): StudioFeature[] {
+export function useEnabledFeatures(features: RahdarFeature[]): RahdarFeature[] {
   const manifest = useManifest().data;
   // The same array for the same inputs: hooks that derive from the feature list (the current view,
   // the palette's sources) would otherwise see a new list on every render and re-run for nothing.

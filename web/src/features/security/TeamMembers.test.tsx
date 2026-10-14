@@ -157,7 +157,7 @@ describe('TeamMembers', () => {
     server.use(
       http.post('*/api/v1/teams/t-orders/members', () =>
         HttpResponse.json(
-          { type: 'https://studio/problems/team-member-exists', title: 'Conflict', detail: 'exists' },
+          { type: 'https://rahdar/problems/team-member-exists', title: 'Conflict', detail: 'exists' },
           { status: 409 },
         ),
       ),
@@ -185,7 +185,7 @@ describe('TeamMembers as a team admin', () => {
     expect(screen.getByRole('combobox', { name: 'Role of alice' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Remove alice' })).toBeEnabled();
     expect(screen.getByRole('radio', { name: 'Directory group' })).toBeDisabled();
-    expect(screen.getAllByText(/because a group can admit users to Studio/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/because a group can admit users to Rahdar/).length).toBeGreaterThan(0);
   });
 
   it('lets a team admin find a user by name and add them, though they may not list every user', async () => {

@@ -37,7 +37,7 @@ function NodeTable({ label, rows, shape }: Readonly<{ label: string; rows: NodeR
         <EmptyState
           kind="empty"
           title="No broker node has reported"
-          description="Each row is a broker node of this cluster, with what it holds and moves now. Studio lists a node once it has read it, so there is nothing here until the first scrape of a node completes."
+          description="Each row is a broker node of this cluster, with what it holds and moves now. Rahdar lists a node once it has read it, so there is nothing here until the first scrape of a node completes."
         />
       }
     />

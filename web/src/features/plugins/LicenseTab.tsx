@@ -42,7 +42,7 @@ function Facts({ license }: Readonly<{ license: PluginLicenseView }>) {
 
 /**
  * A plugin's license (ADR-0153): what the plugin made of the file, and the means to upload,
- * replace or remove it. Studio only stores the file; the plugin decides what it means. Both
+ * replace or remove it. Rahdar only stores the file; the plugin decides what it means. Both
  * changes ask for a fresh sign-in first, and a plugin without a license need never shows this.
  */
 export function LicenseTab({
@@ -132,7 +132,7 @@ export function LicenseTab({
             Stores <b className={styles.num}>{file?.name}</b> ({file ? Math.ceil(file.size / 1024) : 0} KB) as the
             license of {info.title}
             {missing ? '.' : ', replacing the current one.'} A license file is at most 64 KB. {info.title} decides
-            whether it accepts the file; Studio does not read it.
+            whether it accepts the file; Rahdar does not read it.
           </Text>
         </Stack>
       </ConfirmAction>

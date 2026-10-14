@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Question or help
-    url: https://github.com/sudoitir/artemis-studio/discussions/categories/q-a
-    about: Ask how to do something, or share how you run Studio.
+    url: https://github.com/sudoitir/rahdar/discussions/categories/q-a
+    about: Ask how to do something, or share how you run Rahdar.
   - name: Documentation
-    url: https://sudoitir.github.io/artemis-studio/guide/
+    url: https://rahdar.dev/guide/
     about: Quickstart, guides and the configuration reference.
   - name: Report a vulnerability
-    url: https://github.com/sudoitir/artemis-studio/security/advisories/new
+    url: https://github.com/sudoitir/rahdar/security/advisories/new
     about: Privately, never in a public issue.

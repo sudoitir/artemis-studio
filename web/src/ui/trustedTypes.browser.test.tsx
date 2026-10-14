@@ -6,7 +6,7 @@ import { MantineProvider } from '@mantine/core';
 import { runLayout } from './graph/elk.ts';
 import { shikiAdapter } from './codeHighlightAdapter.ts';
 
-// The browser project is served with Studio's Trusted Types directives (vitest.config.ts), so these run
+// The browser project is served with Rahdar's Trusted Types directives (vitest.config.ts), so these run
 // the way a viewer's page does. An attacker who controls a message body wants markup, not text.
 const PAYLOADS = [
   '<img src=x onerror=alert(1)>',

@@ -1,7 +1,7 @@
 # database-schema Specification
 
 ## Purpose
-How Studio's PostgreSQL schema is laid out and kept honest: UUIDv7 keys so B-tree inserts stay append-only, one baseline changeset per module until the stable release, a primary key on every table, an index under every foreign key, and a catalog lint over the migrated database that enforces it (ADR-0192).
+How Rahdar's PostgreSQL schema is laid out and kept honest: UUIDv7 keys so B-tree inserts stay append-only, one baseline changeset per module until the stable release, a primary key on every table, an index under every foreign key, and a catalog lint over the migrated database that enforces it (ADR-0192).
 
 ## Requirements
 
@@ -17,7 +17,7 @@ Every table keyed by a UUID SHALL generate the key as UUIDv7 by default, in the 
 - **THEN** it takes a UUIDv7 from one shared source, and not from a database round trip
 
 #### Scenario: A bearer handle is issued
-- **WHEN** Studio issues a ticket or snapshot id that grants access to a result
+- **WHEN** Rahdar issues a ticket or snapshot id that grants access to a result
 - **THEN** the value is a random UUIDv4
 
 ### Requirement: Every table has a primary key and every foreign key is indexed
@@ -69,7 +69,7 @@ Schema migrations SHALL take a lock scoped to the database session, so that a re
 - **THEN** the migration fails with an error naming the wait, and does not block
 
 ### Requirement: One Postgres configuration is shipped and used by every deployment
-Studio SHALL ship one Postgres configuration file, and the production, HA and development compose files SHALL all mount it. It SHALL set at least statement statistics, lock-wait logging, I/O timing, UTC time zone, autovacuum, an idle-in-transaction timeout and the connection limit. The documented Postgres version SHALL be the one the file is written for.
+Rahdar SHALL ship one Postgres configuration file, and the production, HA and development compose files SHALL all mount it. It SHALL set at least statement statistics, lock-wait logging, I/O timing, UTC time zone, autovacuum, an idle-in-transaction timeout and the connection limit. The documented Postgres version SHALL be the one the file is written for.
 
 #### Scenario: Two deployments, one configuration
 - **WHEN** the production and development compose files are rendered
@@ -80,7 +80,7 @@ Studio SHALL ship one Postgres configuration file, and the production, HA and de
 - **THEN** statement statistics are present without extra setup
 
 ### Requirement: Database connections are bounded in count and time
-Studio SHALL size its connection pool so that every replica together stays under the server's connection limit. Connections SHALL set a statement timeout, a lock timeout and an idle-in-transaction timeout. The driver SHALL set a connect timeout and a socket timeout. The pool SHALL fail a request that waits too long for a connection, and not queue it without end. Work that is legitimately longer, such as the SQL console, exports, the lifecycle preview and partition maintenance, SHALL raise the statement timeout for its own transaction only.
+Rahdar SHALL size its connection pool so that every replica together stays under the server's connection limit. Connections SHALL set a statement timeout, a lock timeout and an idle-in-transaction timeout. The driver SHALL set a connect timeout and a socket timeout. The pool SHALL fail a request that waits too long for a connection, and not queue it without end. Work that is legitimately longer, such as the SQL console, exports, the lifecycle preview and partition maintenance, SHALL raise the statement timeout for its own transaction only.
 
 #### Scenario: A query runs too long
 - **WHEN** an ordinary query runs past the statement timeout
@@ -98,37 +98,37 @@ Studio SHALL size its connection pool so that every replica together stays under
 - **WHEN** a session holds a transaction open and idle beyond the idle-in-transaction timeout
 - **THEN** the database ends the session and its locks are released
 
-### Requirement: Studio runs on an external PostgreSQL 18 it does not administer
-Studio SHALL run against an operator-provided PostgreSQL 18 or later, in any schema, as a non-superuser that owns its schema and may create schemas, without depending on server settings or extensions.
+### Requirement: Rahdar runs on an external PostgreSQL 18 it does not administer
+Rahdar SHALL run against an operator-provided PostgreSQL 18 or later, in any schema, as a non-superuser that owns its schema and may create schemas, without depending on server settings or extensions.
 
 #### Scenario: A managed database in its own schema
-- **WHEN** Studio is configured with a JDBC URL whose current schema is not `public` and a role without superuser
+- **WHEN** Rahdar is configured with a JDBC URL whose current schema is not `public` and a role without superuser
 - **THEN** it migrates and starts, and every table it creates is in that schema
 
 #### Scenario: Server settings differ from the bundled database
 - **WHEN** the server's own timeouts or autovacuum settings differ from the shipped configuration
-- **THEN** Studio's connection limits still apply, because Studio sets them on each connection
+- **THEN** Rahdar's connection limits still apply, because Rahdar sets them on each connection
 
-### Requirement: The boot refuses a database Studio cannot run on
-Studio SHALL check the database before migrating, and SHALL fail the boot with a message naming the fix when the server is older than 18, a required privilege is missing, or the connection does not keep session state across transactions.
+### Requirement: The boot refuses a database Rahdar cannot run on
+Rahdar SHALL check the database before migrating, and SHALL fail the boot with a message naming the fix when the server is older than 18, a required privilege is missing, or the connection does not keep session state across transactions.
 
 #### Scenario: Transaction-mode pooling
-- **WHEN** Studio connects through a pooler in transaction mode
+- **WHEN** Rahdar connects through a pooler in transaction mode
 - **THEN** the boot fails and the message says that session-mode pooling or a direct connection is required
 
 #### Scenario: Too few connections for the budget
-- **WHEN** the server's connection limit cannot hold Studio's configured pools
-- **THEN** Studio starts, and logs and reports a warning with the budget and the limit
+- **WHEN** the server's connection limit cannot hold Rahdar's configured pools
+- **THEN** Rahdar starts, and logs and reports a warning with the budget and the limit
 
-### Requirement: Studio rides through a database failover
-Studio SHALL accept a multi-host connection that targets the primary, SHALL recover its pools after a failover without a restart, and SHALL treat every session-scoped lock or listener on a dropped connection as lost.
+### Requirement: Rahdar rides through a database failover
+Rahdar SHALL accept a multi-host connection that targets the primary, SHALL recover its pools after a failover without a restart, and SHALL treat every session-scoped lock or listener on a dropped connection as lost.
 
 #### Scenario: The primary fails over
 - **WHEN** the database primary changes
 - **THEN** requests fail fast during the switch and succeed again afterwards, the change listener reconnects and caches resync, and a duty held by a session lock stops until the lock is reacquired
 
 ### Requirement: Heavy reads may use a read replica
-When a read-only database is configured, Studio SHALL serve heavy history reads and exports from it while its replication lag is within a bound, SHALL fall back to the primary otherwise, and SHALL say in the response that the data may lag.
+When a read-only database is configured, Rahdar SHALL serve heavy history reads and exports from it while its replication lag is within a bound, SHALL fall back to the primary otherwise, and SHALL say in the response that the data may lag.
 
 #### Scenario: The replica lags too far
 - **WHEN** the replica's lag exceeds the bound or it cannot be reached

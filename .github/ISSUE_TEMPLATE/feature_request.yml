@@ -1,12 +1,12 @@
 name: Feature request
-description: Propose something Artemis Studio should do
+description: Propose something Rahdar should do
 labels: [enhancement]
 body:
   - type: markdown
     attributes:
       value: |
         Not sure it is a feature yet? Start in
-        [Discussions → Ideas](https://github.com/sudoitir/artemis-studio/discussions/categories/ideas).
+        [Discussions → Ideas](https://github.com/sudoitir/rahdar/discussions/categories/ideas).
   - type: textarea
     id: problem
     attributes:
@@ -18,7 +18,7 @@ body:
     id: proposal
     attributes:
       label: Proposed behaviour
-      description: What should Studio do? Note if it needs broker capabilities beyond Jolokia read (the Core client, notifications, extra permissions).
+      description: What should Rahdar do? Note if it needs broker capabilities beyond Jolokia read (the Core client, notifications, extra permissions).
     validations:
       required: true
   - type: textarea

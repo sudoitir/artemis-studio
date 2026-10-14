@@ -6,11 +6,11 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one), replace the stub `tasks.md`.
 5. `/opsx:apply` with the harness under **Execution**. New decisions get an ADR.
-6. Verify: `just verify`; for UI, run Studio and check screenshots (light and dark, empty and error states).
+6. Verify: `just verify`; for UI, run Rahdar and check screenshots (light and dark, empty and error states).
 7. PR, merge on green CI, `/opsx:archive`.
 
 ## Why
-Some `broker.xml` settings cannot be applied through the management API, such as global-max-size, the HA policy and acceptors. Studio can compare nodes and report drift between the declaration and what the API exposes, but importing `broker.xml` lists a static setting as unsupported and drops it from the declaration, so an operator cannot state its expected value or find out that a node runs something else. Teams that manage broker files through their own tooling feel this after an incident.
+Some `broker.xml` settings cannot be applied through the management API, such as global-max-size, the HA policy and acceptors. Rahdar can compare nodes and report drift between the declaration and what the API exposes, but importing `broker.xml` lists a static setting as unsupported and drops it from the declaration, so an operator cannot state its expected value or find out that a node runs something else. Teams that manage broker files through their own tooling feel this after an incident.
 
 ## What Changes
 - Declare expected values for static settings the management API cannot apply
@@ -28,7 +28,7 @@ Some `broker.xml` settings cannot be applied through the management API, such as
 - `alerting`: The configuration drift condition covers static settings.
 
 ## Out of scope
-- Applying static settings to a broker (Studio only verifies)
+- Applying static settings to a broker (Rahdar only verifies)
 - Editing broker files
 
 ## Depends on

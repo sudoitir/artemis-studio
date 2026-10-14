@@ -72,7 +72,7 @@ least three primary/backup pairs. It SHALL state that a network-check (pinger)
 configuration mitigates the risk, and that the management API does not reveal whether
 one is configured. With exactly two primaries, the system SHALL report a warning that
 one surviving primary decides every vote. The count of primaries SHALL combine the
-nodes Studio knows with the members reported by each node's cluster connection, and
+nodes Rahdar knows with the members reported by each node's cluster connection, and
 SHALL state both.
 
 #### Scenario: The dev pair
@@ -115,7 +115,7 @@ the following:
 
 - a node that is not clustered, or has no cluster connection;
 - a cluster connection that is not started;
-- a live node whose cluster connection does not see another node that Studio sees
+- a live node whose cluster connection does not see another node that Rahdar sees
   live;
 - a clustered node whose connectors advertise a loopback or wildcard host;
 - message load balancing turned off;
@@ -134,7 +134,7 @@ the following:
 
 #### Scenario: A member is not seen
 
-- **WHEN** Studio sees nodes A, B and C live but node A's cluster connection lists
+- **WHEN** Rahdar sees nodes A, B and C live but node A's cluster connection lists
   only B
 - **THEN** a warning on node A names C as unseen
 

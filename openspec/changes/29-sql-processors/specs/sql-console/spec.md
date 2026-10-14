@@ -30,7 +30,7 @@ An aggregation or group-by SHALL NOT reveal a masked value, directly or through 
 - **THEN** the keys are masked or the query is refused
 
 ### Requirement: Joins are supported only under a proven safe model
-Joins SHALL be offered only if a model is proven that bounds their cost on the broker and Studio; otherwise the rejection and its reasons SHALL be documented and the console SHALL refuse joins with a clear message.
+Joins SHALL be offered only if a model is proven that bounds their cost on the broker and Rahdar; otherwise the rejection and its reasons SHALL be documented and the console SHALL refuse joins with a clear message.
 
 #### Scenario: Join not supported
 - **WHEN** a user submits a join

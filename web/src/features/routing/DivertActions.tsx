@@ -73,7 +73,7 @@ const VALIDATORS: Record<DivertField, (value: string, values: Record<DivertField
     if (!value) return 'A divert needs a name.';
     if (value.length > 200) return 'At most 200 characters.';
     if (/[\s,=:*?"\\]/.test(value)) return 'A divert name cannot contain whitespace or any of , = : * ? " \\';
-    if (value.startsWith('artemis-studio.capture.')) return 'This namespace belongs to message capture.';
+    if (value.startsWith('rahdar.capture.')) return 'This namespace belongs to message capture.';
     return null;
   },
   address: (value) => (value ? tooLong(value, 200) : 'A divert needs the address it reads from.'),

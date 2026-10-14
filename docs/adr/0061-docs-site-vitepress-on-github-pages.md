@@ -1,6 +1,6 @@
 # ADR-0061: The documentation site is VitePress, built and deployed by GitHub Actions
 
-- **Status**: accepted
+- **Status**: accepted; D6 superseded by [ADR-0201](0201-the-product-is-rahdar-and-the-broker-sdk-is-openbroker.md)
 - **Date**: 2026-09-07
 - **Deciders**: Artemis Studio maintainers
 

@@ -95,7 +95,7 @@ export default tseslint.config(
     },
   },
   {
-    // Nothing turns a string into markup or code (ADR-0168). Studio's CSP refuses these sinks at run
+    // Nothing turns a string into markup or code (ADR-0168). Rahdar's CSP refuses these sinks at run
     // time (Trusted Types, no `eval`); this stops them at review. The one place HTML is rendered is the
     // code highlighter, inside Mantine, behind `ui/trustedTypes.ts`. A real exception is an inline
     // disable with its reason, never an allow-list here.

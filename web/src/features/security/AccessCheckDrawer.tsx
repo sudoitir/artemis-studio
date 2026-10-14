@@ -23,7 +23,7 @@ const rowKey = (v: AccessCheckView) => v.action;
 
 /** Where the check was made, in words. */
 function placeText(where: Where, cluster: string | undefined): string {
-  if (!where.clusterId) return 'Studio itself, with no cluster';
+  if (!where.clusterId) return 'Rahdar itself, with no cluster';
   const name = where.name.trim();
   const on = cluster ?? 'the cluster';
   const noun = where.kind === 'QUEUE' ? 'queue' : 'address';
@@ -41,7 +41,7 @@ export function AccessCheckDrawer({
   onClose,
 }: Readonly<{
   user: { id: string; username: string } | null;
-  /** Where to check to begin with, such as the queue the drawer was opened from; none starts at Studio itself. */
+  /** Where to check to begin with, such as the queue the drawer was opened from; none starts at Rahdar itself. */
   place?: { clusterId: string; kind: 'QUEUE' | 'ADDRESS'; name: string };
   onClose: () => void;
 }>) {
@@ -102,7 +102,7 @@ function AccessCheck({ userId, place }: Readonly<{ userId: string; place?: Where
               data={(clusters.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
               value={draft.clusterId}
               onChange={(clusterId) => setDraft({ ...draft, clusterId, name: clusterId ? draft.name : '' })}
-              placeholder={clusters.isPending ? 'Loading' : 'None: Studio itself'}
+              placeholder={clusters.isPending ? 'Loading' : 'None: Rahdar itself'}
               nothingFoundMessage="No clusters"
               searchable
               clearable

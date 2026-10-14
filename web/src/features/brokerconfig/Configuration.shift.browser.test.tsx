@@ -113,7 +113,7 @@ function bodyFor(path: string): unknown {
           {
             capability: 'management-size-limit',
             title: 'Raise the management message size limit',
-            rationale: 'Studio reads large attributes through management messages.',
+            rationale: 'Rahdar reads large attributes through management messages.',
             appliable: true,
             section: 'ADDRESS_SETTING',
             match: 'activemq.management#',

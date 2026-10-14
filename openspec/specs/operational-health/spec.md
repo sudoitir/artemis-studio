@@ -1,7 +1,7 @@
 # operational-health Specification
 
 ## Purpose
-Defines how Studio reports the health of its own machinery: its background jobs, its connections to broker nodes, and its notification subscriptions. This report stays separate from the probes an orchestrator uses to decide whether to restart Studio.
+Defines how Rahdar reports the health of its own machinery: its background jobs, its connections to broker nodes, and its notification subscriptions. This report stays separate from the probes an orchestrator uses to decide whether to restart Rahdar.
 
 ## Requirements
 
@@ -36,7 +36,7 @@ The system SHALL report a job as degraded when it has not finished a run within 
 #### Scenario: A job that stopped running degrades health
 
 - **WHEN** a job with a 15-second interval has not completed a run for 45 seconds
-- **THEN** the Studio health report marks that job degraded and names when it last completed
+- **THEN** the Rahdar health report marks that job degraded and names when it last completed
 
 ### Requirement: Broker connection and subscription health are reported per node
 
@@ -57,14 +57,14 @@ It SHALL also report, for each serving node, whether its broker-notification sub
 - **WHEN** a serving node's notification subscription drops
 - **THEN** the health report shows that node's subscription as not established, with the reason
 
-### Requirement: Studio's operational health never drives a restart
+### Requirement: Rahdar's operational health never drives a restart
 
-The system SHALL publish jobs, broker connections and subscriptions as a named health group of their own. That group SHALL NOT contribute to the liveness or readiness probes, so a broker outage or a stalled job never causes an orchestrator to restart or unroute Studio.
+The system SHALL publish jobs, broker connections and subscriptions as a named health group of their own. That group SHALL NOT contribute to the liveness or readiness probes, so a broker outage or a stalled job never causes an orchestrator to restart or unroute Rahdar.
 
-#### Scenario: A broker outage leaves Studio ready
+#### Scenario: A broker outage leaves Rahdar ready
 
 - **WHEN** every node of a registered cluster is unreachable
-- **THEN** the Studio health group reports them degraded, and the liveness and readiness probes still report up
+- **THEN** the Rahdar health group reports them degraded, and the liveness and readiness probes still report up
 
 ### Requirement: Shutdown releases broker resources in order
 
@@ -111,11 +111,11 @@ The system SHALL expose, on its metrics endpoint:
 
 A node SHALL be identified in metrics by its host and port only, never by a URL that could
 carry credentials. An operator SHALL be able to tell from these metrics alone two things: whether
-Studio's own resource use is growing, and whether it is loading a broker at its ceiling.
+Rahdar's own resource use is growing, and whether it is loading a broker at its ceiling.
 
 #### Scenario: Per-node request volume is visible
 
-- **WHEN** Studio issues management requests to a node
+- **WHEN** Rahdar issues management requests to a node
 - **THEN** the metrics endpoint reports the count of requests issued to that node and the rate-limit wait incurred
 
 #### Scenario: Thread count is visible
@@ -155,12 +155,12 @@ Every scheduled job SHALL declare its scope: every instance, or once per install
 
 ### Requirement: Permission declaration mismatches are reported
 
-Studio SHALL compare the permissions that method guards name and that active plugin manifests reference against the permission catalogue, and SHALL report every mismatch in operational health without preventing startup or a plugin's activation. The comparison SHALL cover Studio's own guards from startup and each active plugin's guards and manifest from its activation until its deactivation. A registered permission without a description, and a global-only permission that a guard checks against a cluster, SHALL also be reported. Any mismatch SHALL make the report degraded.
+Rahdar SHALL compare the permissions that method guards name and that active plugin manifests reference against the permission catalogue, and SHALL report every mismatch in operational health without preventing startup or a plugin's activation. The comparison SHALL cover Rahdar's own guards from startup and each active plugin's guards and manifest from its activation until its deactivation. A registered permission without a description, and a global-only permission that a guard checks against a cluster, SHALL also be reported. Any mismatch SHALL make the report degraded.
 
 #### Scenario: Guard uses an unregistered permission
 
 - **WHEN** a guard names a permission that is not registered
-- **THEN** operational health reports it as a mismatch naming the guarded method, and Studio still starts
+- **THEN** operational health reports it as a mismatch naming the guarded method, and Rahdar still starts
 
 #### Scenario: Declared but unregistered
 
@@ -177,7 +177,7 @@ Studio SHALL compare the permissions that method guards name and that active plu
 - **WHEN** all declared permissions are registered and described
 - **THEN** the check reports healthy
 
-### Requirement: Studio shows its own health in one view
+### Requirement: Rahdar shows its own health in one view
 
 The system SHALL show, on one screen for holders of the settings-read permission:
 - each background job's status and lag;
@@ -211,7 +211,7 @@ gone or draining SHALL be marked. The screen SHALL refresh on its own.
 - **THEN** the view lists both with the clusters each owns and marks the one answering
 
 ### Requirement: Replicas know each other
-Every Studio process SHALL register itself as a replica in the shared database with an identity of its
+Every Rahdar process SHALL register itself as a replica in the shared database with an identity of its
 own, its host, its version, its state (starting, ready, draining, stopped) and a heartbeat taken from
 database time every five seconds. A replica whose heartbeat is older than fifteen seconds SHALL be
 treated as gone. A replica that ends without recording that it stopped SHALL count as a crash; three
@@ -259,7 +259,7 @@ Stated times:
 - **THEN** every replica reports it and refuses the operations it guards
 
 ### Requirement: Probes report what an orchestrator needs
-Studio SHALL expose liveness at `/livez` and readiness at `/readyz`. Liveness SHALL fail only when the
+Rahdar SHALL expose liveness at `/livez` and readiness at `/readyz`. Liveness SHALL fail only when the
 process cannot recover itself. Readiness SHALL fail while the replica is starting, while it cannot reach
 the other replicas for more than ten seconds, and while it is draining. Neither SHALL depend on a broker
 being reachable, as the operational health rule already requires. Until migrations have run the probes
@@ -336,11 +336,11 @@ A job SHALL NOT start while its previous run on the same instance is still runni
 - **THEN** the first failure is logged once, and the recovery is logged when it succeeds
 
 ### Requirement: No thread outlives shutdown
-When Studio stops, every thread it started, including job, scrape, plugin and event-stream threads, SHALL end. No Studio thread SHALL keep the process alive. Shutdown SHALL stop new runs, wait for running ones, then interrupt those still running.
+When Rahdar stops, every thread it started, including job, scrape, plugin and event-stream threads, SHALL end. No Rahdar thread SHALL keep the process alive. Shutdown SHALL stop new runs, wait for running ones, then interrupt those still running.
 
-#### Scenario: Studio stops after use
-- **WHEN** Studio has served an event stream, run a job and loaded a plugin, and then stops
-- **THEN** no thread named for Studio and no non-daemon thread outside the JVM's own is alive
+#### Scenario: Rahdar stops after use
+- **WHEN** Rahdar has served an event stream, run a job and loaded a plugin, and then stops
+- **THEN** no thread named for Rahdar and no non-daemon thread outside the JVM's own is alive
 
 #### Scenario: A run is interrupted at shutdown
 - **WHEN** a job is still running when the wait for running jobs ends

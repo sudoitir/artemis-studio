@@ -5,7 +5,7 @@ description: Move between views, search, and act on any row of any grid without 
 
 # Keyboard shortcuts
 
-Everything in Studio can be reached from the keyboard. Press **?** anywhere, or the
+Everything in Rahdar can be reached from the keyboard. Press **?** anywhere, or the
 keyboard button in the header, to list the shortcuts. The list is built from the views that are enabled, so it is always current.
 
 ## Everywhere
@@ -51,7 +51,7 @@ Each grid is one stop in the tab order. Once inside, the keys work like a spread
 
 A row's actions menu is the same one right-click and the row's **Actions** button open.
 Items are grouped as Open, Copy, Operate and Destroy. An item you cannot use stays in the
-menu with the reason. Select it and Studio explains why, with the `broker.xml` that
+menu with the reason. Select it and Rahdar explains why, with the `broker.xml` that
 would enable it. A destructive item opens its usual preview and a confirmation you hold: press and hold Space or Enter on the button until it fills.
 
 ## SQL console

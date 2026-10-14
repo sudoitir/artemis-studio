@@ -132,7 +132,7 @@ The run SHALL finish as one of:
 - **partial**: some queues succeeded and some did not;
 - **failed**: no queue succeeded;
 - **stopped**: the operator stopped it;
-- **interrupted**: Studio stopped while it ran.
+- **interrupted**: Rahdar stopped while it ran.
 
 #### Scenario: The run stops at the first failure by default
 
@@ -170,16 +170,16 @@ cancelled. The run SHALL finish as stopped.
 
 ### Requirement: A bulk run interrupted by a restart is never resumed on its own
 
-When Studio starts and finds a bulk run still recorded as running, it SHALL mark the run
+When Rahdar starts and finds a bulk run still recorded as running, it SHALL mark the run
 as interrupted. It SHALL mark the queue that was in flight as unknown, stating that the
 broker must be checked for that queue. It SHALL mark the queues not yet started as
 cancelled. It SHALL record the run's audit event as failed.
 
-Studio SHALL NOT resume an interrupted run.
+Rahdar SHALL NOT resume an interrupted run.
 
 #### Scenario: A restart mid-run leaves an honest record
 
-- **WHEN** Studio is restarted while the fourth of eight queues is being purged
+- **WHEN** Rahdar is restarted while the fourth of eight queues is being purged
 - **THEN** after restart the run reads as interrupted, queues one to three keep their
   outcomes, queue four is unknown, and queues five to eight are cancelled
 

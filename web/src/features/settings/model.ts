@@ -7,8 +7,8 @@ export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 
 export interface Category {
   id: string;
   title: string;
-  /** Studio's own modules are listed under Studio, an installed plugin's under Plugins. */
-  group: 'studio' | 'plugins';
+  /** Rahdar's own modules are listed under Rahdar, an installed plugin's under Plugins. */
+  group: 'rahdar' | 'plugins';
   /** In the order the server sends them, which is the order their module declares them. */
   keys: string[];
 }
@@ -16,7 +16,7 @@ export interface Category {
 /**
  * The categories of `settings`, by title. A plugin's settings are namespaced by its id, so a category is a
  * plugin's when the manifest lists an installed plugin with that id (`plugins`, id to title), and is then
- * named after the plugin; any other is Studio's.
+ * named after the plugin; any other is Rahdar's.
  */
 export function categoriesOf(settings: Record<string, Setting>, plugins: ReadonlyMap<string, string>) {
   const byId = new Map<string, Category>();
@@ -29,7 +29,7 @@ export function categoriesOf(settings: Record<string, Setting>, plugins: Readonl
     byId.set(setting.category, {
       id: setting.category,
       title: plugins.get(setting.category) ?? setting.categoryTitle,
-      group: plugins.has(setting.category) ? 'plugins' : 'studio',
+      group: plugins.has(setting.category) ? 'plugins' : 'rahdar',
       keys: [key],
     });
   }

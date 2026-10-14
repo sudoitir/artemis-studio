@@ -40,7 +40,7 @@ export function useQueues(
     // cluster, where it has no id to give. Without this it requested
     // `/clusters//queues`, which is a 400 — and an errored observed query puts
     // the whole shell into its offline state, so every cluster-less screen
-    // claimed Studio had lost the brokers.
+    // claimed Rahdar had lost the brokers.
     enabled: id !== '' && (options.enabled ?? true),
     refetchInterval: options.live === false ? false : 5_000,
     placeholderData: (prev) => prev,

@@ -1,6 +1,6 @@
 import type { AnyRoute } from '@tanstack/react-router';
 
-import { CONTRACT, type StudioFeature } from '../feature.ts';
+import { CONTRACT, type RahdarFeature } from '../feature.ts';
 import type { ManifestFeatureView } from '../manifest.ts';
 import { ACTION_SECTIONS } from '../actions/types.ts';
 import { NAV_GROUPS } from '../nav/groups.ts';
@@ -8,7 +8,7 @@ import { ADMIN_GROUPS, type SlotContribution, type SlotContributions, type SlotN
 import { guarded } from './guarded.tsx';
 
 /** A loaded plugin module, accepted and made safe to mount, or the reason it was not. */
-export type Checked = { ok: true; feature: StudioFeature } | { ok: false; reason: string };
+export type Checked = { ok: true; feature: RahdarFeature } | { ok: false; reason: string };
 
 const NAV_GROUP_IDS = new Set<string>(NAV_GROUPS.map((group) => group.id));
 const ACTION_SECTION_IDS = new Set<string>(ACTION_SECTIONS.map((section) => section.id));
@@ -30,15 +30,15 @@ function underPrefix(path: string, id: string): boolean {
 }
 
 /** Why the exported feature is not the one the manifest names, or null when it is. */
-function identityProblem(id: string, feature: StudioFeature): string | null {
+function identityProblem(id: string, feature: RahdarFeature): string | null {
   if (feature.contract !== CONTRACT) {
-    return `it was built for extension contract ${String(feature.contract)}, and this Studio has ${CONTRACT}`;
+    return `it was built for extension contract ${String(feature.contract)}, and this Rahdar has ${CONTRACT}`;
   }
   return feature.id === id ? null : `its bundle calls itself ${String(feature.id)}`;
 }
 
 /** Why a route or navigation entry leaves the plugin's own `p/<id>/` namespace, or null when none does. */
-function namespaceProblem(id: string, feature: StudioFeature): string | null {
+function namespaceProblem(id: string, feature: RahdarFeature): string | null {
   for (const route of [...(feature.routes?.root ?? []), ...(feature.routes?.cluster ?? [])]) {
     if (!underPrefix(routePath(route), id)) {
       return `its route "${routePath(route)}" is outside ${pluginPathPrefix(id)}/`;
@@ -54,7 +54,7 @@ function namespaceProblem(id: string, feature: StudioFeature): string | null {
 }
 
 /** Why the plugin handles a stream topic it never declared, or null when it does not. */
-function topicProblem(entry: ManifestFeatureView, feature: StudioFeature): string | null {
+function topicProblem(entry: ManifestFeatureView, feature: RahdarFeature): string | null {
   const declaredTopics = new Set(entry.topics);
   for (const topic of Object.keys(feature.streamTopics ?? {})) {
     if (!declaredTopics.has(topic)) return `it handles stream topic "${topic}", which it never declared`;
@@ -80,13 +80,13 @@ function contributionProblem(
 }
 
 /** The plugin's slot contributions, each made safe to mount; or the reason one is refused. */
-function checkSlots(id: string, feature: StudioFeature): { slots: SlotContributions } | { reason: string } {
+function checkSlots(id: string, feature: RahdarFeature): { slots: SlotContributions } | { reason: string } {
   const slots: SlotContributions = {};
   for (const [name, contributions] of Object.entries(feature.slots ?? {}) as [SlotName, SlotContribution<never>[]][]) {
-    // Where a resource name links to is Studio's own: a plugin that could redirect every queue
+    // Where a resource name links to is Rahdar's own: a plugin that could redirect every queue
     // link would be a phishing surface inside the console (ADR-0107).
     if (name.endsWith('.link')) {
-      return { reason: `it contributes to ${name}, and links to built-in resources are Studio's own` };
+      return { reason: `it contributes to ${name}, and links to built-in resources are Rahdar's own` };
     }
     const action = name.endsWith('.actions');
     const problem = contributions
@@ -98,7 +98,7 @@ function checkSlots(id: string, feature: StudioFeature): { slots: SlotContributi
     const quiet = name === 'shell.header' || name === 'topology.node.marks' || action;
     (slots as Record<string, SlotContribution<never>[]>)[name] = contributions.map((contribution) => ({
       ...contribution,
-      // A plugin's settings are listed under Plugins, never mixed into Studio's own groups.
+      // A plugin's settings are listed under Plugins, never mixed into Rahdar's own groups.
       group: name === 'settings.sections' ? 'plugins' : contribution.group,
       Component: guarded(id, contribution.Component, quiet),
     }));
@@ -117,7 +117,7 @@ export function checkPlugin(entry: ManifestFeatureView, exported: unknown): Chec
   if (!exported || typeof exported !== 'object') {
     return { ok: false, reason: 'its bundle has no default export describing the plugin' };
   }
-  const feature = exported as StudioFeature;
+  const feature = exported as RahdarFeature;
   const problem = identityProblem(id, feature) ?? namespaceProblem(id, feature) ?? topicProblem(entry, feature);
   if (problem) return { ok: false, reason: problem };
 

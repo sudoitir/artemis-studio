@@ -71,7 +71,7 @@ export function TopologyView() {
       <EmptyState
         kind="empty"
         title="No node has answered yet"
-        description="Studio learns the topology from the first broker it reaches. Nothing has answered on this cluster's seed address yet, so there is nothing to draw. Studio keeps looking and lists the nodes here as they answer."
+        description="Rahdar learns the topology from the first broker it reaches. Nothing has answered on this cluster's seed address yet, so there is nothing to draw. Rahdar keeps looking and lists the nodes here as they answer."
       />
     );
   } else {

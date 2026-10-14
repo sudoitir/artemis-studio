@@ -1,7 +1,7 @@
 # operator-ui Specification
 
 ## Purpose
-How Studio's operations console behaves for an operator about to act: blast radius before destructive actions, the four outcomes of a mutation, per-node results, honest capability gating, forms and empty states.
+How Rahdar's operations console behaves for an operator about to act: blast radius before destructive actions, the four outcomes of a mutation, per-node results, honest capability gating, forms and empty states.
 
 ## Requirements
 
@@ -386,7 +386,7 @@ A view belonging to an enabled feature that the operator lacks permission for SH
 #### Scenario: A deep link to a disabled feature explains how to enable it
 
 - **WHEN** an operator opens the address of a view whose feature is disabled
-- **THEN** the page states the feature is disabled on this installation, names `artemis-studio.features.<id>.enabled`, and links back to the cluster
+- **THEN** the page states the feature is disabled on this installation, names `rahdar.features.<id>.enabled`, and links back to the cluster
 
 #### Scenario: A disabled feature contributes nothing to shared screens
 
@@ -758,7 +758,7 @@ Progress motion SHALL honour the operator's reduced-motion preference.
 
 ### Requirement: Settings is presented as grouped tabs
 
-The Settings page SHALL be a cluster's, shown to those who hold `settings:read`. It SHALL present each settings section as a tab in a vertical tab list. The tabs SHALL be grouped under fixed headings in this order: Studio-wide configuration, this cluster, and plugins. What is not configuration a cluster's operators share SHALL live elsewhere: the operator's own display preferences on the Account page, which needs no permission, and the installation's encryption keys and Studio's own health under Administration. Studio-wide configuration SHALL have one tab per settings category. Each category SHALL be edited as a form whose inputs fit each setting's kind. A modified setting SHALL show its default and offer a reset.
+The Settings page SHALL be a cluster's, shown to those who hold `settings:read`. It SHALL present each settings section as a tab in a vertical tab list. The tabs SHALL be grouped under fixed headings in this order: Rahdar-wide configuration, this cluster, and plugins. What is not configuration a cluster's operators share SHALL live elsewhere: the operator's own display preferences on the Account page, which needs no permission, and the installation's encryption keys and Rahdar's own health under Administration. Rahdar-wide configuration SHALL have one tab per settings category. Each category SHALL be edited as a form whose inputs fit each setting's kind. A modified setting SHALL show its default and offer a reset.
 
 One search SHALL find settings across all categories, and a filter SHALL show only modified settings. The open tab and the search SHALL be held in the address, so they can be shared and restored.
 
@@ -796,12 +796,12 @@ The tab list SHALL be operable from the keyboard, and changing tab SHALL move fo
 #### Scenario: Leaving with unsaved edits
 
 - **WHEN** an operator with unsaved edits navigates away
-- **THEN** Studio asks before discarding them
+- **THEN** Rahdar asks before discarding them
 
 #### Scenario: Unsaved connection edits survive a stray tab change
 
 - **WHEN** an operator has edited a cluster's connection form and opens another Settings tab
-- **THEN** Studio asks whether to discard the edits, and staying keeps them
+- **THEN** Rahdar asks whether to discard the edits, and staying keeps them
 
 ### Requirement: Plugin management states consequences before acting and outcomes after
 
@@ -1036,7 +1036,7 @@ A width the operator set SHALL be kept exactly; fitting SHALL NOT shrink it. Wid
 
 ### Requirement: The SDK offers a read-only diagram
 
-The plugin SDK SHALL export a diagram component that lays out given nodes and edges automatically (layered, off the main thread) and renders them in Studio's theme in both colour schemes. The component SHALL NOT change the diagram itself: it SHALL NOT allow dragging, connecting or deleting, and it reports every choice to its caller. Nodes SHALL be focusable and selectable by keyboard, and a node's accessible name SHALL include its kind, label and any stated problem. A node with a problem SHALL show it in words as well as colour. A change that keeps the same nodes and edges SHALL NOT move anything. A layout failure SHALL be stated in place.
+The plugin SDK SHALL export a diagram component that lays out given nodes and edges automatically (layered, off the main thread) and renders them in Rahdar's theme in both colour schemes. The component SHALL NOT change the diagram itself: it SHALL NOT allow dragging, connecting or deleting, and it reports every choice to its caller. Nodes SHALL be focusable and selectable by keyboard, and a node's accessible name SHALL include its kind, label and any stated problem. A node with a problem SHALL show it in words as well as colour. A change that keeps the same nodes and edges SHALL NOT move anything. A layout failure SHALL be stated in place.
 
 The component SHALL offer zoom in, zoom out and fit controls with accessible names, and SHALL be able to fill the height of its container.
 
@@ -1157,9 +1157,9 @@ Every page SHALL have exactly one top-level heading that names the view, and its
 - **WHEN** an operator opens the queues page of a cluster
 - **THEN** the page's only top-level heading is "Queues", and the cluster's name and environment are shown beside it
 
-### Requirement: The console's typefaces ship with Studio
+### Requirement: The console's typefaces ship with Rahdar
 
-The console SHALL render with the typefaces it ships with, served from Studio itself. It SHALL NOT request fonts, scripts or styles from any other host, so it renders the same on every machine and on installations without internet access.
+The console SHALL render with the typefaces it ships with, served from Rahdar itself. It SHALL NOT request fonts, scripts or styles from any other host, so it renders the same on every machine and on installations without internet access.
 
 #### Scenario: An air-gapped installation renders the console's typefaces
 - **WHEN** the console is opened on an installation with no internet access
@@ -1225,7 +1225,7 @@ only in a detail view that has the whole width for them.
 
 ### Requirement: A plugin page is never covered by the host
 
-A plugin's page SHALL be laid out in the same content area as Studio's own pages, below the
+A plugin's page SHALL be laid out in the same content area as Rahdar's own pages, below the
 header and beside the navigation, so that nothing the host draws covers any part of it,
 including its first element, in either colour scheme and when zoomed to 200%.
 
@@ -1235,12 +1235,12 @@ including its first element, in either colour scheme and when zoomed to 200%.
 
 ### Requirement: Plugins align their fields with the host's field row
 
-The plugin SDK SHALL export the field row that Studio's own forms use, so that fields on one
+The plugin SDK SHALL export the field row that Rahdar's own forms use, so that fields on one
 line keep their input boxes aligned whatever labels, descriptions or messages they carry, and the
-notice Studio's own pages use, so that a plugin's page-level notices read, contrast and announce
-like Studio's.
+notice Rahdar's own pages use, so that a plugin's page-level notices read, contrast and announce
+like Rahdar's.
 
-#### Scenario: A plugin notice is announced like Studio's
+#### Scenario: A plugin notice is announced like Rahdar's
 - **WHEN** a plugin shows the SDK's notice with a warning tone
 - **THEN** its title is stated in words and it is announced as a status
 
@@ -1250,7 +1250,7 @@ like Studio's.
 
 ### Requirement: Administration SHALL use grouped navigation
 
-The Administration page SHALL list its sections in a vertical navigation grouped under Access, Installation, Governance and Support. Encryption keys SHALL be listed under Installation and Studio's own health under Support. A plugin's section SHALL declare its group. The open section SHALL be held in the address. The open section SHALL be marked on its start edge with the accent and the selection tint, as the sidebar marks the open page, and the list SHALL stay in view while a long section scrolls.
+The Administration page SHALL list its sections in a vertical navigation grouped under Access, Installation, Governance and Support. Encryption keys SHALL be listed under Installation and Rahdar's own health under Support. A plugin's section SHALL declare its group. The open section SHALL be held in the address. The open section SHALL be marked on its start edge with the accent and the selection tint, as the sidebar marks the open page, and the list SHALL stay in view while a long section scrolls.
 
 #### Scenario: Plugin section
 
@@ -1259,7 +1259,7 @@ The Administration page SHALL list its sections in a vertical navigation grouped
 
 ### Requirement: Held operations SHALL be visible and decidable in the UI
 
-Studio SHALL show the outcome when an operation is held, not as a failure. The notice SHALL link to the request. Each request SHALL have a page showing:
+Rahdar SHALL show the outcome when an operation is held, not as a failure. The notice SHALL link to the request. Each request SHALL have a page showing:
 
 - what will happen: changed values and the expected effect;
 - the scope;

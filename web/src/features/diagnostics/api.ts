@@ -9,7 +9,7 @@ export type SummaryView = Schemas['SummaryView'];
 export type BundleView = Schemas['BundleView'];
 export type SectionView = Schemas['SectionView'];
 
-/** The environment a bug report carries. Read from Studio only, when the report dialog opens. */
+/** The environment a bug report carries. Read from Rahdar only, when the report dialog opens. */
 export function useDiagnosticsSummary(enabled: boolean): UseQueryResult<SummaryView, ApiError> {
   return useQuery({
     queryKey: ['diagnostics', 'summary'],

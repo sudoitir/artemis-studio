@@ -6,11 +6,11 @@ How a user reports a bug and an administrator collects a support bundle without 
 ## Requirements
 
 ### Requirement: Reporting a bug pre-fills an issue and sends nothing by itself
-Every signed-in user SHALL be able to open a "Report a bug" form. The form SHALL be pre-filled with the Studio version, the plugin contract, Java, the operating system, the database, the sign-in providers, the installed plugins with their versions, and the browser. The environment facts SHALL come from Studio itself, redacted. Studio SHALL make no request to any external service. The issue SHALL be opened on GitHub only when the user clicks to open it, and the text SHALL also be copyable for an installation without internet access.
+Every signed-in user SHALL be able to open a "Report a bug" form. The form SHALL be pre-filled with the Rahdar version, the plugin contract, Java, the operating system, the database, the sign-in providers, the installed plugins with their versions, and the browser. The environment facts SHALL come from Rahdar itself, redacted. Rahdar SHALL make no request to any external service. The issue SHALL be opened on GitHub only when the user clicks to open it, and the text SHALL also be copyable for an installation without internet access.
 
 #### Scenario: Offline click
 - **WHEN** the user opens the report action
-- **THEN** the form is filled from Studio alone and no external request is made
+- **THEN** the form is filled from Rahdar alone and no external request is made
 
 #### Scenario: Secret in config
 - **WHEN** the configuration holds a secret
@@ -39,7 +39,7 @@ Every section of the bundle SHALL be redacted by the product's redaction rules, 
 - **THEN** the bundle contains none of them, whatever the governance policy
 
 ### Requirement: The bundle can be previewed and trimmed
-Before download Studio SHALL show exactly what each section contains, with the number of redacted values, and SHALL let the administrator exclude sections. The download SHALL be written from the previewed snapshot and SHALL contain only the sections that were kept. The snapshot SHALL expire after ten minutes and SHALL be usable only by the administrator who prepared it.
+Before download Rahdar SHALL show exactly what each section contains, with the number of redacted values, and SHALL let the administrator exclude sections. The download SHALL be written from the previewed snapshot and SHALL contain only the sections that were kept. The snapshot SHALL expire after ten minutes and SHALL be usable only by the administrator who prepared it.
 
 #### Scenario: Exclude logs
 - **WHEN** the administrator excludes the logs

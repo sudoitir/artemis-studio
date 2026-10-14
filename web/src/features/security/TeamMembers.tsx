@@ -35,13 +35,13 @@ const CHANGE: ActionVerb = { verb: 'Change', past: 'Changed', progressive: 'Chan
 const REMOVE: ActionVerb = { verb: 'Remove', past: 'Removed', progressive: 'Removing' };
 
 const GROUP_REASON =
-  'Adding, changing or removing a directory group needs the user:admin permission, because a group can admit users to Studio. Ask a user administrator.';
+  'Adding, changing or removing a directory group needs the user:admin permission, because a group can admit users to Rahdar. Ask a user administrator.';
 
 const rowKey = (m: MemberView) => m.id;
 
 /**
  * A team's members and the team role each holds. A team admin changes user members; directory groups, which can
- * admit users to Studio, are left to a user administrator.
+ * admit users to Rahdar, are left to a user administrator.
  */
 export function TeamMembers({ team }: Readonly<{ team: TeamView }>) {
   const roles = useTeamRoles();

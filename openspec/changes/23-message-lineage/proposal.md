@@ -6,11 +6,11 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one), replace the stub `tasks.md`.
 5. `/opsx:apply` with the harness under **Execution**. New decisions get an ADR.
-6. Verify: `just verify`; for UI, run Studio and check screenshots (light and dark, empty and error states).
+6. Verify: `just verify`; for UI, run Rahdar and check screenshots (light and dark, empty and error states).
 7. PR, merge on green CI, `/opsx:archive`.
 
 ## Why
-When a message goes missing or arrives late, operators reconstruct its path by hand across queues, diverts, bridges, other brokers and dead-letter queues. Studio can capture payloads and trace request-reply flows, but it cannot show one message's journey. Support engineers feel this most. The design must be honest: Studio observes only part of any path, and a gap must show as unknown rather than be guessed.
+When a message goes missing or arrives late, operators reconstruct its path by hand across queues, diverts, bridges, other brokers and dead-letter queues. Rahdar can capture payloads and trace request-reply flows, but it cannot show one message's journey. Support engineers feel this most. The design must be honest: Rahdar observes only part of any path, and a gap must show as unknown rather than be guessed.
 
 ## What Changes
 - Follow one message across queues, diverts, bridges, cross-broker transfers, DLQs and captured payloads
@@ -28,7 +28,7 @@ When a message goes missing or arrives late, operators reconstruct its path by h
 
 ## Out of scope
 - Guaranteeing complete lineage
-- Tracing messages Studio never observes
+- Tracing messages Rahdar never observes
 - Replay (change 28 links to lineage)
 
 ## Depends on

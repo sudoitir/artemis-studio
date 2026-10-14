@@ -1,15 +1,15 @@
 /**
- * A plugin's whole life against a running Studio, through its public API and its UI (task 10.7):
+ * A plugin's whole life against a running Rahdar, through its public API and its UI (task 10.7):
  * install the template plugin, use its API and its UI bundle, update it with no restart, roll it
- * back, then disable, uninstall and purge it. Studio's own CI runs this against a fresh build.
+ * back, then disable, uninstall and purge it. Rahdar's own CI runs this against a fresh build.
  *
- *   STUDIO=http://localhost:8080 ADMIN_PASSWORD=… NEW_PASSWORD=… \
+ *   RAHDAR=http://localhost:8080 ADMIN_PASSWORD=… NEW_PASSWORD=… \
  *   JAR_V1=…/acme-notes-1.0.0.jar JAR_V2=…/acme-notes-1.0.1.jar \
  *   node --experimental-strip-types scripts/plugin-e2e.ts
  *
- * ADMIN_PASSWORD is the one Studio printed at first start; when the account must still change it,
+ * ADMIN_PASSWORD is the one Rahdar printed at first start; when the account must still change it,
  * NEW_PASSWORD becomes the password. The ADMIN role requires two-step verification (ADR-0143), so the run
- * then sets up an authenticator app and gives its code whenever Studio asks it to confirm it is the admin.
+ * then sets up an authenticator app and gives its code whenever Rahdar asks it to confirm it is the admin.
  */
 import { chromium, request, type APIRequestContext } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
@@ -17,7 +17,7 @@ import { randomUUID } from 'node:crypto';
 
 import { nextTotp } from './totp.ts';
 
-const BASE = process.env.STUDIO ?? 'http://localhost:8080';
+const BASE = process.env.RAHDAR ?? 'http://localhost:8080';
 const USER = process.env.ADMIN_USER ?? 'admin';
 const ID = 'acme-notes';
 
@@ -47,7 +47,7 @@ async function call(api: APIRequestContext, method: string, path: string, body?:
   return { status: response.status(), body: text ? JSON.parse(text) : undefined };
 }
 
-/** Every row of one of Studio's lists: the envelope's `data`, at the largest page, which these few rows fit. */
+/** Every row of one of Rahdar's lists: the envelope's `data`, at the largest page, which these few rows fit. */
 async function list<T>(api: APIRequestContext, path: string): Promise<T[]> {
   const page = (await expectStatus(await call(api, 'GET', `${path}?size=500`), 200, `list ${path}`)) as {
     data: T[];
@@ -202,7 +202,7 @@ async function main() {
   const page = await browser.newPage({ storageState: await api.storageState(), baseURL: BASE });
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  // Studio's Content-Security-Policy must not refuse anything Studio or the plugin itself loads.
+  // Rahdar's Content-Security-Policy must not refuse anything Rahdar or the plugin itself loads.
   page.on('console', (m) => {
     if (m.text().includes('Content Security Policy')) errors.push(m.text());
   });

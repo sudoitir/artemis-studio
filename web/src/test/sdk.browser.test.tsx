@@ -7,7 +7,7 @@ import { FieldRow, Notice } from '../sdk/index.ts';
 
 /**
  * What a plugin gets from the SDK is laid out by the host's own styles, which ship with the host, so a
- * plugin's fields align exactly as Studio's do.
+ * plugin's fields align exactly as Rahdar's do.
  */
 describe.each(SCHEMES)('FieldRow from the SDK in the %s scheme', (scheme) => {
   it('starts both input boxes on one line when one field has a description and the other has none', () => {

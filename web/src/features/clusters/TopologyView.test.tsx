@@ -233,7 +233,7 @@ describe('TopologyView', () => {
     serve({ clusterId: 'c1', nodes: [] });
     renderWithProviders(<TopologyView />);
     expect(await screen.findByText('No node has answered yet')).toBeInTheDocument();
-    expect(screen.getByText(/Studio learns the topology from the first broker it reaches/)).toBeInTheDocument();
+    expect(screen.getByText(/Rahdar learns the topology from the first broker it reaches/)).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Cluster topology' })).toBeNull();
   });
 

@@ -162,7 +162,7 @@ describe('the Teams tab', () => {
       http.post('*/api/v1/teams', () => {
         attempts += 1;
         return HttpResponse.json(
-          { type: 'https://studio/problems/duplicate-team-name', title: 'Conflict', detail: 'exists' },
+          { type: 'https://rahdar/problems/duplicate-team-name', title: 'Conflict', detail: 'exists' },
           { status: 409 },
         );
       }),

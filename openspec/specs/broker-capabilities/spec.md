@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines the capability probe: how Artemis Studio classifies what a given broker
+Defines the capability probe: how Rahdar classifies what a given broker
 connection can do, the three-state status model, and the contract that an
 unavailable feature is always explained and always accompanied by the exact
 `broker.xml` change that would enable it.
@@ -22,7 +22,7 @@ status for each of `MANAGEMENT_READ`, `MANAGEMENT_WRITE`, `NOTIFICATIONS`, and
 
 Each capability status SHALL be exactly one of `AVAILABLE`, `UNAVAILABLE`, or
 `UNKNOWN`, and SHALL carry a human-readable reason string. `UNKNOWN` SHALL be
-used when Studio cannot determine the capability without taking an action it is
+used when Rahdar cannot determine the capability without taking an action it is
 not permitted to take in this phase.
 
 #### Scenario: Reason accompanies every status
@@ -51,7 +51,7 @@ broker attribute read returns success, and `UNAVAILABLE` otherwise.
 SHALL derive it from the outcome of the cluster's Core subscription rather than
 by opening a connection during the capability read:
 
-- `AVAILABLE` when Studio holds at least one open subscription to
+- `AVAILABLE` when Rahdar holds at least one open subscription to
   `activemq.notifications` for the cluster. The reason SHALL note that
   connection, session, delivered, and expired events additionally require
   `NotificationActiveMQServerPlugin`, and the snippet for that plugin SHALL be
@@ -73,7 +73,7 @@ the reason text.
 
 #### Scenario: Subscribed
 
-- **WHEN** Studio holds an open `activemq.notifications` subscription for the cluster
+- **WHEN** Rahdar holds an open `activemq.notifications` subscription for the cluster
 - **THEN** `NOTIFICATIONS` is `AVAILABLE` and the reason ships the notification-plugin snippet with the note that an idle broker looks the same as one missing the plugin
 
 #### Scenario: Subscription refused for permission
@@ -98,7 +98,7 @@ the reason text.
 
 #### Scenario: Preconditions visible
 
-- **WHEN** the broker has a CORE acceptor and the `activemq.notifications` address and Studio holds an open subscription
+- **WHEN** the broker has a CORE acceptor and the `activemq.notifications` address and Rahdar holds an open subscription
 - **THEN** `NOTIFICATIONS` is `AVAILABLE` and the reason notes both preconditions are present alongside the notification-plugin snippet
 
 #### Scenario: Precondition missing
@@ -134,9 +134,9 @@ delivered, and expired notifications.
 - **WHEN** a registered cluster's capability snippet consists, wholly or in part, of address or security settings
 - **THEN** the ledger states which part the declared configuration can apply over the management API and which still needs `broker.xml`, and links into the cluster's recommended configuration, where the entry is seeded from what the node is running
 
-### Requirement: A capability gap declares whether Studio can close it
+### Requirement: A capability gap declares whether Rahdar can close it
 
-Every capability gap SHALL declare whether Studio can close it over the management
+Every capability gap SHALL declare whether Rahdar can close it over the management
 API, and the ones it cannot SHALL be named with their `broker.xml` fragment rather
 than omitted. A gap that is an address setting or a security setting is appliable;
 `broker-plugins`, `acceptors`, and any change needing `artemis-roles.properties`
@@ -150,7 +150,7 @@ would silently reset every other key on the match.
 #### Scenario: The appliable and the manual are both listed
 
 - **WHEN** the recommendations for a cluster are requested
-- **THEN** each one states whether Studio can apply it, an appliable one carries the
+- **THEN** each one states whether Rahdar can apply it, an appliable one carries the
   full entry and the keys it itself sets, and a manual one carries the `broker.xml`
   fragment and the reason no management operation can write it
 
@@ -251,7 +251,7 @@ establishes it.
 
 #### Scenario: A refused element is named with its remedy
 
-- **WHEN** Studio's broker identity may manage diverts but may not set a security setting on the address it would create
+- **WHEN** Rahdar's broker identity may manage diverts but may not set a security setting on the address it would create
 - **THEN** the capability reports that specific refusal and ships the configuration that would grant it
 
 #### Scenario: An unestablished capture capability does not block the operator

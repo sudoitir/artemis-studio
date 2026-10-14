@@ -1,14 +1,14 @@
 ---
 title: Data governance
-description: How Studio masks sensitive message values everywhere it shows or stores them, detects personal data, and lets a granted role see originals — with every clear view audited.
+description: How Rahdar masks sensitive message values everywhere it shows or stores them, detects personal data, and lets a granted role see originals — with every clear view audited.
 ---
 
 # Data governance
 
-Studio reads your brokers' messages and puts them in front of people, API clients and assistants. It also
+Rahdar reads your brokers' messages and puts them in front of people, API clients and assistants. It also
 stores copies of them: in the message index, from capture, and as request-reply payloads. Data governance is
 the one policy that decides, for every header, property and body value, what each of those audiences may see
-and what Studio may keep.
+and what Rahdar may keep.
 
 It is on for every installation and cannot be disabled. The defaults are conservative: credentials are never
 shown or stored, and recognisable personal data is masked until someone with the right to see it asks.
@@ -55,7 +55,7 @@ Rules are managed under **Administration → Masking rules**, which needs `gover
 
 ## Detection and findings
 
-Studio also runs its detectors over every property value and body value it can read, whether or not a rule
+Rahdar also runs its detectors over every property value and body value it can read, whether or not a rule
 names the field. A value the detectors recognise is **masked immediately** — the policy does not wait for
 someone to review it.
 
@@ -65,7 +65,7 @@ batches, not once per message.
 
 ## Content that cannot be inspected
 
-A binary body, or a body in a format Studio cannot read, cannot be classified, so it is **withheld** from
+A binary body, or a body in a format Rahdar cannot read, cannot be classified, so it is **withheld** from
 anyone without clear access, with the reason shown in its place. The same applies to the part of a body
 beyond the scan limit, `governance.scan-limit` (256 KiB by default, under **Settings**), and the notice names
 that setting.
@@ -85,7 +85,7 @@ values.
 
 ### Separating duties
 
-If the people who administer Studio should not see personal data, do not give them `*`. Create a custom role
+If the people who administer Rahdar should not see personal data, do not give them `*`. Create a custom role
 with the administration permissions they need — `user:admin`, `settings:write`, `cluster:write`,
 `governance:write` and so on — and grant `message:clear` only to a role for the people whose work requires it,
 scoped to the clusters where they need it.
@@ -100,14 +100,14 @@ scoped to the clusters where they need it.
   confirm a value the caller would only ever see masked.
 - Literal values compared with classified fields are masked in the audited query text.
 
-## What Studio stores
+## What Rahdar stores
 
 The message index, capture and request-reply payloads store the **masked** form. Full-text and `LIKE` search
 over the index therefore only ever see masked text: searching the index for a stored email address finds
 nothing.
 
 The originals of masked values — except credentials, which are never kept — are **sealed** beside the row,
-encrypted with Studio's secret key and bound to that row. They are opened only to answer a caller with
+encrypted with Rahdar's secret key and bound to that row. They are opened only to answer a caller with
 `message:clear`. If the key is lost, the originals cannot be recovered; the masked rows remain readable.
 
 An index query that names a field stored masked says so: the predicate compares masked text, and the live

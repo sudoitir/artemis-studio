@@ -1,6 +1,6 @@
 package com.acme.notes;
 
-import io.github.sudoitir.artemisstudio.platform.scrape.PluginMetricSource;
+import io.github.sudoitir.rahdar.platform.scrape.PluginMetricSource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.HashMap;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Publishes {@code acme-notes:notes}, the notes left on each queue, which Studio samples on every
+ * Publishes {@code acme-notes:notes}, the notes left on each queue, which Rahdar samples on every
  * scrape into its metrics, Prometheus and alert rules. The query reads an indexed column of a
  * small table; a source over anything slower would keep its counts in memory instead.
  */
@@ -38,8 +38,8 @@ public class NoteCounts implements PluginMetricSource {
         return counts;
     }
 
-    // To read this metric's history back, for a trend or a report, inject Studio's MetricHistory (from
-    // io.github.sudoitir.artemisstudio.feature.metrics, as an ObjectProvider, since it is absent when the
+    // To read this metric's history back, for a trend or a report, inject Rahdar's MetricHistory (from
+    // io.github.sudoitir.rahdar.feature.metrics, as an ObjectProvider, since it is absent when the
     // metrics feature is off) and name the user the work acts for. The read runs with that user's grants
     // as they stand now, and answers like an unknown cluster when they have none:
     //

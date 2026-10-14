@@ -1,8 +1,8 @@
-# Artemis Studio — PROD reference stack.
+# Rahdar — PROD reference stack.
 #
 #   docker compose -f deploy/compose/compose.prod.yaml --env-file .env up -d
 #
-# Runs Artemis Studio and its Postgres only. Your Artemis clusters already exist
+# Runs Rahdar and its Postgres only. Your Artemis clusters already exist
 # and are registered through the UI — this file does not start any brokers.
 #
 # Everything sensitive comes from .env (see deploy/compose/.env.example). This is
@@ -12,7 +12,7 @@
 # The default image is a pre-stable dev build (tag :dev). There is no stable
 # release yet — pin a CalVer tag (e.g. :2026.09.0) once you depend on it.
 
-name: artemis-studio
+name: rahdar
 
 services:
   postgres:
@@ -39,30 +39,30 @@ services:
         limits:
           memory: 2g
 
-  studio:
-    image: ${STUDIO_IMAGE:-sudoit1/artemis-studio:dev}
+  rahdar:
+    image: ${RAHDAR_IMAGE:-sudoit1/rahdar:dev}
     # The live UI stream is Server-Sent Events at GET /api/v1/stream. If you put a
-    # reverse proxy in front of Studio, it MUST NOT buffer that response:
-    #   nginx    -> proxy_buffering off;  (Studio also sends X-Accel-Buffering: no)
+    # reverse proxy in front of Rahdar, it MUST NOT buffer that response:
+    #   nginx    -> proxy_buffering off;  (Rahdar also sends X-Accel-Buffering: no)
     #   Apache   -> no output buffering on the /api/v1/stream location
     #   Traefik  -> works out of the box
     # Without this the topology graph and queue grid only update on the 5s poll.
     environment:
-      ARTEMIS_STUDIO_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
-      ARTEMIS_STUDIO_DB_USER: ${DB_USER}
-      ARTEMIS_STUDIO_DB_PASSWORD: ${DB_PASSWORD}
+      RAHDAR_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      RAHDAR_DB_USER: ${DB_USER}
+      RAHDAR_DB_PASSWORD: ${DB_PASSWORD}
       # Key for every stored secret (ADR-0132): base64 of 32 bytes, or `1=<b64>,2=<b64>` for rotation.
-      ARTEMIS_STUDIO_SECRET_KEY: ${SECRET_KEY:?}
-      # The broker role Studio's own broker user holds. Required for message capture only:
+      RAHDAR_SECRET_KEY: ${SECRET_KEY:?}
+      # The broker role Rahdar's own broker user holds. Required for message capture only:
       # capture queues are restricted to it, and capture is refused until it is set.
-      ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE: ${CAPTURE_BROKER_ROLE:-}
-      # A plugin that needs a restart restarts Studio itself; `restart: unless-stopped` below
+      RAHDAR_CAPTURE_BROKER_ROLE: ${CAPTURE_BROKER_ROLE:-}
+      # A plugin that needs a restart restarts Rahdar itself; `restart: unless-stopped` below
       # is what starts it again. Remove both together, never one (ADR-0104).
-      ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED: "true"
+      RAHDAR_PLUGINS_RESTART_SUPERVISED: "true"
       # Pin plugin publishers' keys here instead of in the UI (ADR-0166; site/src/guide/plugins.md).
       # Each key needs a name and a PEM certificate or public key; the number is the item's index.
-      # ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_NAME: Example Publisher
-      # ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_PEM: ${PUBLISHER_KEY_PEM:?}
+      # RAHDAR_PLUGINS_TRUSTED_KEYS_0_NAME: Example Publisher
+      # RAHDAR_PLUGINS_TRUSTED_KEYS_0_PEM: ${PUBLISHER_KEY_PEM:?}
       # Metaspace is bounded so a plugin that does not unload cleanly fails loudly rather than
       # growing without limit; a restart frees it.
       JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50 -XX:MaxMetaspaceSize=384m}
@@ -83,7 +83,7 @@ services:
       OTEL_PROPAGATORS: ${OTEL_PROPAGATORS:-}
       OTEL_METRIC_EXPORT_INTERVAL: ${OTEL_METRIC_EXPORT_INTERVAL:-}
     ports:
-      - "${STUDIO_BIND:-127.0.0.1:8080}:8080"
+      - "${RAHDAR_BIND:-127.0.0.1:8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy

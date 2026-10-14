@@ -1,7 +1,7 @@
 # telemetry-export Specification
 
 ## Purpose
-Defines how Studio hands its own metrics, traces and logs to an operator's observability stack: OTLP export that is off until switched on, traces that follow a request across the broker and database calls it causes, redaction of everything exported, JSON logs that join their traces, and the dashboards and alert rules that ship with each release.
+Defines how Rahdar hands its own metrics, traces and logs to an operator's observability stack: OTLP export that is off until switched on, traces that follow a request across the broker and database calls it causes, redaction of everything exported, JSON logs that join their traces, and the dashboards and alert rules that ship with each release.
 
 ## Requirements
 
@@ -14,7 +14,7 @@ exporters, headers and sampling. By default, the system SHALL send nothing.
 #### Scenario: Default
 
 - **WHEN** export is not switched on
-- **THEN** no telemetry leaves Studio
+- **THEN** no telemetry leaves Rahdar
 
 #### Scenario: Configured
 
@@ -34,7 +34,7 @@ SHALL be its own span, naming the node it went to.
 
 ### Requirement: Exported telemetry carries no secrets or message content
 
-Exported logs, spans and attributes SHALL follow the same redaction rules as Studio's console
+Exported logs, spans and attributes SHALL follow the same redaction rules as Rahdar's console
 logs. They SHALL never include message payloads, message headers, management call arguments or
 database parameter values.
 
@@ -51,7 +51,7 @@ database parameter values.
 ### Requirement: Dashboards and alert rules ship with each release
 
 The repository and each release SHALL include Grafana dashboards and Prometheus alert rules. They
-SHALL work against Studio's metrics, and CI SHALL check them against the metric names Studio
+SHALL work against Rahdar's metrics, and CI SHALL check them against the metric names Rahdar
 actually exposes and check that the rules are valid.
 
 #### Scenario: Renamed metric

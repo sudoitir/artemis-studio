@@ -6,12 +6,12 @@
  * coordinates, and `index.html` <title>. Nothing else.
  */
 export const branding = {
-  productName: 'Artemis Studio',
-  productShortName: 'Studio',
+  productName: 'Rahdar',
+  productShortName: 'Rahdar',
   tagline: 'Cluster-wide management and observability for Apache ActiveMQ Artemis',
   trademarkNotice:
     'Apache ActiveMQ and Apache ActiveMQ Artemis are trademarks of the Apache ' +
-    'Software Foundation. Artemis Studio is an independent project and is not ' +
+    'Software Foundation. Rahdar is an independent project and is not ' +
     'produced by, endorsed by, or affiliated with the Apache Software Foundation.',
-  projectUrl: 'https://github.com/sudoitir/artemis-studio',
+  projectUrl: 'https://github.com/sudoitir/rahdar',
 } as const;

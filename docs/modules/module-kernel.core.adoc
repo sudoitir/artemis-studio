@@ -1,11 +1,11 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.kernel.core`
+|`io.github.sudoitir.rahdar.kernel.core`
 |Spring components
 |_Configuration properties_
 
-* `i.g.s.a.k.c.StudioProperties`
+* `i.g.s.a.k.c.RahdarProperties`
 
 _Others_
 

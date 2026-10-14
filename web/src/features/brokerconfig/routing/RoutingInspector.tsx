@@ -72,7 +72,7 @@ function InspectorActions({
       <Text size="sm" c="dimmed">
         {node.kind === 'target'
           ? 'This is on another broker. Declare the bridge that reaches it, not the target itself.'
-          : 'Studio does not declare this element, so there is nothing here to edit. Declare it to bring it under the declaration.'}
+          : 'Rahdar does not declare this element, so there is nothing here to edit. Declare it to bring it under the declaration.'}
       </Text>
     );
   }

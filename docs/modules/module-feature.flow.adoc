@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.feature.flow`
+|`io.github.sudoitir.rahdar.feature.flow`
 |Spring components
 |_Services_
 

@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:kernel-audit-0001-baseline splitStatements:true
+--changeset rahdar:kernel-audit-0001-baseline splitStatements:true
 CREATE TABLE audit_event (
     id bigint NOT NULL,
     ts timestamp with time zone DEFAULT now() NOT NULL,
@@ -66,7 +66,7 @@ COMMENT ON COLUMN audit_event.pos_txid IS 'Commit-order position, with pos_seq: 
 --rollback DROP TABLE IF EXISTS audit_event CASCADE;
 --rollback DROP SEQUENCE IF EXISTS audit_event_position_seq;
 
---changeset artemis-studio:kernel-audit-0001-baseline-audit-event-guard splitStatements:false
+--changeset rahdar:kernel-audit-0001-baseline-audit-event-guard splitStatements:false
 CREATE FUNCTION audit_event_guard() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -91,7 +91,7 @@ END
 $$;
 --rollback DROP FUNCTION IF EXISTS audit_event_guard CASCADE;
 
---changeset artemis-studio:kernel-audit-0001-baseline-audit-event-position splitStatements:false
+--changeset rahdar:kernel-audit-0001-baseline-audit-event-position splitStatements:false
 CREATE FUNCTION audit_event_position() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -108,7 +108,7 @@ END
 $$;
 --rollback DROP FUNCTION IF EXISTS audit_event_position CASCADE;
 
---changeset artemis-studio:kernel-audit-0001-baseline-triggers splitStatements:true
+--changeset rahdar:kernel-audit-0001-baseline-triggers splitStatements:true
 CREATE TRIGGER tg_audit_event_guard BEFORE UPDATE ON audit_event FOR EACH ROW EXECUTE FUNCTION audit_event_guard();
 
 CREATE TRIGGER tg_audit_event_position BEFORE INSERT OR UPDATE ON audit_event FOR EACH ROW EXECUTE FUNCTION audit_event_position();

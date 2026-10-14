@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { clusterKey, pluginApi, request } from '@artemis-studio/plugin-sdk';
+import { clusterKey, pluginApi, request } from '@rahdar/plugin-sdk';
 
 export const ID = 'acme-notes';
 

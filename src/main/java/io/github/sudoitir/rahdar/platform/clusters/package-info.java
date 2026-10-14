@@ -1,0 +1,18 @@
+/**
+ * Cluster registration, topology, HA state and the audited broker command executor.
+ */
+@ApplicationModule(
+        displayName = "Clusters",
+        allowedDependencies = {
+            "kernel.audit",
+            "kernel.core",
+            "kernel.gate",
+            "kernel.plugin",
+            "kernel.replica",
+            "kernel.security",
+            "kernel.settings",
+            "platform.broker"
+        })
+package io.github.sudoitir.rahdar.platform.clusters;
+
+import org.springframework.modulith.ApplicationModule;

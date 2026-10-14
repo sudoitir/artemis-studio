@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:feature-flow-0001-baseline splitStatements:true
+--changeset rahdar:feature-flow-0001-baseline splitStatements:true
 CREATE TABLE flow_client_edge (
     sampled_at timestamp with time zone NOT NULL,
     rate double precision,

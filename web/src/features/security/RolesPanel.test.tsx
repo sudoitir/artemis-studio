@@ -340,7 +340,7 @@ describe('RolesPanel editor', () => {
 
     await user.click(await screen.findByRole('button', { name: 'New role' }));
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(alert).toHaveTextContent('catalogue unavailable');
 
     serve(ROLES, CATALOGUE);

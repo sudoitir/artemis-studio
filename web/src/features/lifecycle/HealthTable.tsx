@@ -46,7 +46,7 @@ export function HealthTable() {
           <EmptyState
             kind="empty"
             title="No table statistics yet"
-            description="This lists each table's size, growth, dead rows, vacuum and partitions, read from the statistics Postgres collects as tables are used. It has none for Studio's database yet, so check back once Studio has been running for a while."
+            description="This lists each table's size, growth, dead rows, vacuum and partitions, read from the statistics Postgres collects as tables are used. It has none for Rahdar's database yet, so check back once Rahdar has been running for a while."
           />
         }
       />

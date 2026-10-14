@@ -38,7 +38,7 @@ export function declaration(over: Partial<ConfigDeclarationView> = {}): ConfigDe
       diverts: [],
       bridges: [],
     },
-    applyMode: 'STUDIO_MANAGED',
+    applyMode: 'RAHDAR_MANAGED',
     reportUndeclared: false,
     undeclaredExclusions: [],
     updatedAt: '2026-09-11T09:00:00Z',

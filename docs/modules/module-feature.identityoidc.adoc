@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.feature.identityoidc`
+|`io.github.sudoitir.rahdar.feature.identityoidc`
 |Spring components
 |_Configuration properties_
 

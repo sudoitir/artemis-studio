@@ -10,7 +10,7 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 
 | ADR | Decision |
 |---|---|
-| [0001](0001-project-name-and-trademark-risk.md) | Name "Artemis Studio"; trademark risk accepted with a cheap rename path |
+| [0001](0001-project-name-and-trademark-risk.md) | Name "Artemis Studio"; trademark risk accepted with a cheap rename path (superseded by 0201) |
 | [0002](0002-broker-transport-and-capability-model.md) | Jolokia-first transport, Core client second, capability-gated features |
 | [0003](0003-realtime-via-sse.md) | Real-time updates over SSE |
 | [0004](0004-topology-seed-and-autodiscovery.md) | Topology by seed node + auto-discovery |
@@ -208,3 +208,4 @@ Format: `NNNN-kebab-title.md`, English, Nygard style (`000-template.md`).
 | [0198](0198-a-gatling-load-test-publishes-the-sizing-figures.md) | A standalone Gatling load test (`just load`, a manual workflow) drives a replicated Studio and publishes sizing figures with a regression check against `docs/sizing.md` |
 | [0199](0199-studio-runs-on-an-external-postgresql.md) | Studio runs on an operator's PostgreSQL 18 in any schema as a non-superuser; a boot preflight refuses old servers, missing privileges and transaction-mode pooling; failover is ridden through; heavy reads may use a lag-checked read replica |
 | [0200](0200-tier-c-walks-every-queue-page-each-tick.md) | Each tier-C tick reads every `listQueues` page of every node and then reaps, so a node is fully known one tick after registration; the sweep cursor is gone (amends 0015) |
+| [0201](0201-the-product-is-rahdar-and-the-broker-sdk-is-openbroker.md) | The product is Rahdar (rah, route + dar, keeper) and the broker SDK is OpenBroker; every identity renamed with no alias, contract 15, a fresh database, the site on `rahdar.dev` (supersedes 0001 and 0061 D6) |

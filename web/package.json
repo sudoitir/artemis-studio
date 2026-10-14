@@ -1,9 +1,9 @@
 {
-  "name": "artemis-studio-web",
+  "name": "rahdar-web",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Artemis Studio web console",
+  "description": "Rahdar web console",
   "scripts": {
     "dev": "vite",
     "gen:api": "openapi-typescript openapi.json -o src/kernel/api/schema.d.ts",
@@ -22,7 +22,7 @@
     "sweep": "node --experimental-strip-types scripts/sweep.ts"
   },
   "dependencies": {
-    "@artemis-studio/plugin-sdk": "file:src/sdk",
+    "@rahdar/plugin-sdk": "file:src/sdk",
     "@codemirror/autocomplete": "6.20.3",
     "@codemirror/commands": "6.11.1",
     "@codemirror/lang-json": "6.0.2",

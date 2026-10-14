@@ -6,7 +6,7 @@ Who stands behind a runtime plugin: signed plugin jars, the publisher keys admin
 ## Requirements
 
 ### Requirement: Administrators manage trusted publisher keys
-Studio SHALL let an administrator with the installer tier add and remove trusted publisher keys, showing each key's fingerprint and name.
+Rahdar SHALL let an administrator with the installer tier add and remove trusted publisher keys, showing each key's fingerprint and name.
 
 #### Scenario: Add a key
 - **WHEN** an installer adds a key
@@ -21,7 +21,7 @@ Studio SHALL let an administrator with the installer tier add and remove trusted
 - **THEN** it is refused and audited
 
 ### Requirement: A plugin's signature is verified before install and update
-Studio SHALL verify a plugin's signature against the trusted keys before storing or activating it, and SHALL refuse a jar whose signature is missing, invalid or from an untrusted key.
+Rahdar SHALL verify a plugin's signature against the trusted keys before storing or activating it, and SHALL refuse a jar whose signature is missing, invalid or from an untrusted key.
 
 #### Scenario: Valid and trusted
 - **WHEN** the signature is valid and the key trusted
@@ -60,11 +60,11 @@ Studio SHALL verify a plugin's signature against the trusted keys before storing
 - **THEN** the rollback is refused
 
 ### Requirement: Unverified plugins are visible in operational health
-Studio SHALL report operational health as degraded while any installed plugin is unverified, naming those plugins.
+Rahdar SHALL report operational health as degraded while any installed plugin is unverified, naming those plugins.
 
 #### Scenario: A key is removed
 - **WHEN** an installed plugin's signing key is removed
-- **THEN** the `studio` health group reports degraded and names the plugin
+- **THEN** the `rahdar` health group reports degraded and names the plugin
 
 ### Requirement: Unverified plugins need an explicit, audited allowance
 An administrator MAY allow unverified plugins through a setting that is off by default; while it is on, an unverified plugin SHALL install, be marked with a visible "unverified" badge, and each such install SHALL be audited.
@@ -123,14 +123,14 @@ A plugin that declares a credential sign-in provider SHALL be activated only whe
 - **THEN** its provider stops signing users in, and operational health names the plugin as unverified
 
 ### Requirement: Trusted publisher keys can be pinned by configuration
-Studio SHALL read a list of trusted publisher keys from its configuration, each with a name and a PEM certificate or public key, and SHALL make the trusted key table agree with it at every start, before any installed plugin is started. A key is identified by the same fingerprint whichever way it was added.
+Rahdar SHALL read a list of trusted publisher keys from its configuration, each with a name and a PEM certificate or public key, and SHALL make the trusted key table agree with it at every start, before any installed plugin is started. A key is identified by the same fingerprint whichever way it was added.
 
 #### Scenario: A configured key trusts at first boot
-- **WHEN** a plugin installed earlier was signed by a key that is in the configuration but not yet in the trusted key table, and Studio starts
+- **WHEN** a plugin installed earlier was signed by a key that is in the configuration but not yet in the trusted key table, and Rahdar starts
 - **THEN** the key is added with the source `CONFIGURATION` and the configured name, and the plugin starts and is verified
 
 #### Scenario: Removing a key from configuration un-trusts it
-- **WHEN** a key that was added from the configuration is no longer configured and Studio starts
+- **WHEN** a key that was added from the configuration is no longer configured and Rahdar starts
 - **THEN** the key is removed, the plugins it signed keep running, are shown as unverified, and operational health reports degraded
 
 #### Scenario: An administrator's key is configured
@@ -146,7 +146,7 @@ Studio SHALL read a list of trusted publisher keys from its configuration, each 
 - **THEN** they bind the same as a YAML list
 
 ### Requirement: A configured key cannot be removed in the UI or API
-Studio SHALL show the source of every trusted key, and SHALL refuse to remove a configured key through the API or the UI, naming the configuration property to change.
+Rahdar SHALL show the source of every trusted key, and SHALL refuse to remove a configured key through the API or the UI, naming the configuration property to change.
 
 #### Scenario: Removing a configured key through the API
 - **WHEN** an installer removes a configured key through the API
@@ -161,27 +161,27 @@ Studio SHALL show the source of every trusted key, and SHALL refuse to remove a 
 - **THEN** it is refused as already trusted
 
 ### Requirement: An invalid configured key fails startup
-Studio SHALL refuse to start when a configured trusted key has no name, has no key, cannot be read, or has the same key as another entry, and SHALL name the entry's index and the reason.
+Rahdar SHALL refuse to start when a configured trusted key has no name, has no key, cannot be read, or has the same key as another entry, and SHALL name the entry's index and the reason.
 
 #### Scenario: An invalid entry
 - **WHEN** the entry at index 1 holds text that is neither a PEM certificate nor a PEM public key
-- **THEN** Studio does not start, and the message names index 1 and says what was expected
+- **THEN** Rahdar does not start, and the message names index 1 and says what was expected
 
 #### Scenario: A missing name
 - **WHEN** an entry has no name
-- **THEN** Studio does not start, and the message names the entry's index
+- **THEN** Rahdar does not start, and the message names the entry's index
 
 #### Scenario: Two entries with the same key
 - **WHEN** two entries hold the same key
-- **THEN** Studio does not start, and the message names both indexes and the fingerprint
+- **THEN** Rahdar does not start, and the message names both indexes and the fingerprint
 
 ### Requirement: Changes made from configuration are audited
-Studio SHALL audit every key the reconciliation adds, converts, renames or removes, with the existing key actions, the actor `configuration` and the key's fingerprint.
+Rahdar SHALL audit every key the reconciliation adds, converts, renames or removes, with the existing key actions, the actor `configuration` and the key's fingerprint.
 
 #### Scenario: A configured key is added
-- **WHEN** Studio starts with a key in its configuration that is not trusted yet
+- **WHEN** Rahdar starts with a key in its configuration that is not trusted yet
 - **THEN** a `PLUGIN_KEY_ADD` event by `configuration` records the key's fingerprint
 
 #### Scenario: A configured key is removed
-- **WHEN** Studio starts without a key it had added from the configuration
+- **WHEN** Rahdar starts without a key it had added from the configuration
 - **THEN** a `PLUGIN_KEY_REMOVE` event by `configuration` records the key's fingerprint

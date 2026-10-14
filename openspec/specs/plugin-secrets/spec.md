@@ -1,7 +1,7 @@
 # plugin-secrets Specification
 
 ## Purpose
-How a runtime plugin keeps secrets: a vault per plugin, encrypted with Studio's key, never returned through any interface (ADR-0111).
+How a runtime plugin keeps secrets: a vault per plugin, encrypted with Rahdar's key, never returned through any interface (ADR-0111).
 
 ## Requirements
 

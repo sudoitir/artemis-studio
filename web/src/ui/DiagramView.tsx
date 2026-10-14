@@ -412,7 +412,7 @@ function FitOnLayout({
 
 /**
  * A diagram of boxes and arrows, laid out automatically (ELK layered, in a worker) and drawn in
- * Studio's theme (ADR-0117). Nothing is dragged, connected or deleted: it shows a structure and
+ * Rahdar's theme (ADR-0117). Nothing is dragged, connected or deleted: it shows a structure and
  * reports which box was chosen. A caller may offer things to insert on arrows and actions on boxes
  * (ADR-0120); the diagram reports the choice and the caller changes the nodes.
  *

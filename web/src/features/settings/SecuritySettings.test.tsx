@@ -98,7 +98,7 @@ describe('SecuritySettings', () => {
         if (new Date(signedIn).getTime() < Date.now() - 300_000) {
           return HttpResponse.json(
             {
-              type: 'https://studio/problems/reauthentication-required',
+              type: 'https://rahdar/problems/reauthentication-required',
               title: 'Reauthentication required',
               status: 403,
             },
@@ -244,7 +244,7 @@ describe('SecuritySettings', () => {
       me(fresh()),
       http.post('*/api/v1/settings/secrets/rotations', () =>
         HttpResponse.json(
-          { type: 'https://studio/problems/no-newer-key', title: 'No newer key', detail: 'No newer key version.' },
+          { type: 'https://rahdar/problems/no-newer-key', title: 'No newer key', detail: 'No newer key version.' },
           { status: 409 },
         ),
       ),

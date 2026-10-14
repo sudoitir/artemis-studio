@@ -1,7 +1,7 @@
 # mcp-server Specification
 
 ## Purpose
-Defines the Model Context Protocol surface Studio exposes so an agent can diagnose and tune
+Defines the Model Context Protocol surface Rahdar exposes so an agent can diagnose and tune
 a cluster on an operator's behalf — a small set of intent-shaped primitives that inherit the
 same identity, permissions, safety and audit guarantees as the human-facing API, rather than
 a machine-readable mirror of it.
@@ -100,7 +100,7 @@ operations a call performs SHALL be attached to that call's event.
 
 - **WHEN** a primitive is invoked with a token whose effective grants do not permit the
   underlying operation
-- **THEN** the call fails and no broker or Studio state is changed
+- **THEN** the call fails and no broker or Rahdar state is changed
 
 #### Scenario: Mutations are audited under the owner with the key attributed
 

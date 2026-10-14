@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.feature.diagnostics`
+|`io.github.sudoitir.rahdar.feature.diagnostics`
 |Spring components
 |_Services_
 

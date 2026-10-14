@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rahdar.sudoit.ir/schema/plugin.schema.json",
+  "title": "Rahdar plugin.json",
+  "description": "The descriptor every plugin jar carries at META-INF/rahdar/plugin.json (ADR-0099, ADR-0102). This schema is documentation for plugin authors; PluginDescriptorParser is the code path that actually enforces it, and a test asserts the two never drift apart.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "version", "vendor", "basePackage", "configuration", "contract", "rahdar", "ui", "activation", "title"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "id": {
+      "type": "string",
+      "description": "vendor-name, at least two kebab-case segments, at most 50 characters, never identity-*.",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)+$",
+      "maxLength": 50
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "version": {
+      "type": "string",
+      "description": "Semantic version.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
+    },
+    "vendor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" },
+        "email": { "type": "string", "format": "email" }
+      }
+    },
+    "description": { "type": "string" },
+    "license": { "type": "string" },
+    "changeNotes": { "type": "string", "description": "Rendered as plain text." },
+    "basePackage": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$" },
+    "configuration": { "type": "string", "description": "The root @Configuration FQCN." },
+    "contract": { "type": "integer", "minimum": 1, "description": "Must equal the extension contract this build compiled against." },
+    "rahdar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["since"],
+      "properties": {
+        "since": { "type": "string", "pattern": "^\\d{4}\\.\\d{2}\\.\\d+$" },
+        "until": { "type": "string", "pattern": "^\\d{4}\\.\\d{2}\\.(\\d+|\\*)$" }
+      }
+    },
+    "requires": { "type": "array", "items": { "type": "string" } },
+    "ui": { "type": "boolean" },
+    "requiresLicense": {
+      "type": "boolean",
+      "default": false,
+      "description": "The plugin needs a license file: admins upload one in Admin > Plugins, the plugin reads it and reports whether it is valid."
+    },
+    "activation": { "type": "string", "enum": ["AUTO", "RESTART"] },
+    "updateUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "title": { "type": "string", "minLength": 1 },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "description", "scope"],
+        "properties": {
+          "action": { "type": "string", "description": "Namespaced <id>:<action>." },
+          "description": { "type": "string" },
+          "scope": {
+            "enum": ["global", "cluster", "resource"],
+            "description": "Where the permission takes effect. global: checked without a cluster, only a global grant makes it take effect. cluster: checked against a cluster, a global, environment or cluster grant makes it take effect. resource: checked against a queue or address of a cluster; a platform grant, a team role or a share makes it take effect."
+          },
+          "resourceKinds": {
+            "type": "array",
+            "items": { "enum": ["queue", "address"] },
+            "uniqueItems": true,
+            "description": "What a resource permission acts on. Required, and not empty, when scope is resource; refused for any other scope."
+          },
+          "requires": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true,
+            "description": "Permissions a role must hold with this one, from the plugin or from Rahdar (for example queue:read). The role editor adds them, and saving a role without them is refused."
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "description", "unit", "subject", "permission"],
+        "properties": {
+          "name": { "type": "string", "description": "<id>:<name>." },
+          "description": { "type": "string" },
+          "unit": { "enum": ["count", "per_second", "ms", "ratio"] },
+          "subject": { "type": "string", "description": "What the values are keyed by, e.g. job." },
+          "permission": { "type": "string", "description": "A declared permission that reads the series." }
+        }
+      }
+    },
+    "alertRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "name", "metric", "comparator", "threshold", "forSeconds", "severity"],
+        "properties": {
+          "key": { "type": "string", "description": "Stable per plugin; a rule is seeded once per key and cluster." },
+          "name": { "type": "string" },
+          "metric": { "type": "string", "description": "A declared metric's name." },
+          "comparator": { "enum": ["GT", "GTE", "LT", "LTE", "EQ", "NE"] },
+          "threshold": { "type": "number" },
+          "forSeconds": { "type": "integer", "minimum": 0 },
+          "severity": { "enum": ["INFO", "WARNING", "CRITICAL"] }
+        }
+      }
+    },
+    "identityProviders": {
+      "type": "array",
+      "description": "Username-and-password sign-ins the plugin offers; each needs a PluginCredentialProvider bean. Needs a trusted signer and an acknowledgement at install.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label"],
+        "properties": {
+          "id": { "type": "string", "description": "<id>:<name>." },
+          "label": { "type": "string", "minLength": 1, "maxLength": 64, "description": "Shown on the login screen." }
+        }
+      }
+    },
+    "approvalProvider": {
+      "type": "object",
+      "description": "The plugin is the approval provider: it exposes one ApprovalProvider bean and Rahdar asks it whether gated operations may run. At most one active plugin may declare it.",
+      "additionalProperties": false,
+      "required": ["approverPermission"],
+      "properties": {
+        "approverPermission": { "type": "string", "description": "A permission the plugin declares under permissions; the users who approve hold it." }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "description": "Access to the audit log. receive: the plugin is handed every audit event, unfiltered. retentionHold: the plugin may hold audit records back from retention. Each needs an acknowledgement at install.",
+      "additionalProperties": false,
+      "properties": {
+        "receive": { "type": "boolean", "default": false },
+        "retentionHold": { "type": "boolean", "default": false }
+      }
+    },
+    "settingKeys": { "type": "array", "items": { "type": "string", "description": "Namespaced <id>.<key>." } },
+    "streamTopics": { "type": "array", "items": { "type": "string", "description": "<id> or <id>.<topic>." } },
+    "mcpTools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "posture", "scope", "permission", "description"],
+        "properties": {
+          "name": { "type": "string", "description": "Prefixed <id_snake>_." },
+          "posture": {
+            "enum": ["read", "write"],
+            "description": "read: the tool changes nothing and is annotated readOnlyHint = true."
+          },
+          "scope": {
+            "enum": ["resource", "cluster", "global"],
+            "description": "Matches the scope of the permission. resource: Rahdar checks the permission on the queue or address named by the tool's resourceArg, on the cluster named by its required clusterId argument. cluster: on that cluster. global: globally."
+          },
+          "permission": {
+            "type": "string",
+            "description": "One of this plugin's permissions; Rahdar checks it before the tool runs."
+          },
+          "resourceArg": {
+            "type": "string",
+            "description": "Required for scope resource, refused otherwise: the tool's required string argument holding the queue or address name."
+          },
+          "resourceKind": {
+            "enum": ["queue", "address"],
+            "description": "Required for scope resource, refused otherwise: what resourceArg names. The permission's resourceKinds must include it."
+          },
+          "description": { "type": "string" },
+          "params": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name"],
+              "properties": {
+                "name": { "type": "string" },
+                "values": { "type": "array", "items": { "type": "string" } },
+                "shape": { "type": "string" },
+                "note": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,31 +1,31 @@
 ---
 title: Plugins
-description: Install, update and remove plugins from the Artemis Studio UI — screens, API, assistant tools and data of their own, most with no restart — and build your own from the template.
+description: Install, update and remove plugins from the Rahdar UI — screens, API, assistant tools and data of their own, most with no restart — and build your own from the template.
 ---
 
 # Plugins
 
-A plugin adds to Studio what Studio does not do itself: screens, an API, assistant tools, settings,
+A plugin adds to Rahdar what Rahdar does not do itself: screens, an API, assistant tools, settings,
 background jobs and data of its own. It is **one `.jar`**, installed from **Administration → Plugins**.
 You see everything it will be able to do before anything is installed, and most plugins start
 **without a restart**.
 
 ::: warning A plugin is trusted code
-A plugin runs inside Studio, with Studio's access to your brokers and database, and its screens act
-with the rights of whoever views them. Studio checks every jar thoroughly before installing it, but
+A plugin runs inside Rahdar, with Rahdar's access to your brokers and database, and its screens act
+with the rights of whoever views them. Rahdar checks every jar thoroughly before installing it, but
 those checks stop accidents and misuse of the contract, not a determined attacker. Install plugins
-you would run as part of Studio itself.
+you would run as part of Rahdar itself.
 :::
 
 ## Install a plugin
 
-![Installing a plugin: Studio inspects the jar, states what it will be able to do and shows the SQL of its database changes, then the administrator types its id and it is live without a restart](/img/plugin-install.gif)
+![Installing a plugin: Rahdar inspects the jar, states what it will be able to do and shows the SQL of its database changes, then the administrator types its id and it is live without a restart](/img/plugin-install.gif)
 
 Drop the `.jar` anywhere on **Administration → Plugins**, or choose **Install plugin**. Four steps
 follow, and nothing is installed until the third:
 
-1. **Inspect.** Studio reads the jar without running any of its code. It checks the descriptor,
-   every class, and every database change. If Studio would refuse the jar, you see every reason at
+1. **Inspect.** Rahdar reads the jar without running any of its code. It checks the descriptor,
+   every class, and every database change. If Rahdar would refuse the jar, you see every reason at
    once, each with what its author must change, and **Copy report** gives it to them. Nothing is
    stored.
 2. **Review: what this plugin will be able to do.** Each capability is stated as a sentence:
@@ -39,7 +39,7 @@ follow, and nothing is installed until the third:
 4. **Progress.** A timeline follows the activation as it runs. You can close the dialog: the
    activation carries on, and the plugin's row shows where it has got to.
 
-A plugin's screens appear after you reload Studio. Anyone else who has Studio open is told that
+A plugin's screens appear after you reload Rahdar. Anyone else who has Rahdar open is told that
 plugins changed and offered a reload; nothing reloads on its own.
 
 ### Confirming it is you
@@ -62,25 +62,25 @@ Every change is classified before you confirm it, and does no more than it says:
 | --- | --- | --- | --- |
 | **Instant** | No database change is pending | The new version starts while the old one keeps serving. Requests switch over once it is ready, and the old version finishes its work and stops. If the new version fails to start, the old one keeps serving. | None |
 | **Brief maintenance** | The update changes the plugin's database | For a few seconds that plugin alone answers "updating", while its work drains, its schema changes and the new version starts. | Seconds, that plugin only |
-| **Restart** | The plugin says it needs one, or a version did not stop cleanly | The version to start is recorded and starts with Studio. | All of Studio, briefly |
+| **Restart** | The plugin says it needs one, or a version did not stop cleanly | The version to start is recorded and starts with Rahdar. | All of Rahdar, briefly |
 
-**When a restart is needed, Studio restarts itself if something will start it again.** It stops
+**When a restart is needed, Rahdar restarts itself if something will start it again.** It stops
 gracefully: every plugin is closed and the stop is recorded as clean. Then it exits for its
 supervisor to restart it. That works:
 
-- **with the compose files**, which set `ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED=true` next to
+- **with the compose files**, which set `RAHDAR_PLUGINS_RESTART_SUPERVISED=true` next to
   `restart: unless-stopped`. Keep those two together: remove one and you must remove the other.
-- **on Kubernetes**, which Studio detects.
-- **anywhere else**, once you set `artemis-studio.plugins.restart.supervised=true`, if your process
-  manager restarts Studio when it exits.
+- **on Kubernetes**, which Rahdar detects.
+- **anywhere else**, once you set `rahdar.plugins.restart.supervised=true`, if your process
+  manager restarts Rahdar when it exits.
 
-Otherwise Studio does not stop itself. Exiting would leave it down, so it shows the command to run
-instead (`docker compose restart studio`). The review tells you in advance which of the two will
+Otherwise Rahdar does not stop itself. Exiting would leave it down, so it shows the command to run
+instead (`docker compose restart rahdar`). The review tells you in advance which of the two will
 happen.
 
-Installers can also restart Studio from the Plugins tab, for example after a plugin that did not
+Installers can also restart Rahdar from the Plugins tab, for example after a plugin that did not
 stop cleanly. That needs the same confirmation as any plugin change, and it is refused within two
-minutes of a start, so nothing can hold Studio in a restart loop.
+minutes of a start, so nothing can hold Rahdar in a restart loop.
 
 ## Update and roll back
 
@@ -88,7 +88,7 @@ minutes of a start, so nothing can hold Studio in a restart loop.
   the version installed. A plugin can only be updated by a jar from the **same vendor**, and never
   to an **older** version: use Roll back for that.
 - **Check for updates** asks each plugin's update URL, if it names one, for a newer version. The
-  check happens only when you ask; Studio never contacts anything on its own. An update is
+  check happens only when you ask; Rahdar never contacts anything on its own. An update is
   downloaded over https only, without following redirects, and must match the checksum its vendor
   published. Then it goes through the same inspection and review as an upload.
 - **Roll back** reactivates the version that ran before, instantly, as long as the current version
@@ -105,7 +105,7 @@ minutes of a start, so nothing can hold Studio in a restart loop.
 | **Purge** (after Uninstall) | — | **Deleted for good**: its schema, the roles' grants of its permissions, its saved settings, its stored jars |
 
 Purge shows its reach first: each table with its approximate rows and size. You then type the
-plugin's id. If another plugin requires the one you are disabling, Studio says which and offers to
+plugin's id. If another plugin requires the one you are disabling, Rahdar says which and offers to
 disable them together.
 
 ## Who can install plugins
@@ -115,8 +115,8 @@ permission lets anyone install, not even one that can edit every role. Instead a
 **installers** can. It is checked on every request, so removing someone takes effect on their next
 click.
 
-- The **administrator Studio creates on first start** is the first installer.
-- Or name them in `artemis-studio.plugins.initial-installers`, as a username, or
+- The **administrator Rahdar creates on first start** is the first installer.
+- Or name them in `rahdar.plugins.initial-installers`, as a username, or
   `<registration-id>:<subject>` for a single sign-on user. This list is used only while nobody is an
   installer; after that, installers manage installers.
 - An installer adds or removes others under **Who can install** on the Plugins tab, after
@@ -129,9 +129,9 @@ refused, even an installer's.
 
 ## Licenses
 
-A plugin that is sold can say it **needs a license**. Studio then shows its license state on the Plugins
-tab, and a **License** tab in the plugin's drawer. Studio stores the file you upload, but it does not read
-it: the plugin decides whether it accepts the file, and tells Studio. A plugin that does not need a license
+A plugin that is sold can say it **needs a license**. Rahdar then shows its license state on the Plugins
+tab, and a **License** tab in the plugin's drawer. Rahdar stores the file you upload, but it does not read
+it: the plugin decides whether it accepts the file, and tells Rahdar. A plugin that does not need a license
 shows none.
 
 | State | Meaning |
@@ -147,20 +147,20 @@ shows none.
 - **Upload, replace or remove** a license on the plugin's License tab. Like any change to a plugin, it needs
   an installer who has signed in within the last five minutes. A license file is at most 64 KB.
 - **What a plugin does** without a license, or once one expires, is its own rule; the plugin's documentation
-  says. Nothing else in Studio is affected, and a plugin that fails while checking its license affects no
+  says. Nothing else in Rahdar is affected, and a plugin that fails while checking its license affects no
   other plugin.
 - **Health.** While a running plugin that needs a license has none, has one it did not accept, or has one that
-  ends within 30 days, `/actuator/health/studio` reports `pluginLicenses` as `DEGRADED` and names the plugin. It
+  ends within 30 days, `/actuator/health/rahdar` reports `pluginLicenses` as `DEGRADED` and names the plugin. It
   is never part of readiness.
 - **Audit.** Every upload, replacement and removal is recorded with who did it, the plugin, and the file's
   SHA-256 and size. The content of the file is never recorded.
-- The file is signed by whoever issued it, not secret, so it is stored as is. Anyone who can read Studio's
+- The file is signed by whoever issued it, not secret, so it is stored as is. Anyone who can read Rahdar's
   database can read it.
 
 ## Signing and trust
 
-A plugin runs with Studio's own access, so Studio checks **who built it** before anything runs. Every plugin
-jar is signed by its publisher with a key, and Studio installs a jar only if it is signed by a key an
+A plugin runs with Rahdar's own access, so Rahdar checks **who built it** before anything runs. Every plugin
+jar is signed by its publisher with a key, and Rahdar installs a jar only if it is signed by a key an
 installer has trusted. The signature also proves the jar was not changed afterwards: a file altered, added or
 removed after signing is refused before anything is stored.
 
@@ -169,16 +169,16 @@ removed after signing is refused before anything is stored.
   **fingerprint**, the name you gave it, and the plugins it signed. Adding or removing a key needs a fresh
   sign-in, like any plugin change, and is audited.
 - **Keys from configuration.** An installation that is built from files, such as an air-gapped one or one
-  managed by GitOps, pins its publishers' keys in `artemis-studio.plugins.trusted-keys` instead. See
+  managed by GitOps, pins its publishers' keys in `rahdar.plugins.trusted-keys` instead. See
   [Pin keys by configuration](#pin-keys-by-configuration).
 - **Trust this key.** Upload a plugin from a publisher you have not trusted yet and the review names its key
   by fingerprint and certificate subject. Compare that fingerprint with the one the publisher publishes (on
-  their site, in their release notes), tick that you did, and choose **Trust this key**. Studio takes the key
+  their site, in their release notes), tick that you did, and choose **Trust this key**. Rahdar takes the key
   from the uploaded jar itself, adds it and re-checks the review. Never trust a fingerprint you only read in
   the same place you got the jar.
 - **Signer changes.** An update may be signed by a different trusted key than the installed version. The
   review then shows the old and the new fingerprint, and you must confirm the change before activating.
-  Likewise, an update that asks for a **new permission** highlights it and needs your confirmation. Studio
+  Likewise, an update that asks for a **new permission** highlights it and needs your confirmation. Rahdar
   enforces both on the server; a client that skips the confirmation is refused.
 - **Unverified plugins.** By default a plugin that is unsigned, or signed by a key nobody trusts, cannot be
   installed, updated, rolled back to or enabled. An installer can switch on **Allow unverified plugins** in
@@ -190,17 +190,17 @@ removed after signing is refused before anything is stored.
   confirmation. See [Sign-in providers](#sign-in-providers).
 - **Removing a key.** Plugins the key signed keep running, so removing a key never takes a plugin down, but
   they show the **Unverified** badge at once, and their next update is refused unless a trusted key signed it.
-- **Health.** While any installed plugin is unverified, the `studio` health group in
-  `/actuator/health/studio` reports **DEGRADED** and names the plugins, so a monitor notices. It returns to
+- **Health.** While any installed plugin is unverified, the `rahdar` health group in
+  `/actuator/health/rahdar` reports **DEGRADED** and names the plugins, so a monitor notices. It returns to
   `UP` when the plugin is updated by a trusted key, its key is trusted again, or it is removed.
 
 ### Pin keys by configuration
 
-Each item of `artemis-studio.plugins.trusted-keys` has a `name`, which the Trusted keys dialog shows, and a
+Each item of `rahdar.plugins.trusted-keys` has a `name`, which the Trusted keys dialog shows, and a
 `pem`: the publisher's PEM certificate or public key, the same text you would paste into the dialog.
 
 ```yaml
-artemis-studio:
+rahdar:
   plugins:
     trusted-keys:
       - name: Example Publisher
@@ -214,14 +214,14 @@ As environment variables, with the item's number between underscores, for exampl
 
 ```yaml
 environment:
-  ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_NAME: Example Publisher
-  ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_PEM: |
+  RAHDAR_PLUGINS_TRUSTED_KEYS_0_NAME: Example Publisher
+  RAHDAR_PLUGINS_TRUSTED_KEYS_0_PEM: |
     -----BEGIN CERTIFICATE-----
     MIIB...
     -----END CERTIFICATE-----
 ```
 
-Studio makes the trusted keys agree with the list every time it starts, **before any installed plugin is
+Rahdar makes the trusted keys agree with the list every time it starts, **before any installed plugin is
 started**, so a plugin signed by a configured key is trusted on the first boot with it.
 
 - A configured key is added and shows **From configuration**. A key an installer added by hand with the same
@@ -229,24 +229,24 @@ started**, so a plugin signed by a configured key is trusted on the first boot w
 - **Its Remove is disabled**, and the API refuses with 409 (`configured-key`): change the configuration and
   restart.
 - Remove a key from the list and restart, and it is no longer trusted. The plugins it signed keep running, show
-  the **Unverified** badge, and the `studio` health group reports **DEGRADED**, as for any removed key. Keys an
+  the **Unverified** badge, and the `rahdar` health group reports **DEGRADED**, as for any removed key. Keys an
   installer added by hand are never touched.
-- **A bad entry stops Studio from starting**: a missing `name` or `pem`, a key that is not a PEM certificate
+- **A bad entry stops Rahdar from starting**: a missing `name` or `pem`, a key that is not a PEM certificate
   or public key, or the same key twice. The message names the entry's number (`trusted-keys[1]`) and the
   reason.
 - Every key it adds or removes is audited as `PLUGIN_KEY_ADD` or `PLUGIN_KEY_REMOVE` by the actor
   `configuration`, with the fingerprint.
 
-Whoever can change Studio's configuration can trust a publisher this way, without a fresh sign-in. They could
-already run anything in Studio, but treat the list like the rest of your deployment's secrets.
+Whoever can change Rahdar's configuration can trust a publisher this way, without a fresh sign-in. They could
+already run anything in Rahdar, but treat the list like the rest of your deployment's secrets.
 
 Trust is the key, not the certificate: a publisher who re-issues their certificate for the same key needs
 nothing done. There are no certificate chains, expiry dates or revocation lists, so if a publisher's key is
-compromised, remove it. Plugin authors: see [Sign your plugin](https://github.com/sudoitir/artemis-studio/tree/main/examples/plugin-template#sign-your-plugin).
+compromised, remove it. Plugin authors: see [Sign your plugin](https://github.com/sudoitir/rahdar/tree/main/examples/plugin-template#sign-your-plugin).
 
 ## Security, in short
 
-- **Checked before it is stored.** Studio reads the whole jar's bytecode without loading it.
+- **Checked before it is stored.** Rahdar reads the whole jar's bytecode without loading it.
   - **Refused shapes:** unexpected files; archive tricks such as duplicate or escaping entries,
     oversized entries and extreme compression ratios; and manifest attributes that change how the
     JVM loads code.
@@ -254,19 +254,19 @@ compromised, remove it. Plugin authors: see [Sign your plugin](https://github.co
   - **Refused calls:** `System.exit`, starting processes, `@Scheduled`, `@Async`, and database
     changes that run a command or a Java class.
 - **Its data is its own.** Each plugin has its own database schema and a pool of 3 connections. It
-  may not create anything in Studio's schema or reference Studio's tables. Activation fails if it
+  may not create anything in Rahdar's schema or reference Rahdar's tables. Activation fails if it
   tries, and the previous version resumes.
-- **It uses Studio's permissions.** A plugin's API sits behind Studio's sign-in, and its
+- **It uses Rahdar's permissions.** A plugin's API sits behind Rahdar's sign-in, and its
   permissions are granted through roles like any built-in's.
 - **Everything is audited.** Every upload, activation, change and removal is in the audit log with
-  who, from where, the jar's checksum and the outcome. Each step is also written to Studio's log,
-  because a plugin shares Studio's database role and could, in principle, change the audit table.
-- **The kill switch.** `artemis-studio.plugins.upload.enabled=false` switches installing and
+  who, from where, the jar's checksum and the outcome. Each step is also written to Rahdar's log,
+  because a plugin shares Rahdar's database role and could, in principle, change the audit table.
+- **The kill switch.** `rahdar.plugins.upload.enabled=false` switches installing and
   updating off. Installed plugins keep running, and can still be disabled and removed.
 
 ## Capacity
 
-Each active plugin takes up to 3 database connections, next to Studio's own 16 (the pool size, `ARTEMIS_STUDIO_DB_POOL_SIZE`). Activation is
+Each active plugin takes up to 3 database connections, next to Rahdar's own 16 (the pool size, `RAHDAR_DB_POOL_SIZE`). Activation is
 refused, with the reason, once that would exceed 80% of Postgres' `max_connections`. The Plugins tab
 shows the current count.
 
@@ -279,40 +279,40 @@ than growing without limit.
 
 | Property (environment variable) | Default | |
 | --- | --- | --- |
-| `artemis-studio.plugins.upload.enabled` (`ARTEMIS_STUDIO_PLUGINS_UPLOAD_ENABLED`) | `true` | `false` switches installing and updating off |
-| `artemis-studio.plugins.initial-installers` | — | Who can install while nobody can: usernames or `registration-id:subject` |
-| `artemis-studio.plugins.restart.supervised` (`ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED`) | unset: `true` on Kubernetes | Something starts Studio again after it exits |
-| `artemis-studio.plugins.trusted-keys` (`ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_NAME`, `..._0_PEM`) | none | Publisher keys to trust, each a `name` and a `pem`; see [Pin keys by configuration](#pin-keys-by-configuration) |
-| `artemis-studio.plugins.safe-mode` (`ARTEMIS_STUDIO_PLUGINS_SAFE_MODE`) | `false` | Start without any plugin |
-| `artemis-studio.plugins.start-timeout-seconds` | `60` | How long a plugin gets to start |
-| `artemis-studio.features.plugins.enabled` | `true` | `false` removes the Plugins tab and its API; installed plugins still run |
+| `rahdar.plugins.upload.enabled` (`RAHDAR_PLUGINS_UPLOAD_ENABLED`) | `true` | `false` switches installing and updating off |
+| `rahdar.plugins.initial-installers` | — | Who can install while nobody can: usernames or `registration-id:subject` |
+| `rahdar.plugins.restart.supervised` (`RAHDAR_PLUGINS_RESTART_SUPERVISED`) | unset: `true` on Kubernetes | Something starts Rahdar again after it exits |
+| `rahdar.plugins.trusted-keys` (`RAHDAR_PLUGINS_TRUSTED_KEYS_0_NAME`, `..._0_PEM`) | none | Publisher keys to trust, each a `name` and a `pem`; see [Pin keys by configuration](#pin-keys-by-configuration) |
+| `rahdar.plugins.safe-mode` (`RAHDAR_PLUGINS_SAFE_MODE`) | `false` | Start without any plugin |
+| `rahdar.plugins.start-timeout-seconds` | `60` | How long a plugin gets to start |
+| `rahdar.features.plugins.enabled` | `true` | `false` removes the Plugins tab and its API; installed plugins still run |
 
 ## When something goes wrong
 
-A plugin can never stop Studio from starting. Studio is already serving before any plugin starts,
+A plugin can never stop Rahdar from starting. Rahdar is already serving before any plugin starts,
 and each plugin starts on its own, within a time limit.
 
 | What you see | Why, and what to do |
 | --- | --- |
-| **"This jar cannot be installed"**, with a list | Studio would refuse it. Nothing was stored. **Copy report** for the plugin's author. |
+| **"This jar cannot be installed"**, with a list | Rahdar would refuse it. Nothing was stored. **Copy report** for the plugin's author. |
 | **Failed**, with a reason | It did not start. If an update failed, the previous version kept serving. Retry, upload a fixed version, or uninstall. |
 | **Failed: "schema at version X"** | The update changed its database, the new version then failed to start, and the change could not be undone. Upload a fixed version, or restore from backup. |
-| **Incompatible** | It does not support this version of Studio (its `since`/`until`). Update the plugin, or uninstall it. It becomes active again by itself if Studio moves back into its range. |
+| **Incompatible** | It does not support this version of Rahdar (its `since`/`until`). Update the plugin, or uninstall it. It becomes active again by itself if Rahdar moves back into its range. |
 | **Restart required** | See [What needs a restart](#what-needs-a-restart). |
 | **Refused: "another plugin operation is in progress"** | One change at a time, across all plugins. Wait for it to finish. |
 | **Refused: connection budget** | Disable another plugin, or raise Postgres' `max_connections`. |
-| **A plugin's page says it could not show its screens** | The plugin is running, but its UI failed to load in this browser. The rest of Studio is unaffected. Reload, then check the plugin's row. |
-| **Safe mode: no plugin is running** | Studio stopped uncleanly three times in 15 minutes, so it started without plugins. Or `safe-mode` is set. Fix or remove the plugin that failed, then restart normally. |
+| **A plugin's page says it could not show its screens** | The plugin is running, but its UI failed to load in this browser. The rest of Rahdar is unaffected. Reload, then check the plugin's row. |
+| **Safe mode: no plugin is running** | Rahdar stopped uncleanly three times in 15 minutes, so it started without plugins. Or `safe-mode` is set. Fix or remove the plugin that failed, then restart normally. |
 
 ## Build a plugin
 
 Start from the template:
-[`examples/plugin-template`](https://github.com/sudoitir/artemis-studio/tree/main/examples/plugin-template).
+[`examples/plugin-template`](https://github.com/sudoitir/rahdar/tree/main/examples/plugin-template).
 It is a complete plugin, **Notes**, notes operators leave on queues, with every kind of contribution:
 
 - an entity in its own schema, with a reversible changelog
 - an audited service
-- an API behind Studio's permissions
+- an API behind Rahdar's permissions
 - an assistant tool
 - a setting and a background job
 - a metric with a default alert rule
@@ -323,21 +323,21 @@ mvn verify
 ```
 
 That builds the plugin into one jar: descriptor, classes, database changes and UI. Then it checks the
-jar **exactly as Studio will on upload**, so a refusal shows up in your build, not in front of an
+jar **exactly as Rahdar will on upload**, so a refusal shows up in your build, not in front of an
 operator.
 
 **What a plugin builds against:**
 
-- **Java.** `io.github.sudoitir:artemis-studio` from Maven Central, `provided`. Use only the types
+- **Java.** `io.github.sudoitir:rahdar` from Maven Central, `provided`. Use only the types
   marked `@PluginApi`: those are kept stable within a contract version. Anything else can change in
   any release.
-- **UI.** [`@artemis-studio/plugin-sdk`](https://www.npmjs.com/package/@artemis-studio/plugin-sdk)
-  from npm. Its Vite preset, `studioPlugin({ id })`, builds a Module Federation bundle that takes
-  React, Mantine and TanStack from Studio, so one bundle is small and matches Studio's look.
-- **Versions.** Build against the Studio and SDK version of the **oldest** Studio you support. It
-  becomes your `studio.since`, and Studio refuses the plugin on anything older.
+- **UI.** [`@rahdar/plugin-sdk`](https://www.npmjs.com/package/@rahdar/plugin-sdk)
+  from npm. Its Vite preset, `rahdarPlugin({ id })`, builds a Module Federation bundle that takes
+  React, Mantine and TanStack from Rahdar, so one bundle is small and matches Rahdar's look.
+- **Versions.** Build against the Rahdar and SDK version of the **oldest** Rahdar you support. It
+  becomes your `rahdar.since`, and Rahdar refuses the plugin on anything older.
 
-**The rules Studio enforces** (the template's README explains each):
+**The rules Rahdar enforces** (the template's README explains each):
 
 - **Its namespace.** One id, lowercase kebab-case with your organisation first (`acme-notes`),
   prefixes everything the plugin adds:
@@ -347,19 +347,19 @@ operator.
     (`<id_in_snake_case>_…`)
 - **Its own package.** Classes live only under its `basePackage`. A library it bundles must be
   shaded and relocated under it.
-- **Studio runs its threads.** No `@Scheduled`, `@Async` or threads of its own: contribute a
-  `ScheduledJob`, and Studio runs it and stops it with the plugin. A job's scope says where it runs
-  when several Studio instances share one database: `INSTALLATION` jobs (pruning, housekeeping,
+- **Rahdar runs its threads.** No `@Scheduled`, `@Async` or threads of its own: contribute a
+  `ScheduledJob`, and Rahdar runs it and stops it with the plugin. A job's scope says where it runs
+  when several Rahdar instances share one database: `INSTALLATION` jobs (pruning, housekeeping,
   anything on shared rows) run on one instance per tick, and `INSTANCE` jobs (flushing a buffer,
   refreshing a cache) run on every instance.
-- **Changes are audited.** Audit every change with `AuditService`, like Studio's own features do.
-- **Its data is its own.** Its tables live in its own schema, with no foreign keys to Studio's. Give
+- **Changes are audited.** Audit every change with `AuditService`, like Rahdar's own features do.
+- **Its data is its own.** Its tables live in its own schema, with no foreign keys to Rahdar's. Give
   every changeset a rollback, or updates that apply it cannot be rolled back.
 
 ### Assistant tools
 
-A plugin's `@McpTool` beans join Studio's MCP endpoint while it runs. Declare each one in
-`plugin.json`, and **Studio checks its permission before your code runs**:
+A plugin's `@McpTool` beans join Rahdar's MCP endpoint while it runs. Declare each one in
+`plugin.json`, and **Rahdar checks its permission before your code runs**:
 
 ```json
 "mcpTools": [
@@ -376,7 +376,7 @@ A plugin's `@McpTool` beans join Studio's MCP endpoint while it runs. Declare ea
 
 - **`permission`** is one of the plugin's own permissions. It is checked against the API key's
   owner, as it is for every other call.
-- **`scope`** is the scope of the permission, and Studio refuses a tool whose scope differs.
+- **`scope`** is the scope of the permission, and Rahdar refuses a tool whose scope differs.
   **`scope: resource`** checks it on the queue or address named by the argument `resourceArg` (a
   required string the tool takes), of the kind `resourceKind` (`queue` or `address`), on the cluster
   named by the required string `clusterId`. A caller who may not read that queue or address is told
@@ -384,25 +384,25 @@ A plugin's `@McpTool` beans join Studio's MCP endpoint while it runs. Declare ea
   may read it and may not use it is told which permission is missing.
   **`scope: cluster`** checks it on the cluster named by the tool's `clusterId` argument, which the
   tool must take as a required string. A caller without the grant is told *No such cluster, or this
-  key has no grant on it*, exactly as for Studio's own tools, so the cluster's existence stays hidden.
+  key has no grant on it*, exactly as for Rahdar's own tools, so the cluster's existence stays hidden.
   **`scope: global`** checks it globally, and a denial names the permission.
 - **`posture`** is `read` or `write`. Annotate a `read` tool
   `@McpTool.McpAnnotations(readOnlyHint = true)`, and a `write` tool not: hosts decide from that
   annotation whether to ask the operator first.
-- **`params`** are the accepted values, body shapes and notes your schema leaves out. `studio_help`
+- **`params`** are the accepted values, body shapes and notes your schema leaves out. `rahdar_help`
   shows them, with the permission and scope, to any model that asks.
 
-Studio refuses to activate a plugin whose registered tools and declared tools differ, whose
+Rahdar refuses to activate a plugin whose registered tools and declared tools differ, whose
 cluster or resource tool takes no `clusterId` (or a resource tool no `resourceArg`), or whose annotations contradict its posture. Check finer rules
 (such as a second permission for sensitive fields) inside the tool as usual.
 
 ### Messages and secrets
 
 A plugin can react to messages, send them and keep credentials without a client, thread or store of
-its own. Inject the two beans Studio puts into every plugin's context; each is bound to that plugin
+its own. Inject the two beans Rahdar puts into every plugin's context; each is bound to that plugin
 and acts only on its own data.
 
-**`PluginMessaging`** registers what the plugin wants delivered, and Studio makes it true on every
+**`PluginMessaging`** registers what the plugin wants delivered, and Rahdar makes it true on every
 serving node, after every restart and failover, and undoes it when the registration is removed or
 the plugin stops running:
 
@@ -428,8 +428,8 @@ class Orders implements PluginMessageHandler {
 - **`TAP`** delivers a copy of every message routed to the queue. Existing consumers and producers
   are untouched. If the plugin falls behind, the oldest copies are dropped, and
   `registration(key).droppedCopies()` says how many. It needs the acting user to hold
-  `message:read` on the queue, and Studio's broker role to be set
-  (`artemis-studio.capture.broker-role`, as for capture).
+  `message:read` on the queue, and Rahdar's broker role to be set
+  (`rahdar.capture.broker-role`, as for capture).
 - **`CONSUME`** makes the plugin one of the queue's consumers. `ACCEPT` removes the message.
   `REJECT`, an exception, or the plugin stopping first leaves it for redelivery, within the broker's
   `max-delivery-attempts`. `RELEASE` also leaves it on the queue, but without spending a delivery
@@ -444,37 +444,37 @@ class Orders implements PluginMessageHandler {
   reject a bad target when a user configures it. `send` still checks every message.
 - **Every registration acts for a user**, whose rights on the queue or address (through a role, a
   team or a share) are checked when it is made and on every pass after
-  (`artemis-studio.plugins.messaging.reconcile-interval`, 10 s by default). If the user loses
+  (`rahdar.plugins.messaging.reconcile-interval`, 10 s by default). If the user loses
   a permission, the registration is `SUSPENDED` and says why. It resumes when the permission
   returns.
 - **Concurrency.** A registration's `concurrency` is how many messages the handler gets at once on
-  each serving node: 1 to 32 for `CONSUME`, exactly 1 for `TAP`. Studio opens that many consumers
+  each serving node: 1 to 32 for `CONSUME`, exactly 1 for `TAP`. Rahdar opens that many consumers
   per node. Any other value is refused, with the reason.
 - **Flow control.** A `CONSUME` registration's consumers have no prefetch window (the Core client's
   `consumerWindowSize=0`): the broker hands a consumer its next message only once the last one is
   settled. At most `concurrency` messages per node are delivered and unsettled, the rest stay on the
   queue for any other consumer, and a slow handler is simply handed fewer messages. Nothing
-  buffers in Studio or in the plugin.
+  buffers in Rahdar or in the plugin.
 - **Order.** With a concurrency above 1, messages are handled in parallel, so their order is not
   kept, except within a message group. Producers that set the same `JMSXGroupID` (`_AMQ_GROUP_ID`
   in Core) on related messages get them handled one at a time, in order, on each node: the broker
   hands every group to one consumer. For an order across a broker cluster's nodes, configure the
   broker's grouping handler. A concurrency of 1 keeps the queue's order on each node.
-- **Threads.** Studio calls the handler on threads of its own, from a pool that only plugin
-  handlers use: at most `artemis-studio.plugins.messaging.max-threads` (64 by default, at least 2)
+- **Threads.** Rahdar calls the handler on threads of its own, from a pool that only plugin
+  handlers use: at most `rahdar.plugins.messaging.max-threads` (64 by default, at least 2)
   per node for consumers, and as many for taps. A handler that blocks holds its own consumer and a
   thread of that pool, never a thread message capture or an operator's session needs. Keep it
   bounded all the same: blocked handlers across plugins share the pool, and one registration's
   footprint is its `concurrency` threads per node.
-- Queues under Studio's own prefixes and the broker's management addresses are refused.
+- Queues under Rahdar's own prefixes and the broker's management addresses are refused.
 
-**`PluginSecrets`** stores named values encrypted with Studio's secret key: `put`, `get`, `delete`
-and `list` (names and dates only). No Studio interface returns a value, and a plugin should keep it
+**`PluginSecrets`** stores named values encrypted with Rahdar's secret key: `put`, `get`, `delete`
+and `list` (names and dates only). No Rahdar interface returns a value, and a plugin should keep it
 that way: accept secrets, never echo them. Purging the plugin deletes them.
 
 ### Metrics and alerts
 
-A plugin publishes numbers an operator watches through Studio's own metrics: the time series, its
+A plugin publishes numbers an operator watches through Rahdar's own metrics: the time series, its
 charts, Prometheus and the alert rules. Nothing parallel is needed on either side.
 
 **Declare** each metric in `plugin.json`, with the permission that reads its series:
@@ -500,19 +500,19 @@ class NoteCounts implements PluginMetricSource {
 }
 ```
 
-- **When.** Studio asks on every tier-B scrape of a cluster (every 15 s by default). A call that
+- **When.** Rahdar asks on every tier-B scrape of a cluster (every 15 s by default). A call that
   throws or takes longer than two seconds is skipped for that scrape, so answer from what the
   plugin already holds rather than from a slow query.
 - **Where it goes.**
   - The values are stored with the queue metrics and share their retention.
-  - Prometheus shows them as `studio_plugin_metric{plugin, metric, cluster, subject}`.
-  - Each value is per Studio instance.
-- **Rules.** Threshold rules can watch the metric, with Studio's comparators, durations,
+  - Prometheus shows them as `rahdar_plugin_metric{plugin, metric, cluster, subject}`.
+  - Each value is per Rahdar instance.
+- **Rules.** Threshold rules can watch the metric, with Rahdar's comparators, durations,
   severities and channels. A scope's `subjectPattern` narrows a rule to some subjects.
   - `alertRules` are created once on every cluster, when the plugin first runs and for clusters
     registered later. An operator's edit or deletion is never undone.
   - While the plugin is not running, its rules show "source unavailable" and do not fire.
-- **Charts.** `MetricChart` from the SDK draws Studio's own chart of one subject:
+- **Charts.** `MetricChart` from the SDK draws Rahdar's own chart of one subject:
   `<MetricChart clusterId={id} metric="acme-notes:notes" subject="orders" title="Notes" />`. The
   reader needs the permission the metric declares. `usePluginSeries` returns the same series as
   data.
@@ -525,20 +525,20 @@ class NoteCounts implements PluginMetricSource {
 { "version": "1.5.0", "url": "https://acme.example/acme-notes-1.5.0.jar", "sha256": "…", "changeNotes": "…" }
 ```
 
-Studio asks only when an installer chooses **Check for updates**. It downloads the jar without
+Rahdar asks only when an installer chooses **Check for updates**. It downloads the jar without
 following redirects, and refuses it unless it hashes to that `sha256`.
 
 ### Licensing
 
-A plugin that needs a license says so in `plugin.json`, and Studio stores the file an administrator uploads
-and shows the plugin's verdict. Studio never reads the file and knows no license scheme: reading it,
+A plugin that needs a license says so in `plugin.json`, and Rahdar stores the file an administrator uploads
+and shows the plugin's verdict. Rahdar never reads the file and knows no license scheme: reading it,
 checking it and deciding what an invalid one means are the plugin's.
 
 ```json
 "requiresLicense": true
 ```
 
-Inject **`PluginLicense`**, which Studio binds to the plugin like `PluginSecrets`:
+Inject **`PluginLicense`**, which Rahdar binds to the plugin like `PluginSecrets`:
 
 ```java
 @Component
@@ -548,7 +548,7 @@ class Licensing {
 
     Licensing(PluginLicense license) { this.license = license; }
 
-    /** Runs when the file is uploaded, replaced or removed, on every Studio instance. */
+    /** Runs when the file is uploaded, replaced or removed, on every Rahdar instance. */
     @EventListener
     void onChanged(PluginLicenseChanged changed) {
         if (!changed.pluginId().equals("acme-notes")) {
@@ -565,23 +565,23 @@ class Licensing {
   uploaded. It is empty when there is none. A plugin can read only its own file.
 - **`report(sha256, verdict)`** says what the plugin made of that file: a status (`VALID`, `EXPIRED`,
   `OVER_LIMIT` or `INVALID`), when it ends, who it was issued to, and a short detail for the administrator
-  (such as why a file is invalid). The licensee is cut at 200 characters and the detail at 500. Studio ignores a
+  (such as why a file is invalid). The licensee is cut at 200 characters and the detail at 500. Rahdar ignores a
   report whose `sha256` is not the stored file's, so a late report never marks a replaced file valid. Never put the file's content in the
   detail.
-- **`PluginLicenseChanged`** reaches the plugin on every Studio instance when its file is uploaded,
+- **`PluginLicenseChanged`** reaches the plugin on every Rahdar instance when its file is uploaded,
   replaced or removed. Every plugin receives it, so compare `pluginId()` with your own. Check your
   license when the plugin starts and on a timer as well: an expiry is a moment, not an event.
-- Studio shows `Not checked yet` until the plugin reports, and its health degrades after five minutes, so
+- Rahdar shows `Not checked yet` until the plugin reports, and its health degrades after five minutes, so
   report every file you are given, including one you reject.
-- **`StudioInfo.brokerInstances()`** is the number of broker nodes registered in the installation, a count
+- **`RahdarInfo.brokerInstances()`** is the number of broker nodes registered in the installation, a count
   with no names, for a license that is sized by it.
-- Studio is not affected by a plugin's verdict, and a listener that throws is logged and isolated.
+- Rahdar is not affected by a plugin's verdict, and a listener that throws is logged and isolated.
   Keep a license check cheap and never block on it.
 
 ### Sign-in providers
 
 A plugin can offer a username-and-password sign-in, for a corporate directory for example. It answers
-**who the credentials belong to**; everything else on the sign-in path stays Studio's: the login
+**who the credentials belong to**; everything else on the sign-in path stays Rahdar's: the login
 throttle, the account lockout, second factors, the session, the audit trail and the group mappings.
 
 **Declare** each provider in `plugin.json`, with the label the login screen shows:
@@ -609,7 +609,7 @@ class CorporateDirectory implements PluginCredentialProvider {
 }
 ```
 
-- **What Studio does with the answer.** An account is keyed by the provider id and `subject`, so it
+- **What Rahdar does with the answer.** An account is keyed by the provider id and `subject`, so it
   must not change for a user. The first sign-in creates the account with `username`; a name another
   account already has is stored as `name@<provider id>`, and the provider is still asked about plain
   `name`. Grants come only from **Group mappings** on the provider's groups (or its default role): a
@@ -617,27 +617,27 @@ class CorporateDirectory implements PluginCredentialProvider {
 - **A wrong password is an empty answer.** It is answered, throttled and counted toward the lockout
   exactly like a wrong local password. A throw, an answer that is not valid (a blank subject or
   username, a field over 255 characters, more than 1,000 groups) or no answer within 5 seconds is
-  treated the same, and `/actuator/health/studio` reports **DEGRADED**, naming the provider and the reason,
+  treated the same, and `/actuator/health/rahdar` reports **DEGRADED**, naming the provider and the reason,
   until a call succeeds. Local sign-in never waits on a plugin.
 - **Only a verified plugin may sign users in.** A plugin that declares a provider is installed only
   when a trusted key signed it, even with **Allow unverified plugins** on. Installing it, or updating
   it to add a provider, needs a confirmation (`signin-added`) and the review says the plugin will
   receive the passwords users type. If its key is later removed, the plugin keeps running but its
   providers stop signing anyone in at once.
-- **Revoking access.** When the provider implements `noLongerValid`, Studio asks it about the enabled
+- **Revoking access.** When the provider implements `noLongerValid`, Rahdar asks it about the enabled
   accounts of the provider and, for every subject it returns, ends the user's sessions, revokes their
   API tokens and trusted devices and audits `IDENTITY_REVOKED`. The account stays enabled, so a user
   restored in the directory signs in again. This pauses while the plugin is stopped, and stopping or
   updating a plugin does not sign anyone out.
 - **Second factors.** A role that requires a second factor applies to these users like local ones: they
   enrol at their first sign-in and then give a code after the password. Their password is changed
-  where the directory keeps it, not in Studio.
-- Redirect (OIDC-like) providers, bearer providers and changing Studio's throttling, lockout or
+  where the directory keeps it, not in Rahdar.
+- Redirect (OIDC-like) providers, bearer providers and changing Rahdar's throttling, lockout or
   session rules are not available to plugins.
 
 ### Approval providers
 
-A plugin can decide whether Studio's gated operations may run, for example by holding them until a
+A plugin can decide whether Rahdar's gated operations may run, for example by holding them until a
 second person approves. **Declare** it in `plugin.json`, naming the permission the people who approve
 hold, which must be one the plugin declares under `permissions`:
 
@@ -653,13 +653,13 @@ named `<plugin id>:<name>`, and no two operations share a type or a parameters r
   meant to be active is refused (`approval-provider-exists`), naming the first. Disable or uninstall it first.
 - **The gate follows what is meant to be active, not what is running.** From the moment the provider is
   being installed, and while it is starting, has failed, needs a restart or is incompatible with this
-  Studio, gated operations are not run and the caller is told approvals are unavailable. Only disabling
+  Rahdar, gated operations are not run and the caller is told approvals are unavailable. Only disabling
   or uninstalling the provider disarms the gate. Updating or rolling back the provider keeps it armed.
 - **Removal is announced.** Disabling or uninstalling the provider publishes a `PluginStatusChanged`
   event inside the same transaction, so what depended on it is cancelled together with its removal.
-- Studio logs `approval-gate` at INFO when it boots and whenever the gate arms or disarms.
+- Rahdar logs `approval-gate` at INFO when it boots and whenever the gate arms or disarms.
 
-**The approver's page.** Studio's own Approve and Reject sit on every request's page. A provider that
+**The approver's page.** Rahdar's own Approve and Reject sit on every request's page. A provider that
 needs more of the approver, such as its own checks or a second signature, contributes to the
 `approval.decision` slot, which renders above them with the request (`heldOperation`) and a `refresh`
 to call once the provider changed it. A vote needs a fresh sign-in, and `StepUpPrompt` asks for one
@@ -668,7 +668,7 @@ when the plugin's endpoint refused for that reason:
 ```tsx
 import { useMutation } from '@tanstack/react-query';
 import { Button, Stack } from '@mantine/core';
-import { pluginApi, request, StepUpPrompt, type SlotProps } from '@artemis-studio/plugin-sdk';
+import { pluginApi, request, StepUpPrompt, type SlotProps } from '@rahdar/plugin-sdk';
 
 function SecondSignature({ heldOperation, refresh }: SlotProps['approval.decision']) {
   const sign = useMutation({
@@ -715,7 +715,7 @@ or in an update, is activated only after they acknowledge `audit-access-added`.
 
 ### Reading metric history
 
-A plugin that wants the history of Studio's queue metrics, or of metrics plugins publish, injects
+A plugin that wants the history of Rahdar's queue metrics, or of metrics plugins publish, injects
 **`MetricHistory`** and names the user it acts for. The read runs as that user's account as it stands
 now, so the cluster check, the permission a plugin metric declares, the retention limit and the
 point cap are exactly those of the metrics API:
@@ -745,9 +745,9 @@ class QueueTrend {
   clamped, and the response has `truncated` set to `true`.
 - `MetricHistory` is absent when the metrics feature is switched off: inject an `ObjectProvider`.
 
-### Studio facts and shared UI
+### Rahdar facts and shared UI
 
-**`StudioInfo`** (Java) tells a plugin which Studio it runs on, for example to head a file it
+**`RahdarInfo`** (Java) tells a plugin which Rahdar it runs on, for example to head a file it
 exports:
 
 - `version()` is the running version, such as `2026.10.1`, and is empty for a development build.
@@ -758,7 +758,7 @@ exports:
   display name, ordered by name. Use it to let a document name clusters and store their ids. Names
   are not unique, so say so when a name matches more than one.
 
-**The SDK's UI components** are the ones Studio's own screens use:
+**The SDK's UI components** are the ones Rahdar's own screens use:
 
 - **`CodeEditor`** edits YAML or JSON.
   - It highlights keys, values, comments and punctuation. It folds, matches brackets and searches
@@ -766,7 +766,7 @@ exports:
   - Tab indents. Escape then Tab leaves the editor.
   - Pass `maxHeight` to make it scroll inside itself, or `lineWrapping` to wrap long lines.
   - It validates nothing itself: pass your server's diagnostics by line and column.
-- **`DataTable`** is Studio's one table. Describe each column once (`id`, a required `header`, an
+- **`DataTable`** is Rahdar's one table. Describe each column once (`id`, a required `header`, an
   `accessor` for its plain value, an optional `cell` renderer, a `kind` and a `priority`) and pass a
   required `label` that names the table and an `empty` state.
   - **Columns size themselves.** There are no pixel widths. A `kind` (`text`, `identifier`, `code`,
@@ -782,7 +782,7 @@ exports:
   - **The viewer's choices** (widths, hidden columns, order) are kept when you pass a `storageKey`
     prefixed with your plugin id (`acme-notes.notes`). The URL owns the sort: pass `sort` and
     `onSortChange`.
-- **The page parts** are what every Studio page is built from.
+- **The page parts** are what every Rahdar page is built from.
   - `Page` is the frame, and `PageHeader` is the page's one h1, with a description, meta and
     actions. `Section` is a titled block, plain or as a card, and `Toolbar` is the row of controls
     above a view.
@@ -795,11 +795,11 @@ exports:
   - `FieldRow` puts fields on one line, such as a name and a value, or a field and the button that
     submits it. Every input box stays on the same line whatever its label, description or message
     holds, and the row wraps when the window is narrow. Use it, not your own flex row, so your
-    forms line up with Studio's.
+    forms line up with Rahdar's.
   - `Notice` states something the operator should know about the whole page, such as a licence in
     its grace period: a title in words, a tone (`neutral`, `info`, `warning`, `danger`) and the
     text. A `danger` notice is announced as an alert, every other tone as a status. Use it, not
-    Mantine's `Alert`, so a plugin's notices read and contrast like Studio's.
+    Mantine's `Alert`, so a plugin's notices read and contrast like Rahdar's.
   - `ConfirmDialog` confirms an action, and a `danger` one is confirmed by pressing and holding its
     button (`HoldToConfirm` is the same control outside a dialog). `notify` shows a toast for the outcomes of an action: pending, succeeded, failed and
     partial.
@@ -823,8 +823,8 @@ exports:
 
 ### What the browser allows a plugin's UI
 
-A plugin's UI runs in Studio's page, under the page's Content-Security-Policy. Beyond keeping scripts,
-connections and workers on Studio's own origin, the policy has the browser refuse code that turns a
+A plugin's UI runs in Rahdar's page, under the page's Content-Security-Policy. Beyond keeping scripts,
+connections and workers on Rahdar's own origin, the policy has the browser refuse code that turns a
 string into markup or script (Trusted Types):
 
 - Assigning a string with markup to `innerHTML`, `outerHTML`, `insertAdjacentHTML` or `document.write`
@@ -832,17 +832,34 @@ string into markup or script (Trusted Types):
   any `<` in it is still accepted.
 - A script `src`, `new Worker(url)` and `eval` throw. Bundle what you need into your own files.
 - An inline event-handler attribute such as `onclick="…"` never runs. Use React's `onClick`.
-- `javascript:` addresses are not links. Studio's own links to a plugin's vendor, icon and start
-  paths go through a check that allows only `http:`, `https:`, `mailto:` and Studio's own address.
+- `javascript:` addresses are not links. Rahdar's own links to a plugin's vendor, icon and start
+  paths go through a check that allows only `http:`, `https:`, `mailto:` and Rahdar's own address.
 
 React, Mantine and the SDK's components work as they are. A library of your own that sets `innerHTML`
 (a rich-text editor, a Markdown renderer) is what to check: it stops working here. Pick one that renders
 through React, or show the text as text.
 
+### Moving a plugin from contract 14 to 15
+
+Contract 15 renames the product to Rahdar. Nothing about how a plugin works changes, but every name it
+builds against does, so rebuild it and set `<rahdar.contract>15</rahdar.contract>` in its `pom.xml`:
+
+- **Coordinates.** Depend on `io.github.sudoitir:rahdar` (was `artemis-studio`) and on
+  `@rahdar/plugin-sdk` (was `@artemis-studio/plugin-sdk`). The Maven `groupId` is unchanged.
+- **Packages.** Every API type moves from `io.github.sudoitir.artemisstudio` to
+  `io.github.sudoitir.rahdar`, and types named after the product drop "Studio" for "Rahdar"
+  (`StudioPrincipal` is `RahdarPrincipal`). Replace the imports; the members are the same.
+- **The manifest.** It moves from `META-INF/artemis-studio/plugin.json` to `META-INF/rahdar/plugin.json`,
+  and its `studio` object is now `rahdar` (`"rahdar": { "since": "…" }`). The template's
+  `studio.version`, `studio.since`, `studio.contract` and `studio.sdk` properties are `rahdar.version`,
+  `rahdar.since`, `rahdar.contract` and `rahdar.sdk`.
+- **Configuration and environment.** Keys under `artemis-studio.*` are `rahdar.*`, and variables
+  `ARTEMIS_STUDIO_*` are `RAHDAR_*`, including `rahdar.plugins.trusted-keys`.
+
 ### Moving a plugin from contract 13 to 14
 
-Contract 14 changes how scheduled jobs are described and run. Studio refuses a plugin built for contract 13
-with "built for extension contract 13", so rebuild it and set `<studio.contract>14</studio.contract>` in its
+Contract 14 changes how scheduled jobs are described and run. Rahdar refuses a plugin built for contract 13
+with "built for extension contract 13", so rebuild it and set `<rahdar.contract>14</rahdar.contract>` in its
 `pom.xml`:
 
 - **A job has a timeout.** `ScheduledJob` gains a `timeout` component. `ScheduledJob.fixedDelay` and
@@ -854,24 +871,24 @@ with "built for extension contract 13", so rebuild it and set `<studio.contract>
 - **A run never overlaps itself and an installation-wide run stops when it loses its lock.** A job that
   relied on a second run starting while the first was still busy no longer gets one.
 - **`JobStatuses` records runs itself.** Its constructor takes only a `MeterRegistry`, and `instrument(...)`
-  is gone: Studio's job runner records every run, and `all()` reads the statuses.
+  is gone: Rahdar's job runner records every run, and `all()` reads the statuses.
 
 ### Moving a plugin from contract 12 to 13
 
 Contract 13 changes what an approval provider returns and how a plugin confirms a destructive action.
-Studio refuses a plugin built for contract 12 with "built for extension contract 12", so rebuild it and set
-`<studio.contract>13</studio.contract>` in its `pom.xml`:
+Rahdar refuses a plugin built for contract 12 with "built for extension contract 12", so rebuild it and set
+`<rahdar.contract>13</rahdar.contract>` in its `pom.xml`:
 
 - **The requester's reason is gone.** `GateDecision.Hold` is `Hold(policy, ttl, approverHint)`, with no
   `reasonRequired`; `GateRequest` and `GatePreview` carry no reason; `GateContext.REASON`,
-  `REASON_HEADER` and `REASON_ARGUMENT` and `ApprovalReasonRequiredException` are removed, and Studio
-  ignores the `X-Studio-Approval-Reason` header. A policy that needs context for its approvers reads it from
+  `REASON_HEADER` and `REASON_ARGUMENT` and `ApprovalReasonRequiredException` are removed, and Rahdar
+  ignores the `X-Rahdar-Approval-Reason` header. A policy that needs context for its approvers reads it from
   the operation, its effect and its display rows. An approver still gives a reason when rejecting.
 - **A provider can say whether it holds anything.** `ApprovalProvider.enforcing()` defaults to `true`.
-  Return `false` while there is no policy (setup mode), so Studio does not require two approvers of an
+  Return `false` while there is no policy (setup mode), so Rahdar does not require two approvers of an
   installation that asks nobody to approve. Inject `ApproverPool` and refuse to start holding while
   `quorate()` is false: a request needs someone other than its requester, so one approver locks the gate.
-  While the provider enforces, Studio refuses an access change that would take the approvers below
+  While the provider enforces, Rahdar refuses an access change that would take the approvers below
   two (`approver-quorum`, HTTP 409).
 - **Destructive confirmations are held, not typed.** `ConfirmByTyping` and `ConfirmDialog`'s `typedName` are
   gone from the SDK. A `ConfirmDialog` with `tone="danger"` is confirmed by pressing and holding its button,
@@ -884,10 +901,10 @@ Studio refuses a plugin built for contract 12 with "built for extension contract
 
 ### Moving a plugin from contract 11 to 12
 
-Contract 12 adds the approval gate's types (`io.github.sudoitir.artemisstudio.kernel.gate`): what a
+Contract 12 adds the approval gate's types (`io.github.sudoitir.rahdar.kernel.gate`): what a
 gated operation declares, and the `ApprovalProvider` interface a plugin can implement to decide which
-operations need a second person's approval. Studio refuses a plugin built for contract 11 with "built for
-extension contract 11", so rebuild it and set `<studio.contract>12</studio.contract>` in its `pom.xml`.
+operations need a second person's approval. Rahdar refuses a plugin built for contract 11 with "built for
+extension contract 11", so rebuild it and set `<rahdar.contract>12</rahdar.contract>` in its `pom.xml`.
 
 The Administration page now lists its tabs in a vertical navigation under four headings, so a plugin
 that adds an Administration tab (`admin.tabs`) names the one it belongs under in `group`:
@@ -905,15 +922,15 @@ slots: {
 },
 ```
 
-The SDK exports the headings as `ADMIN_GROUPS`, and its typings require `group`. Studio refuses a plugin
+The SDK exports the headings as `ADMIN_GROUPS`, and its typings require `group`. Rahdar refuses a plugin
 whose Administration tab names no group, or one not in the list, with "names no administration group".
 Nothing else in an existing plugin has to change.
 
 ### Moving a plugin from contract 10 to 11
 
 Contract 11 lets a plugin decide, filter and guard permissions on one queue or address, and lets its
-assistant tools and scheduled work follow. Studio refuses a plugin built for contract 10 with "built for
-extension contract 10", so rebuild it and set `<studio.contract>11</studio.contract>` in its `pom.xml`:
+assistant tools and scheduled work follow. Rahdar refuses a plugin built for contract 10 with "built for
+extension contract 10", so rebuild it and set `<rahdar.contract>11</rahdar.contract>` in its `pom.xml`:
 
 - An assistant tool's `scope` must be the scope of its permission (`resource`, `cluster` or `global`),
   and a `resource` tool names `resourceArg`, the string argument that holds the queue or address, and
@@ -925,29 +942,29 @@ extension contract 10", so rebuild it and set `<studio.contract>11</studio.contr
 - A message registration (`RegistrationSpec`) is checked on its queue and a send on its address, for the
   acting user, not on the cluster.
 - Scheduled work that acts for a user is published as `OwnerWork`, naming the permissions and resources
-  it needs. Studio refuses the publish naming each missing one, checks again before every run, and
+  it needs. Rahdar refuses the publish naming each missing one, checks again before every run, and
   suspends the work with the reason when the owner loses one.
 - In the UI, `useCan().can(permission, { clusterId, kind, name })` answers for one queue or address, and
   adding the row's `allowedActions` answers with no request.
 
 ### Moving a plugin from contract 9 to 10
 
-Contract 10 makes permissions resource-scoped. Studio refuses a plugin built for contract 9, so
-rebuild it against the new API and set `<studio.contract>10</studio.contract>` in its `pom.xml`:
+Contract 10 makes permissions resource-scoped. Rahdar refuses a plugin built for contract 9, so
+rebuild it against the new API and set `<rahdar.contract>10</rahdar.contract>` in its `pom.xml`:
 
 - In `plugin.json`, each permission declares `scope` (`global`, `cluster` or `resource`) in place of
   `globalOnly`; a `resource` permission also lists `resourceKinds` (`queue`, `address`). A manifest
   that still says `globalOnly` is refused at install.
 - `PermissionResolver`'s constructor changed (a plugin receives it as a bean and never builds it),
-  and `StudioPrincipal.grants()` is gone: ask `PermissionResolver.can(...)` instead of reading
+  and `RahdarPrincipal.grants()` is gone: ask `PermissionResolver.can(...)` instead of reading
   grants. A check on one queue or address passes a `ResourceRef`.
 - A plugin's UI runs under Trusted Types: see [what the browser allows a plugin's UI](#what-the-browser-allows-a-plugin-s-ui).
 
 ### Moving a plugin from contract 8 to 9
 
-Contract 9 replaces `VirtualTable` with the parts above. Studio refuses a plugin built for contract
+Contract 9 replaces `VirtualTable` with the parts above. Rahdar refuses a plugin built for contract
 8 with "built for extension contract 8", so rebuild it against the new SDK and set
-`<studio.contract>9</studio.contract>` in its `pom.xml`:
+`<rahdar.contract>9</rahdar.contract>` in its `pom.xml`:
 
 - `VirtualTable` becomes `DataTable`, and `GridColumn` becomes `Column`.
 - A column's `width` is gone. Choose its `kind` and `priority`, and `min` and `max` where the
@@ -966,7 +983,7 @@ Contract 9 replaces `VirtualTable` with the parts above. Studio refuses a plugin
 
 A permission declared `"scope": "resource"` acts on one queue or address, so it is held through a
 role granted at global, environment or cluster scope, through a team role on the team that owns the
-name, or through a share. Check it the way Studio does, so your answers are exactly Studio's:
+name, or through a share. Check it the way Rahdar does, so your answers are exactly Rahdar's:
 
 - **`ClusterAccessGuard.requireResource(clusterId, ResourceRef.queue(name), "acme-notes:read")`**
   guards one operation. A caller who may not read the queue gets the not-found a missing one gets
@@ -1012,8 +1029,8 @@ if (work.beforeRun("forward-orders").runnable()) {
 ## How it works
 
 Each plugin runs in its own Spring context, with its own class loader, schema and connection pool.
-One gateway routes its API, and Studio's registries take and drop its contributions at runtime. Its
-UI is a Module Federation bundle loaded when Studio starts. The design and its trade-offs are in
+One gateway routes its API, and Rahdar's registries take and drop its contributions at runtime. Its
+UI is a Module Federation bundle loaded when Rahdar starts. The design and its trade-offs are in
 [ADR-0099](/reference/adr/0099-runtime-plugins-are-child-contexts-installed-from-the-ui) (the
 runtime), [ADR-0100](/reference/adr/0100-plugin-uis-are-module-federation-remotes) (the UI),
 [ADR-0101](/reference/adr/0101-each-plugin-owns-a-schema-pool-and-entity-manager) (the data),

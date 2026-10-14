@@ -197,7 +197,7 @@ export function MessagesView() {
 
   const uncertainty = unproven ? (
     <Notice tone="info" title="Not yet established for this connection">
-      No management write has been attempted here yet, so Studio cannot say for certain that message operations will
+      No management write has been attempted here yet, so Rahdar cannot say for certain that message operations will
       work. They are offered anyway — the first one settles it.
     </Notice>
   ) : null;
@@ -231,7 +231,7 @@ export function MessagesView() {
   // A selector's match count is the preview's to establish; the page's total is the whole queue.
   const selectionTotal = selectionTotalOf(selection, total);
 
-  // A node Studio could not reach contributes no rows, which looks exactly like a queue with none.
+  // A node Rahdar could not reach contributes no rows, which looks exactly like a queue with none.
   const unreachable = (cluster.data?.topology.nodes ?? [])
     .flatMap((n) => n.endpoints)
     .filter((e) => e.lastError)

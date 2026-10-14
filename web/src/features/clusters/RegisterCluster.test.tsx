@@ -129,7 +129,7 @@ function preview() {
 function alreadyRegistered(visible = true) {
   return HttpResponse.json(
     {
-      type: 'https://artemis-studio.dev/problems/cluster-already-registered',
+      type: 'https://rahdar.dev/problems/cluster-already-registered',
       title: 'These brokers are already registered',
       status: 409,
       detail: visible
@@ -169,7 +169,7 @@ describe('RegisterClusterForm', () => {
   it('tells the operator that one management URL is enough', () => {
     renderWithProviders(<RegisterClusterForm />);
     expect(screen.getByLabelText(/Broker management URL/)).toHaveAccessibleDescription(
-      /^One is enough: Studio finds the rest of the cluster from it\./,
+      /^One is enough: Rahdar finds the rest of the cluster from it\./,
     );
   });
 
@@ -188,7 +188,7 @@ describe('RegisterClusterForm', () => {
     expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
   });
 
-  it('warns before registering a broker newer than Studio has tested, and still lets it register', async () => {
+  it('warns before registering a broker newer than Rahdar has tested, and still lets it register', async () => {
     const untested = preview();
     untested.topology.nodes[0].endpoints[0].version = '2.60.0';
     untested.topology.nodes[0].endpoints[0].versionSupport = 'NEWER_THAN_TESTED';
@@ -199,7 +199,7 @@ describe('RegisterClusterForm', () => {
     await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
-    expect(await screen.findByText('Newer Artemis than Studio has tested')).toBeInTheDocument();
+    expect(await screen.findByText('Newer Artemis than Rahdar has tested')).toBeInTheDocument();
     expect(screen.getByText(/broker-1 runs Artemis 2\.60\.0/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Register cluster' })).toBeEnabled();
   });
@@ -209,11 +209,11 @@ describe('RegisterClusterForm', () => {
       http.post('*/api/v1/clusters', () =>
         HttpResponse.json(
           {
-            type: 'https://artemis-studio.dev/problems/broker-unsupported-version',
+            type: 'https://rahdar.dev/problems/broker-unsupported-version',
             title: 'Artemis version not supported',
             status: 422,
             detail:
-              'The broker at http://broker-1:8161/console/jolokia runs Artemis 2.31.2. Studio supports Artemis 2.33.0 and later; upgrade the broker to register it.',
+              'The broker at http://broker-1:8161/console/jolokia runs Artemis 2.31.2. Rahdar supports Artemis 2.33.0 and later; upgrade the broker to register it.',
             brokerErrorKind: 'UNSUPPORTED_VERSION',
           },
           { status: 422, headers: { 'Content-Type': 'application/problem+json' } },
@@ -226,7 +226,7 @@ describe('RegisterClusterForm', () => {
     await user.type(screen.getByLabelText(/Broker management URL/), 'broker-1');
     await user.click(screen.getByRole('button', { name: 'Check connection' }));
 
-    expect(await screen.findByText(/Studio supports Artemis 2\.33\.0 and later/)).toBeInTheDocument();
+    expect(await screen.findByText(/Rahdar supports Artemis 2\.33\.0 and later/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Register cluster' })).toBeDisabled();
     // Nothing was edited, so the hint must not claim the details changed.
     expect(screen.getByText('The check failed. Fix what it reports above, then check again.')).toBeInTheDocument();

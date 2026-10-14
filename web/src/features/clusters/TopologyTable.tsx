@@ -46,7 +46,7 @@ export function TopologyTable({
         <EmptyState
           kind="empty"
           title="No node has answered yet"
-          description="Studio lists a node here as soon as it answers on the cluster's seed address."
+          description="Rahdar lists a node here as soon as it answers on the cluster's seed address."
         />
       }
     />

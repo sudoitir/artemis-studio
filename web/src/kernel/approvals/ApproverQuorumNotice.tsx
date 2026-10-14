@@ -4,7 +4,7 @@ import { useGateStatus } from './api.ts';
 /**
  * Shown while the approval gate holds requests but fewer than two people may approve them. A request needs a
  * person other than its requester, so with one approver nothing can be approved, not even the removal of the
- * policy that holds it. Studio refuses an access change that would take the approvers below two; this says so
+ * policy that holds it. Rahdar refuses an access change that would take the approvers below two; this says so
  * when it is already the case (a directory sync, a deleted account), and what to do. Nothing while approvals are
  * off, not yet holding anything, or well staffed.
  */

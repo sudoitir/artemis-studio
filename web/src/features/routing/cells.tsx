@@ -8,15 +8,15 @@ import classes from './RoutingView.module.css';
 import { MiddleTruncate } from '../../ui/table/MiddleTruncate.tsx';
 
 /**
- * A Studio-created divert's ownership, as a control rather than a hover title: it opens the
+ * A Rahdar-created divert's ownership, as a control rather than a hover title: it opens the
  * broker.xml that would make the deployed configuration carry it, reachable from the keyboard.
  */
-function StudioOwned({ divert }: Readonly<{ divert: DivertView }>) {
+function RahdarOwned({ divert }: Readonly<{ divert: DivertView }>) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button size="compact-xs" variant="default" onClick={() => setOpen(true)}>
-        Studio — not in broker.xml
+        Rahdar — not in broker.xml
       </Button>
       <Modal opened={open} onClose={() => setOpen(false)} title={`"${divert.name}" is not in broker.xml`} size="lg">
         <Stack gap="sm">
@@ -52,7 +52,7 @@ function Direction({ from, to }: Readonly<{ from: string; to: string }>) {
   );
 }
 
-/** Who created the divert: message capture, an operator through Studio, or nobody Studio knows of. */
+/** Who created the divert: message capture, an operator through Rahdar, or nobody Rahdar knows of. */
 export function OwnerCell({ divert: r }: Readonly<{ divert: DivertView }>) {
   if (r.owner === 'MESSAGE_CAPTURE') {
     return (
@@ -61,12 +61,12 @@ export function OwnerCell({ divert: r }: Readonly<{ divert: DivertView }>) {
       </span>
     );
   }
-  if (r.owner === 'OPERATOR') return <StudioOwned divert={r} />;
+  if (r.owner === 'OPERATOR') return <RahdarOwned divert={r} />;
   return (
     <Text
       size="xs"
       c="dimmed"
-      title="Studio has no record of creating this divert. That is not a claim about where it came from."
+      title="Rahdar has no record of creating this divert. That is not a claim about where it came from."
     >
       not recorded
     </Text>

@@ -1,22 +1,22 @@
 package com.example.qaapprovals;
 
-import io.github.sudoitir.artemisstudio.kernel.gate.ApprovalProvider;
-import io.github.sudoitir.artemisstudio.kernel.gate.Approver;
-import io.github.sudoitir.artemisstudio.kernel.gate.Effect;
-import io.github.sudoitir.artemisstudio.kernel.gate.GateDecision;
-import io.github.sudoitir.artemisstudio.kernel.gate.GateRequest;
-import io.github.sudoitir.artemisstudio.kernel.gate.HeldOperationView;
-import io.github.sudoitir.artemisstudio.kernel.gate.PolicyRef;
-import io.github.sudoitir.artemisstudio.kernel.gate.RunCheck;
-import io.github.sudoitir.artemisstudio.kernel.gate.Vote;
-import io.github.sudoitir.artemisstudio.kernel.gate.VoteCheck;
+import io.github.sudoitir.rahdar.kernel.gate.ApprovalProvider;
+import io.github.sudoitir.rahdar.kernel.gate.Approver;
+import io.github.sudoitir.rahdar.kernel.gate.Effect;
+import io.github.sudoitir.rahdar.kernel.gate.GateDecision;
+import io.github.sudoitir.rahdar.kernel.gate.GateRequest;
+import io.github.sudoitir.rahdar.kernel.gate.HeldOperationView;
+import io.github.sudoitir.rahdar.kernel.gate.PolicyRef;
+import io.github.sudoitir.rahdar.kernel.gate.RunCheck;
+import io.github.sudoitir.rahdar.kernel.gate.Vote;
+import io.github.sudoitir.rahdar.kernel.gate.VoteCheck;
 import java.time.Duration;
 import org.springframework.stereotype.Component;
 
 /**
  * Holds every gated operation of anyone but the built-in administrator, who approves them: the sweep's
  * requester sees each held screen, and the administrator each decision. A request whose summary names the
- * {@code held-5} queue holds for the shortest time Studio allows, so the sweep can reach EXPIRED.
+ * {@code held-5} queue holds for the shortest time Rahdar allows, so the sweep can reach EXPIRED.
  */
 @Component
 public class HoldEverything implements ApprovalProvider {

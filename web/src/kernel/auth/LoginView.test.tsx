@@ -45,7 +45,7 @@ describe('LoginView', () => {
     const headings = await screen.findAllByRole('heading', { level: 1 });
     expect(headings).toHaveLength(1);
     expect(headings[0]).toHaveTextContent('Sign in');
-    expect(screen.getByRole('main')).toHaveTextContent('Artemis Studio');
+    expect(screen.getByRole('main')).toHaveTextContent('Rahdar');
   });
 
   it('keeps Sign in live, names what is missing beside each field, focuses the first and sends nothing', async () => {
@@ -140,7 +140,7 @@ describe('LoginView', () => {
     server.use(
       http.post('*/api/v1/auth/login', () =>
         HttpResponse.json(
-          { type: 'https://artemis-studio.dev/problems/invalid-credentials', title: 'Authentication failed' },
+          { type: 'https://rahdar.dev/problems/invalid-credentials', title: 'Authentication failed' },
           { status: 401 },
         ),
       ),
@@ -212,7 +212,7 @@ describe('LoginView', () => {
     renderWithProviders(<LoginView />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(screen.getByText(/Password sign-in is still offered/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Username/)).toBeInTheDocument();
 
@@ -241,7 +241,7 @@ describe('LoginView', () => {
 });
 
 const problem = (slug: string, status: number, detail?: string) =>
-  HttpResponse.json({ type: `https://artemis-studio.dev/problems/${slug}`, title: slug, detail }, { status });
+  HttpResponse.json({ type: `https://rahdar.dev/problems/${slug}`, title: slug, detail }, { status });
 
 /** A sign-in whose password is right and whose account has a second factor. */
 function secondStep(methods: string[], trustDeviceDays = 0) {

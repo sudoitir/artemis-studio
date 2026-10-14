@@ -31,21 +31,21 @@ export function TracingDiagnostics({ clusterId }: Readonly<{ clusterId: string }
   if (diagnostics.isError) {
     return (
       <Stack gap="sm">
-        <Text size="sm">Studio could not read tracing diagnostics, so it cannot say why there are no flows.</Text>
+        <Text size="sm">Rahdar could not read tracing diagnostics, so it cannot say why there are no flows.</Text>
         <ErrorState error={diagnostics.error} onRetry={() => void diagnostics.refetch()} />
       </Stack>
     );
   }
 
   const d = diagnostics.data;
-  const skewed = d.clock.verdict === 'BROKER_SKEWED' || d.clock.verdict === 'STUDIO_SUSPECT';
+  const skewed = d.clock.verdict === 'BROKER_SKEWED' || d.clock.verdict === 'RAHDAR_SUSPECT';
 
   return (
     <Stack gap="md">
       <Section
         variant="card"
         headingLevel={3}
-        title="No flows to show — here is what Studio did"
+        title="No flows to show — here is what Rahdar did"
         description={
           <>
             Tracing browses every {Math.round(d.sampleIntervalMs / 1000)}s over the Core client, on{' '}
@@ -70,11 +70,11 @@ export function TracingDiagnostics({ clusterId }: Readonly<{ clusterId: string }
         <Section
           variant="card"
           headingLevel={3}
-          title="A clock disagrees with Studio's"
+          title="A clock disagrees with Rahdar's"
           description={
-            d.clock.verdict === 'STUDIO_SUSPECT'
-              ? `Every measured node reports the same offset, so the common factor is Studio's own host rather than the brokers. Check the clock where Studio runs.`
-              : `${d.clock.skewedNodes.join(', ')} disagree with Studio by up to ${d.clock.worstOffsetMs}ms. Deadlines and latencies involving those nodes are corrected, but a producer or consumer on the same clock is not.`
+            d.clock.verdict === 'RAHDAR_SUSPECT'
+              ? `Every measured node reports the same offset, so the common factor is Rahdar's own host rather than the brokers. Check the clock where Rahdar runs.`
+              : `${d.clock.skewedNodes.join(', ')} disagree with Rahdar by up to ${d.clock.worstOffsetMs}ms. Deadlines and latencies involving those nodes are corrected, but a producer or consumer on the same clock is not.`
           }
         />
       ) : null}
@@ -95,7 +95,7 @@ export function TracingDiagnostics({ clusterId }: Readonly<{ clusterId: string }
         Sampling is the design, not a limitation being worked around —{' '}
         <a
           className={linkClasses.link}
-          href="https://github.com/sudoitir/artemis-studio/blob/main/docs/adr/0030-rr-correlation-notification-anchored-browse-sampled.md"
+          href="https://github.com/sudoitir/rahdar/blob/main/docs/adr/0030-rr-correlation-notification-anchored-browse-sampled.md"
           target="_blank"
           rel="noopener noreferrer"
         >

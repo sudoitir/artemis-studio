@@ -26,7 +26,7 @@ export function ClusterHome() {
           <EmptyState
             kind="empty"
             title="No clusters yet"
-            description="A cluster is a set of Artemis brokers that Studio watches and manages together. Register the first one below; it appears here and in the cluster switcher once it is saved."
+            description="A cluster is a set of Artemis brokers that Rahdar watches and manages together. Register the first one below; it appears here and in the cluster switcher once it is saved."
           />
           <Section title="Register a cluster">
             <RegisterClusterForm />

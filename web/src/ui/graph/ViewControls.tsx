@@ -6,7 +6,7 @@ import classes from './ViewControls.module.css';
 
 /**
  * Zoom in, zoom out and fit, for a diagram drawn with React Flow. It replaces React Flow's own
- * `<Controls>`, which brings its own colours and focus ring: these are Studio's buttons, named in words
+ * `<Controls>`, which brings its own colours and focus ring: these are Rahdar's buttons, named in words
  * and themed by the tokens. Nothing animates (`duration: 0`), so reduced motion needs nothing more.
  *
  * <p>Render it inside the `ReactFlowProvider`, in a frame that is positioned. `fit` is how the diagram

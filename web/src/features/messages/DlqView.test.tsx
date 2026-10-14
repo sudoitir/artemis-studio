@@ -160,7 +160,7 @@ describe('DlqView', () => {
     renderWithProviders(<DlqView />);
 
     const alert = await screen.findByRole('alert');
-    expect(within(alert).getByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(within(alert).getByText('Rahdar failed to complete the request')).toBeInTheDocument();
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });

@@ -19,7 +19,7 @@ import { InboxBell } from './InboxBell.tsx';
 function notice(id: number, extra: Partial<InboxItem> = {}): InboxItem {
   return {
     id,
-    source: 'studio',
+    source: 'rahdar',
     kind: 'approval.requested',
     severity: 'info',
     title: `Notice ${id}`,
@@ -126,7 +126,7 @@ describe('InboxBell', () => {
     await waitFor(() => expect(read).toEqual([{ ids: [4] }]));
   });
 
-  it('never links a notice outside Studio', async () => {
+  it('never links a notice outside Rahdar', async () => {
     mockInbox({ unread: 1, capped: false }, [notice(4, { link: '//evil.example/x' })]);
     renderBell();
     await userEvent.click(await screen.findByRole('button', { name: 'Notifications, 1 unread' }));

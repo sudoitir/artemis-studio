@@ -13,7 +13,7 @@ const PATCH = '*/api/v1/clusters/c1/config/mode';
 async function openPopover(canWrite: boolean) {
   const user = userEvent.setup();
   renderWithProviders(<ModeControl declaration={declaration()} canWrite={canWrite} />);
-  await user.click(screen.getByRole('button', { name: /Apply mode: Managed by Studio/ }));
+  await user.click(screen.getByRole('button', { name: /Apply mode: Managed by Rahdar/ }));
   const popover = await screen.findByRole('dialog');
   return { user, popover };
 }
@@ -46,10 +46,10 @@ describe('ModeControl', () => {
     await user.click(within(popover).getByRole('switch', { name: /Report undeclared items/ }));
     await user.click(within(popover).getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(body).toMatchObject({ applyMode: 'STUDIO_MANAGED', reportUndeclared: true }));
+    await waitFor(() => expect(body).toMatchObject({ applyMode: 'RAHDAR_MANAGED', reportUndeclared: true }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(succeeded).toHaveBeenCalledWith(
-      expect.objectContaining({ subject: expect.stringContaining('Managed by Studio') }),
+      expect.objectContaining({ subject: expect.stringContaining('Managed by Rahdar') }),
     );
     succeeded.mockRestore();
   });

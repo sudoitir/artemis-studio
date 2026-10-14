@@ -152,8 +152,8 @@ function CapabilitiesSection({ plan }: Readonly<{ plan: PluginPlanView }>) {
   return (
     <Section title="What this plugin will be able to do">
       <List size="sm" spacing={2}>
-        {c.ui ? <List.Item>Add screens to Studio, which act with the rights of whoever views them.</List.Item> : null}
-        <List.Item>Run code inside Studio, with Studio's access to your brokers and database.</List.Item>
+        {c.ui ? <List.Item>Add screens to Rahdar, which act with the rights of whoever views them.</List.Item> : null}
+        <List.Item>Run code inside Rahdar, with Rahdar's access to your brokers and database.</List.Item>
         {readTools.length > 0 ? (
           <List.Item>
             Give the assistant {count(readTools.length, 'read-only tool')}: {readTools.map((t) => t.name).join(', ')}.
@@ -319,7 +319,7 @@ export function PlanReview({
         </Text>
         <Text size="sm" c="dimmed">
           by {info.vendor.name}
-          {info.license ? ` · ${info.license}` : ''} · supports Studio {info.since}
+          {info.license ? ` · ${info.license}` : ''} · supports Rahdar {info.since}
           {info.until ? ` to ${info.until}` : ' and later'}
         </Text>
         {info.description ? <Text size="sm">{info.description}</Text> : null}

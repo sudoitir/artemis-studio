@@ -27,23 +27,23 @@ matching the selector in the filter box, or the whole queue.
 
 ## How a move keeps the messages safe
 
-A move is not a read-then-send. Studio never holds the only copy of a message:
+A move is not a read-then-send. Rahdar never holds the only copy of a message:
 
 1. **Staging.** The source broker moves the selection, in chunks, into a durable queue it owns:
-   `studio.transfer.<run id>`. That move is the broker's own atomic operation. The messages have
+   `rahdar.transfer.<run id>`. That move is the broker's own atomic operation. The messages have
    left the source queue and are still on the source broker.
-2. **Relay.** Studio takes a batch out of staging over the Core protocol and sends it to the
+2. **Relay.** Rahdar takes a batch out of staging over the Core protocol and sends it to the
    target inside a transaction. The target transaction commits first, then the source
    acknowledgement. A crash between the two redelivers the batch — and the target's
    duplicate-id cache drops what it already has, because every message carries
-   `_AMQ_DUPL_ID = studio:<run id>:<source message id>`.
-3. **Cleanup.** When staging is empty, Studio removes the staging queue and the address
+   `_AMQ_DUPL_ID = rahdar:<run id>:<source message id>`.
+3. **Cleanup.** When staging is empty, Rahdar removes the staging queue and the address
    settings it added.
 
 So an interrupted run loses nothing. It comes back as **Interrupted**, with the messages still
 on the source broker, and offers **Resume** or **Return to source**.
 
-A copy needs no staging: Studio browses the source, which leaves it untouched, and records the
+A copy needs no staging: Rahdar browses the source, which leaves it untouched, and records the
 ids it has already copied so a resume does not copy them twice.
 
 A move between two queues on the *same* node skips all of it — that is the broker's own
@@ -58,7 +58,7 @@ arrive while it runs are not part of it, so a transfer from a queue with a live 
 
 Nothing loads a whole queue. Staging is refilled only while it holds less than twice the batch
 size, so a move of a million messages parks a few hundred at a time. Every broker call goes
-through the same per-node rate limiter as the rest of Studio, and a run is capped at a
+through the same per-node rate limiter as the rest of Rahdar, and a run is capped at a
 configurable number of messages a second.
 
 ## What the preview checks
@@ -99,8 +99,8 @@ audit trail on each cluster.
 **Return to source** moves everything still held back to the source queue — messages already
 delivered to the target stay there, which the dialog says before you type the queue name.
 
-If Studio ever loses a run — restored from a backup, for instance — the Transfers screen lists
-any `studio.transfer.*` queue that has no run as **staging with no run**, with a return action.
+If Rahdar ever loses a run — restored from a backup, for instance — the Transfers screen lists
+any `rahdar.transfer.*` queue that has no run as **staging with no run**, with a return action.
 Nothing strands silently.
 
 ## What the target receives
@@ -111,8 +111,8 @@ reply-to and every application property come across. Broker bookkeeping (`_AMQ_O
 routing and delivery-count headers) does not.
 
 Five properties are added, so a message can be traced back:
-`_studio_transfer_run`, `_studio_orig_message_id`, `_studio_orig_cluster`,
-`_studio_orig_node`, `_studio_orig_queue`.
+`_rahdar_transfer_run`, `_rahdar_orig_message_id`, `_rahdar_orig_cluster`,
+`_rahdar_orig_node`, `_rahdar_orig_queue`.
 
 A move clears the expiry the broker itself would clear on a move; a copy keeps it.
 A message published over AMQP, MQTT or STOMP arrives as its Core conversion — the preview says so.
@@ -120,11 +120,11 @@ A message published over AMQP, MQTT or STOMP arrives as its Core conversion — 
 ## What the broker needs
 
 Both ends need a **Core connection** (`tcp://…`), not only Jolokia, because the relay is a Core
-client. The source broker also needs Studio's management user to be allowed to create and use
+client. The source broker also needs Rahdar's management user to be allowed to create and use
 the staging namespace:
 
 ```xml
-<security-setting match="studio.transfer.#">
+<security-setting match="rahdar.transfer.#">
   <permission type="createAddress"      roles="amq"/>
   <permission type="deleteAddress"      roles="amq"/>
   <permission type="createDurableQueue" roles="amq"/>
@@ -135,7 +135,7 @@ the staging namespace:
 </security-setting>
 ```
 
-Studio shows this snippet itself the moment a staging queue is refused, so you do not have to
+Rahdar shows this snippet itself the moment a staging queue is refused, so you do not have to
 find this page first.
 
 ## Permissions

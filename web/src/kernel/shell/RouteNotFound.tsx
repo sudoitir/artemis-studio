@@ -13,7 +13,7 @@ export function RouteNotFound() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   return (
     <Page>
-      <PageHeader title="Page not found" description={`Nothing in Studio is at ${path}.`} />
+      <PageHeader title="Page not found" description={`Nothing in Rahdar is at ${path}.`} />
       <EmptyState
         kind="empty"
         title="Check the address, or start from a cluster"

@@ -3,7 +3,7 @@
 
     totp.py SECRET [LAST_STEP]
 
-Studio accepts the previous, current or next step and refuses a step it has already seen, so the step is
+Rahdar accepts the previous, current or next step and refuses a step it has already seen, so the step is
 the first one after LAST_STEP (the current one when omitted); when that is still ahead of the accepted
 window, this waits for the clock instead of handing out a code that would be refused.
 """

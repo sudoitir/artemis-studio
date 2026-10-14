@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:feature-rr-0001-baseline splitStatements:true
+--changeset rahdar:feature-rr-0001-baseline splitStatements:true
 CREATE TABLE rr_event (
     ts timestamp with time zone DEFAULT now() NOT NULL,
     seq bigint NOT NULL,
@@ -106,7 +106,7 @@ ALTER TABLE ONLY rr_flow
 
 COMMENT ON COLUMN rr_flow.request_skew_ms IS 'How far into the future the request claimed to have been produced, once the broker''s own offset is removed. Only forward skew is evidence: a negative value is ordinary queue residency and is never recorded here.';
 
-COMMENT ON COLUMN rr_flow.latency_source IS 'How latency_ms was arrived at. OBSERVED is the difference between two sample ticks and is therefore quantised to the sample interval (latency_bound_ms). MESSAGE_TIMESTAMPS is the difference between the two messages'' own enqueue times, normalised onto Studio''s clock, and is only used when neither carries forward skew beyond tolerance (ADR-0053).';
+COMMENT ON COLUMN rr_flow.latency_source IS 'How latency_ms was arrived at. OBSERVED is the difference between two sample ticks and is therefore quantised to the sample interval (latency_bound_ms). MESSAGE_TIMESTAMPS is the difference between the two messages'' own enqueue times, normalised onto Rahdar''s clock, and is only used when neither carries forward skew beyond tolerance (ADR-0053).';
 --rollback DROP TABLE IF EXISTS rr_flow CASCADE;
 --rollback DROP TABLE IF EXISTS rr_expectation CASCADE;
 --rollback DROP TABLE IF EXISTS rr_event CASCADE;

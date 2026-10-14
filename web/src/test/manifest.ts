@@ -47,7 +47,7 @@ export function manifestView(
         title: id,
         kind: 'FEATURE' as const,
         enabled: !disabled.includes(id),
-        enabledProperty: `artemis-studio.features.${id}.enabled`,
+        enabledProperty: `rahdar.features.${id}.enabled`,
         permissions: [],
         topics: [],
         origin: 'BUILTIN' as const,

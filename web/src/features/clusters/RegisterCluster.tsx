@@ -356,7 +356,7 @@ export function RegisterClusterForm({
       <form className={classes.form} noValidate onSubmit={checkConnection}>
         <TextInput
           label="Broker management URL"
-          description={`One is enough: Studio finds the rest of the cluster from it. For example: ${EXAMPLE}`}
+          description={`One is enough: Rahdar finds the rest of the cluster from it. For example: ${EXAMPLE}`}
           {...form.getInputProps('seed')}
         />
         {f.moreSeeds.map((row, i) => (
@@ -449,7 +449,7 @@ export function RegisterClusterForm({
           <div className={classes.form}>
             <TextInput
               label="Management URL pattern"
-              description="How Studio finds each other node's management URL: its host replaces {host}. A broker answering there is accepted only when it is that node."
+              description="How Rahdar finds each other node's management URL: its host replaces {host}. A broker answering there is accepted only when it is that node."
               value={pattern}
               onChange={(event) => form.setFieldValue('pattern', event.currentTarget.value)}
               error={form.errors.pattern}
@@ -506,7 +506,7 @@ export function RegisterClusterForm({
 }
 
 /**
- * Nodes on a release newer than Studio has been tested against (ADR-0142). Registration
+ * Nodes on a release newer than Rahdar has been tested against (ADR-0142). Registration
  * goes ahead; the operator is told before they rely on it rather than after.
  */
 function UntestedVersions({ topology }: Readonly<{ topology: TopologyView }>) {
@@ -514,8 +514,8 @@ function UntestedVersions({ topology }: Readonly<{ topology: TopologyView }>) {
   if (untested.length === 0) return null;
   const which = untested.map((e) => `${e.name} runs Artemis ${e.version}`).join('; ');
   return (
-    <Notice title="Newer Artemis than Studio has tested" tone="warning">
-      {`${which}. Registration will go ahead, but this release is outside the range Studio's tests cover, so a management call may behave differently. The supported versions page lists the tested range.`}
+    <Notice title="Newer Artemis than Rahdar has tested" tone="warning">
+      {`${which}. Registration will go ahead, but this release is outside the range Rahdar's tests cover, so a management call may behave differently. The supported versions page lists the tested range.`}
     </Notice>
   );
 }

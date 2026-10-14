@@ -28,7 +28,7 @@ detail document, not an HTML page.
 
 ### Requirement: A user authenticates with a username and password
 
-The system SHALL authenticate a user by username and password against a named credential identity provider. The local provider is the one whose passwords Studio stores hashed at rest. On success the system SHALL establish a server-side session, identified to the client by an HTTP-only cookie. A login request SHALL name the provider; when it names none, the local provider SHALL be used. The system SHALL expose an endpoint that returns the current principal's identity, roles and grants, and an endpoint that ends the session.
+The system SHALL authenticate a user by username and password against a named credential identity provider. The local provider is the one whose passwords Rahdar stores hashed at rest. On success the system SHALL establish a server-side session, identified to the client by an HTTP-only cookie. A login request SHALL name the provider; when it names none, the local provider SHALL be used. The system SHALL expose an endpoint that returns the current principal's identity, roles and grants, and an endpoint that ends the session.
 
 #### Scenario: Successful login establishes a session
 
@@ -267,7 +267,7 @@ A state-changing request SHALL carry a valid CSRF token unless a valid API beare
 
 ### Requirement: Revoking access ends sessions
 
-The system SHALL end every session of each affected user when a user is disabled, when a grant is removed from a user, when a role's permissions change, or when the plugin provider that signs a user in reports that it no longer vouches for that user's identity. Sessions SHALL be stored in the database, so they are shared by every instance and can be found by user. At least every 5 minutes, Studio SHALL ask each active, verified plugin provider which of its enabled accounts' subjects it no longer vouches for; for each one it names, Studio SHALL also revoke the user's API tokens and trusted devices and audit the revocation, and SHALL NOT disable the account.
+The system SHALL end every session of each affected user when a user is disabled, when a grant is removed from a user, when a role's permissions change, or when the plugin provider that signs a user in reports that it no longer vouches for that user's identity. Sessions SHALL be stored in the database, so they are shared by every instance and can be found by user. At least every 5 minutes, Rahdar SHALL ask each active, verified plugin provider which of its enabled accounts' subjects it no longer vouches for; for each one it names, Rahdar SHALL also revoke the user's API tokens and trusted devices and audit the revocation, and SHALL NOT disable the account.
 
 #### Scenario: A disabled user is signed out
 - **WHEN** an administrator disables a signed-in user
@@ -289,12 +289,12 @@ The system SHALL end every session of each affected user when a user is disabled
 - **WHEN** a provider's answer includes a subject that is not one of its enabled accounts
 - **THEN** that subject is ignored
 
-### Requirement: Studio sends a Content-Security-Policy
+### Requirement: Rahdar sends a Content-Security-Policy
 
-Every response SHALL carry a Content-Security-Policy that allows scripts only from Studio's origin, forbids plugins and framing, and restricts connections to Studio's origin. Plugin SVG assets SHALL carry `Content-Security-Policy: sandbox`.
+Every response SHALL carry a Content-Security-Policy that allows scripts only from Rahdar's origin, forbids plugins and framing, and restricts connections to Rahdar's origin. Plugin SVG assets SHALL carry `Content-Security-Policy: sandbox`.
 
-#### Scenario: Studio cannot be framed
-- **WHEN** a page from another origin frames Studio
+#### Scenario: Rahdar cannot be framed
+- **WHEN** a page from another origin frames Rahdar
 - **THEN** the browser refuses, because of `frame-ancestors 'none'`
 
 #### Scenario: A plugin SVG cannot run script
@@ -303,7 +303,7 @@ Every response SHALL carry a Content-Security-Policy that allows scripts only fr
 
 ### Requirement: A local account can enrol TOTP and WebAuthn second factors
 
-A user of a credential provider, the local provider or a plugin's, SHALL be able to enrol a TOTP authenticator, shown as a QR code and as text, and one or more WebAuthn or passkey credentials, and SHALL receive single-use recovery codes, shown once, at the first enrolment. Passkeys SHALL be offered only when Studio's public address is configured; otherwise the surface SHALL say so and name the setting. Adding, replacing or removing a factor while one is already enrolled SHALL require fresh authentication. A new TOTP secret SHALL NOT replace the active one until it is confirmed.
+A user of a credential provider, the local provider or a plugin's, SHALL be able to enrol a TOTP authenticator, shown as a QR code and as text, and one or more WebAuthn or passkey credentials, and SHALL receive single-use recovery codes, shown once, at the first enrolment. Passkeys SHALL be offered only when Rahdar's public address is configured; otherwise the surface SHALL say so and name the setting. Adding, replacing or removing a factor while one is already enrolled SHALL require fresh authentication. A new TOTP secret SHALL NOT replace the active one until it is confirmed.
 
 #### Scenario: Enrol TOTP
 
@@ -351,7 +351,7 @@ When a local account has an enrolled factor, a correct password SHALL NOT comple
 
 ### Requirement: An administrator can require MFA per role
 
-Studio SHALL let an administrator mark any role, built-in or custom, as requiring MFA; the built-in administrator role SHALL require it by default. A user of a credential provider, the local provider or a plugin's, holding such a role SHALL not reach the console until a second factor is enrolled and verified. Users of redirect identity providers SHALL NOT be asked for Studio's second factor, since their provider owns authentication. Granting a user a role that requires MFA SHALL end their sessions. An API token minted without a verified second factor SHALL stop authenticating once its owner requires MFA.
+Rahdar SHALL let an administrator mark any role, built-in or custom, as requiring MFA; the built-in administrator role SHALL require it by default. A user of a credential provider, the local provider or a plugin's, holding such a role SHALL not reach the console until a second factor is enrolled and verified. Users of redirect identity providers SHALL NOT be asked for Rahdar's second factor, since their provider owns authentication. Granting a user a role that requires MFA SHALL end their sessions. An API token minted without a verified second factor SHALL stop authenticating once its owner requires MFA.
 
 #### Scenario: Required, not enrolled
 
@@ -386,7 +386,7 @@ Studio SHALL let an administrator mark any role, built-in or custom, as requirin
 #### Scenario: Single sign-on users are not challenged
 
 - **WHEN** a user signed in through a redirect identity provider holds a role that requires MFA
-- **THEN** they reach the console and can mint tokens without Studio's second factor
+- **THEN** they reach the console and can mint tokens without Rahdar's second factor
 
 #### Scenario: The last factor of a required user
 
@@ -433,16 +433,16 @@ An administrator with the right permission and fresh authentication SHALL be abl
 
 ### Requirement: An operator can recover a local account at startup
 
-Studio SHALL let an operator with access to the deployment name one local account to recover at startup; it SHALL clear that account's lock, factors and trusted devices, revoke its API tokens, require a password change, and log and audit the recovery.
+Rahdar SHALL let an operator with access to the deployment name one local account to recover at startup; it SHALL clear that account's lock, factors and trusted devices, revoke its API tokens, require a password change, and log and audit the recovery.
 
 #### Scenario: Sole administrator lost device and codes
 
-- **WHEN** the operator restarts Studio naming the administrator for recovery
+- **WHEN** the operator restarts Rahdar naming the administrator for recovery
 - **THEN** the administrator can sign in with their password, must change it, and enrols a new factor
 
 ### Requirement: Passwords meet a policy
 
-Studio SHALL enforce a minimum length set by the administrator, a maximum the hash can hold, and differ from the username, and SHALL reject passwords found in the breached-password list; the online k-anonymity lookup SHALL be optional and off by default.
+Rahdar SHALL enforce a minimum length set by the administrator, a maximum the hash can hold, and differ from the username, and SHALL reject passwords found in the breached-password list; the online k-anonymity lookup SHALL be optional and off by default.
 
 #### Scenario: Breached password
 
@@ -452,7 +452,7 @@ Studio SHALL enforce a minimum length set by the administrator, a maximum the ha
 #### Scenario: Offline
 
 - **WHEN** the online lookup is off
-- **THEN** the offline list alone is used and no password data leaves Studio
+- **THEN** the offline list alone is used and no password data leaves Rahdar
 
 #### Scenario: Too short
 
@@ -461,7 +461,7 @@ Studio SHALL enforce a minimum length set by the administrator, a maximum the ha
 
 ### Requirement: Repeated failures lock the account
 
-Studio SHALL lock an account after repeated consecutive failures, shared across every instance, until the lock expires or an administrator unlocks it, without revealing whether the account exists.
+Rahdar SHALL lock an account after repeated consecutive failures, shared across every instance, until the lock expires or an administrator unlocks it, without revealing whether the account exists.
 
 #### Scenario: Lockout
 
@@ -475,7 +475,7 @@ Studio SHALL lock an account after repeated consecutive failures, shared across 
 
 ### Requirement: Sessions expire when idle and after an absolute lifetime
 
-Studio SHALL end a session after a configurable period without user activity and after a configurable absolute lifetime, whichever comes first. Background refreshes that the user did not cause SHALL NOT count as activity.
+Rahdar SHALL end a session after a configurable period without user activity and after a configurable absolute lifetime, whichever comes first. Background refreshes that the user did not cause SHALL NOT count as activity.
 
 #### Scenario: Idle session
 
@@ -520,7 +520,7 @@ Enrolment, removal and reset of a factor, recovery-code use, a failed second fac
 - **THEN** an audit event records who removed it and from which account
 
 ### Requirement: A plugin can contribute a credential sign-in provider
-The plugin API SHALL let an active, verified plugin contribute a credential identity provider that it declares in its descriptor with an identifier of the form `<plugin id>:<name>` and a label. Studio SHALL run every sign-in through it on its one login path, so throttling, lockout, second factors, session issue, audit and group-to-role mapping apply unchanged. The provider SHALL only report whether the credentials match and, when they do, the external identity: subject, username, email and groups. Studio SHALL key the account by the declared provider identifier and the subject, never by anything else the plugin returns. A call into the provider SHALL be bounded to 5 seconds.
+The plugin API SHALL let an active, verified plugin contribute a credential identity provider that it declares in its descriptor with an identifier of the form `<plugin id>:<name>` and a label. Rahdar SHALL run every sign-in through it on its one login path, so throttling, lockout, second factors, session issue, audit and group-to-role mapping apply unchanged. The provider SHALL only report whether the credentials match and, when they do, the external identity: subject, username, email and groups. Rahdar SHALL key the account by the declared provider identifier and the subject, never by anything else the plugin returns. A call into the provider SHALL be bounded to 5 seconds.
 
 #### Scenario: Sign-in through a plugin provider
 - **WHEN** a user signs in with a plugin provider and valid credentials

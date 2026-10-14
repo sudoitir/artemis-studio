@@ -1,13 +1,13 @@
 ---
 title: The REST API
-description: How the Artemis Studio REST API is versioned, how breaking changes and deprecations are announced, and the conventions every endpoint follows.
+description: How the Rahdar REST API is versioned, how breaking changes and deprecations are announced, and the conventions every endpoint follows.
 ---
 
 # The REST API
 
 Everything the web UI does goes through the REST API under `/api/v1`. The OpenAPI document is served at
 `/v3/api-docs`, and each release attaches it, so a client can be generated from the version it talks to.
-`info.version` in that document is the Studio version that served it.
+`info.version` in that document is the Rahdar version that served it.
 
 ## Versioning
 
@@ -54,7 +54,7 @@ A list endpoint answers with an envelope, never a bare array:
 
 Every error is `application/problem+json` ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)), including
 `401`, `403` and errors raised by the framework. The `type` is a stable URI,
-`https://artemis-studio.dev/problems/<slug>`, so switch on it rather than on the message.
+`https://rahdar.dev/problems/<slug>`, so switch on it rather than on the message.
 
 | Type | Status | Meaning |
 | --- | --- | --- |

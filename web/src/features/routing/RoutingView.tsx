@@ -32,7 +32,7 @@ type Tab = 'diverts' | 'bridges';
 function bridgesIntro(hasBuilder: boolean): string {
   return hasBuilder
     ? 'A bridge forwards a queue to an address on another broker. Declare one on the Builder tab and apply it with the rest of the declaration; the plan names the hazard, because a bridge rewires how this cluster reaches other brokers.'
-    : 'A bridge forwards a queue to an address on another broker, and is declared in the cluster configuration — which is not enabled on this Studio.';
+    : 'A bridge forwards a queue to an address on another broker, and is declared in the cluster configuration — which is not enabled on this Rahdar.';
 }
 
 const DIVERTS_INTRO =
@@ -261,7 +261,7 @@ function RoutingListing({
   const setSearch = (patch: Record<string, unknown>) =>
     navigate({ to: '.', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }) });
 
-  // A node Studio could not reach contributes no rows, which looks exactly like a cluster with none.
+  // A node Rahdar could not reach contributes no rows, which looks exactly like a cluster with none.
   const cluster = useCluster(clusterId);
   const unreachable = (cluster.data?.topology.nodes ?? [])
     .flatMap((n) => n.endpoints)

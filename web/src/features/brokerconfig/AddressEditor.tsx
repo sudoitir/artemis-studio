@@ -36,7 +36,7 @@ const seedOf = (source: Partial<ConfigAddressView> | null): FormState => ({
 /**
  * Edit one declared address and the queues bound to it. Declaring a queue
  * creates it where it is missing; nothing here ever deletes one — removing a
- * queue from the declaration stops Studio checking for it and no more
+ * queue from the declaration stops Rahdar checking for it and no more
  * (ADR-0067 D6). The editor says so where the operator would expect a delete.
  */
 export function AddressEditor({
@@ -139,7 +139,7 @@ export function AddressEditor({
             size="xs"
             onClick={remove}
             loading={isPending}
-            title="Stops Studio checking for it. Nothing on the broker is deleted."
+            title="Stops Rahdar checking for it. Nothing on the broker is deleted."
           >
             Remove from declaration
           </Button>
@@ -194,7 +194,7 @@ export function AddressEditor({
             <ActionIcon
               variant="subtle"
               aria-label={`Remove queue ${q.name || i + 1} from the declaration`}
-              title="Stops Studio checking for it. Nothing on the broker is deleted."
+              title="Stops Rahdar checking for it. Nothing on the broker is deleted."
               onClick={() => form.removeListItem('queues', i)}
             >
               <IconX size="0.875rem" />

@@ -1,5 +1,5 @@
 /**
- * Capture the README screenshots against a running Studio.
+ * Capture the README screenshots against a running Rahdar.
  *
  *   ADMIN_PASSWORD=… ADMIN_TOTP_SECRET=… npm --prefix web run shots      (or: just shots)
  *
@@ -85,7 +85,7 @@ async function main() {
       file: 'flow.png',
       // The flow view samples clients only while it is open, and rates need two samples: open it,
       // wait for real nodes, then give the sampler two sweeps before photographing.
-      // Routing layers on, Studio's capture tap included; dead-letter edges stay off (one per queue).
+      // Routing layers on, Rahdar's capture tap included; dead-letter edges stay off (one per queue).
       path: `/clusters/${clusterId}/flow?layers=BRIDGES,CAPTURE,CLUSTER,DIVERTS`,
       // Wide: five columns and their routing hops only fit side by side at a legible zoom on a wide screen.
       width: 1920,
@@ -152,7 +152,7 @@ async function main() {
       height: 1100,
       ready: () =>
         page
-          .getByText(/Studio can apply|still need a broker.xml|nothing to recommend/i)
+          .getByText(/Rahdar can apply|still need a broker.xml|nothing to recommend/i)
           .first()
           .waitFor({ timeout: 30_000 }),
     },
@@ -161,7 +161,7 @@ async function main() {
       path: `/clusters/${clusterId}/configuration`,
       height: 1200,
       // A declaration the brokers do not yet run, so the plan has something to
-      // show. Declaring writes to Studio only, and the review drawer only plans:
+      // show. Declaring writes to Rahdar only, and the review drawer only plans:
       // no broker is touched by any of these captures, which is why there is no
       // post-apply shot here.
       before: async () => {

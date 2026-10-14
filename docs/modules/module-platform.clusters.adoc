@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.platform.clusters`
+|`io.github.sudoitir.rahdar.platform.clusters`
 |Spring components
 |_Controllers_
 
@@ -31,7 +31,7 @@ _Others_
 * `i.g.s.a.p.c.HaStateEvaluator`
 * `i.g.s.a.p.c.NodeStateRecorder`
 * `i.g.s.a.p.c.SeedExpander`
-* `i.g.s.a.p.c.StudioInfo`
+* `i.g.s.a.p.c.RahdarInfo`
 * `i.g.s.a.p.c.TopologyDiscovery`
 |Bean references
 |* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
@@ -42,7 +42,7 @@ _Others_
 * `i.g.s.a.p.b.BrokerSessions` (in Broker connectivity)
 * `i.g.s.a.p.b.CapabilityProbe` (in Broker connectivity)
 * `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
-* `i.g.s.a.k.r.StudioBus` (in Replicas)
+* `i.g.s.a.k.r.RahdarBus` (in Replicas)
 * `i.g.s.a.k.s.SecretVault` (in Security)
 * `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
 * `i.g.s.a.k.r.HaProperties` (in Replicas)
@@ -52,7 +52,7 @@ _Others_
 * `i.g.s.a.k.s.PermissionResolver` (in Security)
 * `i.g.s.a.k.s.ScopedGrants` (in Security)
 * `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
-* `i.g.s.a.k.p.StudioVersion` (in Plugin contract)
+* `i.g.s.a.k.p.RahdarVersion` (in Plugin contract)
 * `i.g.s.a.k.c.HeavyRequests` (in Core)
 |Events listened to
 |* `i.g.s.a.k.r.BusResumed` 

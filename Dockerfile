@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Artemis Studio — single image: React SPA baked into the Spring Boot jar.
+# Rahdar — single image: React SPA baked into the Spring Boot jar.
 #
 # The SPA and the jar are the same bytes on every architecture, so both build stages run on the
 # runner's own platform ($BUILDPLATFORM); only the runtime stage is per-target. Building them
@@ -28,15 +28,15 @@ FROM eclipse-temurin:25-jre-resolute@sha256:628f28c18211e8633d02cefb9698489abcbd
 # The distribution's security updates are applied at build time: a fix often reaches the Ubuntu
 # archive days before a new base image does, and the image scan fails on a fixable high finding.
 # Ubuntu's base also ships Pebble, a service manager outside any package, so no upgrade patches it;
-# Studio never runs it, so it is removed with its Go runtime and that runtime's vulnerabilities.
-RUN groupadd -r studio && useradd -r -g studio studio \
+# Rahdar never runs it, so it is removed with its Go runtime and that runtime's vulnerabilities.
+RUN groupadd -r rahdar && useradd -r -g rahdar rahdar \
     && apt-get update && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /usr/bin/pebble /var/lib/pebble
 WORKDIR /app
-COPY --from=app /src/target/artemis-studio-exec.jar app.jar
-USER studio
+COPY --from=app /src/target/rahdar-exec.jar app.jar
+USER rahdar
 EXPOSE 8080
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=50"
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

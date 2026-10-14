@@ -17,7 +17,7 @@ export interface Freshness {
 /** The cache events after which the observed queries read differently. */
 const SYNC_ON: ReadonlySet<string> = new Set(['updated', 'removed', 'observerAdded', 'observerRemoved']);
 
-/** Studio answered and said this is not for the caller (403) or not there (404): it is reachable, so not offline. */
+/** Rahdar answered and said this is not for the caller (403) or not there (404): it is reachable, so not offline. */
 const refused = (error: unknown) => error instanceof ApiError && (error.status === 403 || error.status === 404);
 
 const EMPTY: Freshness = { lastUpdatedAt: null, isFetching: false, hasError: false, observed: 0 };

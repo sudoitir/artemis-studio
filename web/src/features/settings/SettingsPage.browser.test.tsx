@@ -36,8 +36,8 @@ const features = [
     slots: {
       'settings.sections': [
         { id: 'display', order: 10, group: 'personal', title: 'Display', Component: section('Yours alone') },
-        { id: 'security', order: 30, group: 'studio', title: 'Encryption keys', Component: section('Keys') },
-        { id: 'health', order: 40, group: 'studio', title: 'Studio health', Component: section('Health') },
+        { id: 'security', order: 30, group: 'rahdar', title: 'Encryption keys', Component: section('Keys') },
+        { id: 'health', order: 40, group: 'rahdar', title: 'Rahdar health', Component: section('Health') },
         { id: 'credentials', order: 50, group: 'cluster', title: 'Broker credentials', Component: section('Creds') },
       ],
     },
@@ -80,7 +80,7 @@ const SETTINGS: Record<string, Setting> = {
   }),
   'scrape.node-concurrency': s({
     label: 'Calls per node',
-    hint: 'How many Jolokia calls Studio makes to one broker node at once.',
+    hint: 'How many Jolokia calls Rahdar makes to one broker node at once.',
     kind: 'INT',
     value: '4',
     defaultValue: '4',

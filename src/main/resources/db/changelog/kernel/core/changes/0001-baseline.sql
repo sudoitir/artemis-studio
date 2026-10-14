@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:kernel-core-0001-baseline splitStatements:true
+--changeset rahdar:kernel-core-0001-baseline splitStatements:true
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- One row per running heavy request, so a user's limit holds across replicas. A request that is gone

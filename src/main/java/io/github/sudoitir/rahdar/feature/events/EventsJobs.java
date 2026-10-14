@@ -1,0 +1,37 @@
+package io.github.sudoitir.rahdar.feature.events;
+
+import io.github.sudoitir.rahdar.kernel.core.ShutdownPhases;
+import io.github.sudoitir.rahdar.kernel.core.ShutdownStep;
+import io.github.sudoitir.rahdar.kernel.jobs.ScheduledJob;
+import io.github.sudoitir.rahdar.kernel.lifecycle.partition.PartitionSpec;
+import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration(proxyBeanMethods = false)
+class EventsJobs {
+
+    @Bean
+    ScheduledJob eventsFlushJob(BrokerEventWriter writer, SettingsService settings) {
+        return ScheduledJob.fixedDelay(
+                "events-flush",
+                "events",
+                ScheduledJob.Scope.INSTANCE,
+                () -> settings.duration(EventsSettings.FLUSH),
+                writer::flush);
+    }
+
+    @Bean
+    PartitionSpec brokerEventPartitions() {
+        return BrokerEventStore.PARTITIONS;
+    }
+
+    /**
+     * The last flush, after jobs have stopped and while the database is still up, so events
+     * received before shutdown are written rather than dropped with the process.
+     */
+    @Bean
+    ShutdownStep brokerEventsShutdown(BrokerEventWriter writer) {
+        return new ShutdownStep("broker-events", ShutdownPhases.BUFFERS, writer::drain);
+    }
+}

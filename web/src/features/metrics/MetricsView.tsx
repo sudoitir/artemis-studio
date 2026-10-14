@@ -199,7 +199,7 @@ export function MetricsView() {
               These series cover <strong>{subject}</strong> only.
             </>
           ) : (
-            "Depth, throughput and consumers over time, from Studio's own samples of this cluster."
+            "Depth, throughput and consumers over time, from Rahdar's own samples of this cluster."
           )
         }
         meta={subject ? <StatusBadge tone="info">{subject}</StatusBadge> : undefined}

@@ -1,7 +1,7 @@
 # plugin-messaging Specification
 
 ## Purpose
-How a runtime plugin receives and sends broker messages through Studio: taps, consumers and sends that Studio owns end to end, acting for a user whose permissions it keeps checking (ADR-0111).
+How a runtime plugin receives and sends broker messages through Rahdar: taps, consumers and sends that Rahdar owns end to end, acting for a user whose permissions it keeps checking (ADR-0111).
 
 ## Requirements
 
@@ -19,14 +19,14 @@ The system SHALL let a plugin register a tap on a queue of a registered cluster.
 
 ### Requirement: A plugin can consume a queue with explicit acknowledgement
 
-The system SHALL let a plugin register a consumer on a queue. The consumer SHALL receive each message and SHALL acknowledge, reject or release it. A message that the plugin rejects, fails on, or does not acknowledge, including when the plugin or Studio stops, SHALL remain available for redelivery, bounded by the broker's own delivery-attempt limit. A message that the plugin releases SHALL return to the queue without counting as a delivery attempt, so that a release never brings it closer to the broker's dead-letter address. A tapped copy that is released SHALL be discarded, as a rejected one is.
+The system SHALL let a plugin register a consumer on a queue. The consumer SHALL receive each message and SHALL acknowledge, reject or release it. A message that the plugin rejects, fails on, or does not acknowledge, including when the plugin or Rahdar stops, SHALL remain available for redelivery, bounded by the broker's own delivery-attempt limit. A message that the plugin releases SHALL return to the queue without counting as a delivery attempt, so that a release never brings it closer to the broker's dead-letter address. A tapped copy that is released SHALL be discarded, as a rejected one is.
 
 #### Scenario: A rejected message is redelivered
 - **WHEN** a plugin rejects a message it consumed
 - **THEN** the broker delivers it again
 
 #### Scenario: An unacknowledged message is redelivered
-- **WHEN** Studio stops while a plugin holds a received message it has not acknowledged
+- **WHEN** Rahdar stops while a plugin holds a received message it has not acknowledged
 - **THEN** the message is delivered again after the consumer is back
 
 #### Scenario: A released message never spends a delivery attempt
@@ -45,16 +45,16 @@ The system SHALL let a plugin send a message to an address of a registered clust
 - **WHEN** a plugin sends a message with a header to an address
 - **THEN** a consumer of that address receives the body and the header unchanged
 
-### Requirement: Studio owns messaging resources and threads
+### Requirement: Rahdar owns messaging resources and threads
 
-The system SHALL own every connection, thread and broker object used for plugin messaging. It SHALL cover every node of a clustered broker, and it SHALL report per node when a node cannot be reached. It SHALL process each registration exactly once when several Studio instances share a cluster. It SHALL remove every broker object that a registration created when the registration is removed or the plugin is disabled or uninstalled. After a crash, it SHALL reclaim those objects on the next start.
+The system SHALL own every connection, thread and broker object used for plugin messaging. It SHALL cover every node of a clustered broker, and it SHALL report per node when a node cannot be reached. It SHALL process each registration exactly once when several Rahdar instances share a cluster. It SHALL remove every broker object that a registration created when the registration is removed or the plugin is disabled or uninstalled. After a crash, it SHALL reclaim those objects on the next start.
 
 #### Scenario: Uninstall leaves nothing on the broker
 - **WHEN** a plugin with an active tap is uninstalled
 - **THEN** no broker object created for that tap remains
 
-#### Scenario: Two Studio instances do not double-deliver
-- **WHEN** two Studio instances share a database and a cluster that has one registered consumer
+#### Scenario: Two Rahdar instances do not double-deliver
+- **WHEN** two Rahdar instances share a database and a cluster that has one registered consumer
 - **THEN** each message is handed to the plugin once
 
 #### Scenario: An unreachable node is reported
@@ -63,7 +63,7 @@ The system SHALL own every connection, thread and broker object used for plugin 
 
 ### Requirement: Plugin messaging honours cluster permissions
 
-Every registration and send SHALL name an acting user. The system SHALL allow a tap only when that user holds `message:read` on the cluster, a consumer only with `message:read` and `queue:purge`, and a send only with `message:send`. It SHALL re-check the user's current grants on every reconciliation. When the user is removed or loses a permission, the registration SHALL be suspended: its delivery stops, its broker objects are removed, and its state names the user, the permission and the cluster. It SHALL resume by itself when the permission returns. The system SHALL refuse a registration on objects that Studio reserves for itself.
+Every registration and send SHALL name an acting user. The system SHALL allow a tap only when that user holds `message:read` on the cluster, a consumer only with `message:read` and `queue:purge`, and a send only with `message:send`. It SHALL re-check the user's current grants on every reconciliation. When the user is removed or loses a permission, the registration SHALL be suspended: its delivery stops, its broker objects are removed, and its state names the user, the permission and the cluster. It SHALL resume by itself when the permission returns. The system SHALL refuse a registration on objects that Rahdar reserves for itself.
 
 #### Scenario: A plugin cannot tap a cluster its operator cannot read
 - **WHEN** a plugin registers a tap, acting for a user without access to that cluster
@@ -73,8 +73,8 @@ Every registration and send SHALL name an acting user. The system SHALL allow a 
 - **WHEN** the acting user of an active tap loses `message:read` on its cluster
 - **THEN** within one reconciliation the tap stops, its broker objects are removed, and the registration reports it is suspended because that user lacks `message:read` on that cluster
 
-#### Scenario: Studio's own objects cannot be tapped
-- **WHEN** a plugin registers a tap on a queue under Studio's reserved prefix
+#### Scenario: Rahdar's own objects cannot be tapped
+- **WHEN** a plugin registers a tap on a queue under Rahdar's reserved prefix
 - **THEN** the registration is refused with a reason
 
 ### Requirement: A plugin's registrations are scoped to that plugin
@@ -86,10 +86,10 @@ The system SHALL bind every messaging operation to the plugin that performs it. 
 
 ### Requirement: A plugin can check a send before making it
 
-The system SHALL let a plugin ask whether a send to an address of a cluster would be allowed for a given user, without sending. The answer SHALL be the same reason a send would be refused with (a missing or too-long address, an address reserved for Studio or the broker, an unknown cluster, or a missing `message:send` permission), or none. A send SHALL apply the same check.
+The system SHALL let a plugin ask whether a send to an address of a cluster would be allowed for a given user, without sending. The answer SHALL be the same reason a send would be refused with (a missing or too-long address, an address reserved for Rahdar or the broker, an unknown cluster, or a missing `message:send` permission), or none. A send SHALL apply the same check.
 
 #### Scenario: A reserved address is reported before sending
-- **WHEN** a plugin checks a send to an address under Studio's reserved prefix
+- **WHEN** a plugin checks a send to an address under Rahdar's reserved prefix
 - **THEN** it gets the reason the address is reserved, and nothing is sent
 
 #### Scenario: A user without send permission is reported
@@ -98,7 +98,7 @@ The system SHALL let a plugin ask whether a send to an address of a cluster woul
 
 ### Requirement: Plugin consumers set their concurrency and get flow control
 
-A consume registration SHALL state how many messages it processes at once per serving node (1 to 32). Studio SHALL open that many consumers per node. Each consumer SHALL hold at most one unacknowledged message, so a slow plugin receives fewer messages and the rest stay on the queue. A tap registration SHALL have a concurrency of exactly 1. Any other value SHALL be refused, and the refusal SHALL give the reason.
+A consume registration SHALL state how many messages it processes at once per serving node (1 to 32). Rahdar SHALL open that many consumers per node. Each consumer SHALL hold at most one unacknowledged message, so a slow plugin receives fewer messages and the rest stay on the queue. A tap registration SHALL have a concurrency of exactly 1. Any other value SHALL be refused, and the refusal SHALL give the reason.
 
 #### Scenario: Concurrency runs handlers in parallel
 - **WHEN** a consume registration with concurrency 4 receives 4 messages whose handling blocks
@@ -124,9 +124,9 @@ When a consume registration has a concurrency above 1, messages that carry the s
 - **WHEN** messages 1, 2 and 3 of group G reach a registration with concurrency 4, and the handling of message 1 is slow
 - **THEN** message 2 is handled only after message 1 is settled, and message 3 only after message 2
 
-### Requirement: Plugin consumers cannot starve Studio
+### Requirement: Plugin consumers cannot starve Rahdar
 
-Plugin message handling SHALL run on a bounded thread pool of its own. Plugin handlers that block SHALL NOT delay message capture, operator sessions, or other Core client work in Studio.
+Plugin message handling SHALL run on a bounded thread pool of its own. Plugin handlers that block SHALL NOT delay message capture, operator sessions, or other Core client work in Rahdar.
 
 #### Scenario: A blocked plugin does not stall capture
 - **WHEN** a plugin handler blocks every message at the full concurrency of several registrations

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: artemis-studio
+    name: rahdar
 
   lifecycle:
     # Each shutdown phase (ShutdownPhases) gets this long; the web server's graceful shutdown and the
@@ -14,15 +14,15 @@ spring:
     detection-strategy: explicitly-annotated
 
   datasource:
-    url: ${ARTEMIS_STUDIO_DB_URL:jdbc:postgresql://localhost:5432/artemis_studio}
-    username: ${ARTEMIS_STUDIO_DB_USER:artemis_studio}
-    password: ${ARTEMIS_STUDIO_DB_PASSWORD:artemis_studio}
+    url: ${RAHDAR_DB_URL:jdbc:postgresql://localhost:5432/rahdar}
+    username: ${RAHDAR_DB_USER:rahdar}
+    password: ${RAHDAR_DB_PASSWORD:rahdar}
     # Connections are bounded in count and time, and nothing here relies on a server-side setting
     # (ADR-0195). The pool is per replica: replicas x (pool + 1 listener) + plugin pools + the
     # read pool must stay under the server's max_connections.
     hikari:
-      maximum-pool-size: ${ARTEMIS_STUDIO_DB_POOL_SIZE:16}
-      minimum-idle: ${ARTEMIS_STUDIO_DB_POOL_SIZE:16}
+      maximum-pool-size: ${RAHDAR_DB_POOL_SIZE:16}
+      minimum-idle: ${RAHDAR_DB_POOL_SIZE:16}
       # Milliseconds. With virtual threads a long wait only piles up threads, so a request fails fast
       # instead (5 s wait; connections live 30 min, are probed every 2 min; a lease past 2 min is logged).
       connection-timeout: 5000
@@ -66,13 +66,13 @@ spring:
   #   oauth2:
   #     client:
   #       registration:
-  #         studio:
-  #           client-id: ${ARTEMIS_STUDIO_OIDC_CLIENT_ID:}
-  #           client-secret: ${ARTEMIS_STUDIO_OIDC_CLIENT_SECRET:}
+  #         rahdar:
+  #           client-id: ${RAHDAR_OIDC_CLIENT_ID:}
+  #           client-secret: ${RAHDAR_OIDC_CLIENT_SECRET:}
   #           scope: openid,profile,email,groups
   #       provider:
-  #         studio:
-  #           issuer-uri: ${ARTEMIS_STUDIO_OIDC_ISSUER_URI:}
+  #         rahdar:
+  #           issuer-uri: ${RAHDAR_OIDC_ISSUER_URI:}
 
   jpa:
     # Liquibase owns the schema; Hibernate only maps to it and checks the mapping
@@ -91,10 +91,10 @@ spring:
     mcp:
       server:
         # The MCP surface is an optional module (ADR-0069): with
-        # artemis-studio.features.mcp.enabled=false there is no server, no /mcp
+        # rahdar.features.mcp.enabled=false there is no server, no /mcp
         # endpoint and no annotation scanning of the tool beans.
-        enabled: ${artemis-studio.features.mcp.enabled:true}
-        name: artemis-studio
+        enabled: ${rahdar.features.mcp.enabled:true}
+        name: rahdar
         version: 1.0.0
         # SYNC is load-bearing, not a preference (ADR-0045). The tool body must stay
         # on the servlet thread: PermissionResolver reads SecurityContextHolder and
@@ -108,7 +108,7 @@ spring:
         # 2.0.0's STREAMABLE transport, which is why the pom pins 2.0.1.
         protocol: STATELESS
         annotation-scanner:
-          enabled: ${artemis-studio.features.mcp.enabled:true}
+          enabled: ${rahdar.features.mcp.enabled:true}
         capabilities:
           # Declaring a capability we do not implement is worse than not having it.
           # There is no @McpComplete anywhere in the surface.
@@ -122,7 +122,7 @@ springdoc:
   paths-to-exclude: /api/v1/p/**,/api/v1/clusters/*/p/**
 
 server:
-  port: ${ARTEMIS_STUDIO_PORT:8080}
+  port: ${RAHDAR_PORT:8080}
   # Tomcat's RemoteIpValve, not Spring's ForwardedHeaderFilter: only a peer matching
   # internal-proxies may set the client address (X-Forwarded-For) and scheme; the sign-in
   # throttle, the audit trail and session facts all use the resolved address, so a client
@@ -153,10 +153,10 @@ management:
         enabled: true
         add-additional-paths: true
       show-details: when-authorized
-      # Studio's own machinery (operational-health spec): jobs, broker calls and
+      # Rahdar's own machinery (operational-health spec): jobs, broker calls and
       # notification subscriptions. DEGRADED sits between DOWN and UP and answers 200,
-      # and the studio group is not part of liveness or readiness, so a broker outage
-      # or a stalled job never gets Studio restarted or taken out of rotation.
+      # and the rahdar group is not part of liveness or readiness, so a broker outage
+      # or a stalled job never gets Rahdar restarted or taken out of rotation.
       status:
         order: down,out-of-service,degraded,unknown,up
         http-mapping:
@@ -165,7 +165,7 @@ management:
       group:
         readiness:
           include: readinessState,replica
-        studio:
+        rahdar:
           include: jobs,partitions,brokers,subscriptions,permissions,pluginTrust,pluginLicenses,pluginSignIn,database
           show-details: when-authorized
   info:
@@ -175,9 +175,9 @@ management:
     distribution:
       # The 95th percentile of management call latency per node, for the health view and the alert rules.
       percentiles:
-        studio.broker.management: 0.95
+        rahdar.broker.management: 0.95
 
-  # OTLP export of metrics, traces and logs (ADR-0147). Off by default: Studio sends nothing until the
+  # OTLP export of metrics, traces and logs (ADR-0147). Off by default: Rahdar sends nothing until the
   # standard OpenTelemetry variables switch it on, which Boot maps onto the properties below
   # (OpenTelemetryEnvironmentVariableEnvironmentPostProcessor): OTEL_EXPORTER_OTLP_ENDPOINT for the collector,
   # and OTEL_TRACES_EXPORTER, OTEL_METRICS_EXPORTER and OTEL_LOGS_EXPORTER set to otlp for the three signals,
@@ -199,24 +199,24 @@ management:
     sampling:
       probability: 1.0
 
-# Application configuration, bound by ArtemisStudioProperties.
+# Application configuration, bound by RahdarProperties.
 #
 # These are DEFAULTS. Most of this tree is overridable at runtime from Settings
-# (a studio_setting row wins over the value here, and deleting the row restores
+# (a rahdar_setting row wins over the value here, and deleting the row restores
 # it) — SettingsService.REGISTRY is the list of exactly which keys, and is the
 # one place to add another. Nothing here is seeded into the database on first
 # start, on purpose: an absent row means "use the packaged default", so an
 # upgrade ships a new default instead of being pinned by a row written once.
-artemis-studio:
+rahdar:
   # The env key provider (ADR-0132): base64 of 32 bytes (version 1), or `1=<b64>,2=<b64>`
   # for key rotation. Protects every stored secret. The app fails to start if this is
-  # missing or the wrong length. Other providers: artemis-studio.secrets.provider.
-  secret-key: ${ARTEMIS_STUDIO_SECRET_KEY:}
-  # The address people open Studio at, e.g. https://studio.example.com. Alert notifications link back
+  # missing or the wrong length. Other providers: rahdar.secrets.provider.
+  secret-key: ${RAHDAR_SECRET_KEY:}
+  # The address people open Rahdar at, e.g. https://rahdar.example.com. Alert notifications link back
   # to it, and it is the relying party of passkeys (ADR-0143): with it blank passkeys are unavailable,
   # and changing its host strands the passkeys enrolled under the old one. Blank: not set.
-  public-url: ${ARTEMIS_STUDIO_PUBLIC_URL:}
-  # Several Studio replicas on one database (ADR-0152). A replica records a heartbeat from database
+  public-url: ${RAHDAR_PUBLIC_URL:}
+  # Several Rahdar replicas on one database (ADR-0152). A replica records a heartbeat from database
   # time; one whose heartbeat is older than ttl is gone. Keep ttl above two heartbeats.
   ha:
     heartbeat: 5s
@@ -234,7 +234,7 @@ artemis-studio:
     tier-c-interval: 5m      # walk the whole queue set each tick
     discovery-interval: 1m   # re-read topology so a broker that joins appears (ADR-0119)
   rate-limit:
-    # Per broker node. Conservative default so Studio never becomes the load.
+    # Per broker node. Conservative default so Rahdar never becomes the load.
     # Enforced by NodeCallLimiter (a per-node permit bucket refilled each second).
     management-calls-per-second: 20
   broker:
@@ -299,7 +299,7 @@ artemis-studio:
     min-interval: 30s            # least spacing between two reviews of one cluster
   sse:
     # Keep-alive comment interval for GET /api/v1/stream (ADR-0018). Lower it if a
-    # proxy in front of Studio idles the connection out sooner than this.
+    # proxy in front of Rahdar idles the connection out sooner than this.
     heartbeat-interval: 20s
   broker-config:
     # Declared broker configuration (ADR-0067). The drift pass compares every live
@@ -320,6 +320,6 @@ logging:
   exception-conversion-word: "%redactedEx"
   structured:
     json:
-      customizer: io.github.sudoitir.artemisstudio.kernel.core.internal.RedactingJsonMembers
+      customizer: io.github.sudoitir.rahdar.kernel.core.internal.RedactingJsonMembers
   level:
-    io.github.sudoitir.artemisstudio: INFO
+    io.github.sudoitir.rahdar: INFO

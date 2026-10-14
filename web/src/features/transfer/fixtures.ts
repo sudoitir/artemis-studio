@@ -153,7 +153,7 @@ export const finding = (kind: Finding['kind'], code: string, words: string, snip
 });
 
 export const problem = (status: number, type: string, title: string, detail: string) =>
-  HttpResponse.json({ type: `https://artemis-studio.dev/problems/${type}`, title, status, detail }, { status });
+  HttpResponse.json({ type: `https://rahdar.dev/problems/${type}`, title, status, detail }, { status });
 
 export function previewHandler(body: TransferRunView, bodies: unknown[] = []) {
   return http.post('*/api/v1/clusters/c1/transfers/preview', async ({ request }) => {

@@ -227,9 +227,9 @@ describe('ReviewApplyDrawer: the plan', () => {
     await waitFor(() => expect(calls).toHaveLength(2));
   });
 
-  it('offers, and re-plans with, removing what Studio did not apply', async () => {
+  it('offers, and re-plans with, removing what Rahdar did not apply', async () => {
     const { user, d } = await planned();
-    await user.click(d.getByRole('switch', { name: /Also remove settings and diverts Studio did not apply/ }));
+    await user.click(d.getByRole('switch', { name: /Also remove settings and diverts Rahdar did not apply/ }));
 
     await waitFor(() => expect(calls).toHaveLength(2));
     expect(calls[1].body.removeUndeclared).toBe(true);
@@ -378,8 +378,8 @@ describe('ReviewApplyDrawer: confirming', () => {
   });
 
   it.each([
-    ['https://studio/problems/plan-changed', /^The cluster moved since this plan was made\. Plan again and review it/],
-    ['https://studio/problems/apply-in-progress', /^Wait for it to finish, then plan again\./],
+    ['https://rahdar/problems/plan-changed', /^The cluster moved since this plan was made\. Plan again and review it/],
+    ['https://rahdar/problems/apply-in-progress', /^Wait for it to finish, then plan again\./],
   ])('explains a refusal of type %s', async (type, hint) => {
     real = () => HttpResponse.json({ type, title: 'Refused', detail: 'Refused by the server.' }, { status: 409 });
     const { user, d } = await planned();

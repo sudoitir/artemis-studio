@@ -72,8 +72,8 @@ export function ModeControl({
             <Select
               label="Apply mode"
               data={[
-                { value: 'STUDIO_MANAGED', label: 'Managed by Studio — apply over the management API' },
-                { value: 'CONFIG_MANAGED', label: 'Managed outside Studio — export broker.xml' },
+                { value: 'RAHDAR_MANAGED', label: 'Managed by Rahdar — apply over the management API' },
+                { value: 'CONFIG_MANAGED', label: 'Managed outside Rahdar — export broker.xml' },
               ]}
               disabled={!canWrite}
               {...form.getInputProps('applyMode')}

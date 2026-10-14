@@ -1,0 +1,21 @@
+package io.github.sudoitir.rahdar.feature.identitylocal;
+
+import io.github.sudoitir.rahdar.kernel.plugin.FeatureDescriptor;
+
+/** Local username and password login. Module descriptor (ADR-0070). */
+public final class IdentityLocalModule {
+
+    public static final FeatureDescriptor DESCRIPTOR = FeatureDescriptor.builder()
+            .id("identity-local")
+            .title("Password login")
+            .kind(FeatureDescriptor.Kind.IDENTITY_PROVIDER)
+            .settingKey(IdentityLocalSettings.PASSWORD_MIN_LENGTH)
+            .settingKey(IdentityLocalSettings.BREACH_LOOKUP)
+            .settingKey(IdentityLocalSettings.TRUSTED_DEVICE_LIFETIME)
+            .build();
+
+    /** The id of the credential provider whose accounts this module owns. */
+    public static final String PROVIDER_ID = "local";
+
+    private IdentityLocalModule() {}
+}

@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.feature.events`
+|`io.github.sudoitir.rahdar.feature.events`
 |Spring components
 |_Controllers_
 
@@ -34,7 +34,7 @@ _Others_
 * `i.g.s.a.p.g.ContentPolicy` (in Data governance)
 * `i.g.s.a.k.l.partition.PartitionDrops` (in Data lifecycle)
 * `i.g.s.a.k.c.PartitionProvisioner` (in Core)
-* `i.g.s.a.k.r.StudioBus` (in Replicas)
+* `i.g.s.a.k.r.RahdarBus` (in Replicas)
 * `i.g.s.a.k.s.SseHub` (in Event stream)
 |Events listened to
 |* `i.g.s.a.k.r.ReplicaSignal` 

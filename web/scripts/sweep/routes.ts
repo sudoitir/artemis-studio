@@ -110,7 +110,7 @@ const ADMIN_TABS: { tab: string; data: DataCall[] }[] = [
   { tab: 'plugins', data: [{ path: '/admin/plugins' }] },
   { tab: 'encryption-keys', data: [{ path: '/settings' }] },
   { tab: 'diagnostics', data: [{ path: '/diagnostics/summary' }] },
-  { tab: 'studio-health', data: [{ path: '/settings' }] },
+  { tab: 'rahdar-health', data: [{ path: '/settings' }] },
 ];
 
 /** The settings page's tabs: its sections (`settings.sections` contributions) and one per settings category. */
@@ -365,7 +365,7 @@ export const ROUTES: RouteSpec[] = [
     scenes: HELD_TOAST_SCENES,
   },
   { area: 'approvals', id: 'inbox-requester', path: '/inbox', auth: 'requester', scenes: BELL_SCENES },
-  // Run with `artemis-studio.gate.break-glass` set in Studio's environment: every page shows the banner.
+  // Run with `rahdar.gate.break-glass` set in Rahdar's environment: every page shows the banner.
   { area: 'breakglass', id: 'break-glass-admin', path: cluster('queues') },
   { area: 'breakglass', id: 'break-glass-requester', path: '/approvals?tab=mine', auth: 'requester' },
   {

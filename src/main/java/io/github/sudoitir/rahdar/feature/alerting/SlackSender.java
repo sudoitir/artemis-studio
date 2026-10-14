@@ -1,0 +1,149 @@
+package io.github.sudoitir.rahdar.feature.alerting;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import tools.jackson.databind.ObjectMapper;
+
+/**
+ * Delivers to a Slack incoming webhook (ADR-0036). The channel's secret <em>is</em>
+ * the webhook URL — Slack has no separate signing step. The message is Block Kit rendered from
+ * {@link AlertMessageFormatter} (ADR-0105). A {@code 404 no_team}
+ * means the webhook was revoked and is never retried; a {@code 429} honours
+ * {@code Retry-After}.
+ */
+@Component
+@Slf4j
+public class SlackSender implements NotificationSender {
+
+    private static final String SECTION = "section";
+
+    private final RestClient restClient;
+    private final ObjectMapper mapper;
+
+    public SlackSender(@Qualifier("notificationRestClient") RestClient restClient, ObjectMapper mapper) {
+        this.restClient = restClient;
+        this.mapper = mapper;
+    }
+
+    @Override
+    public String kind() {
+        return "SLACK";
+    }
+
+    @Override
+    public Result send(long deliveryId, String channelConfigJson, String webhookUrl, String payloadJson) {
+        String body;
+        try {
+            NoticePayload notice = NoticePayload.parseOrNull(payloadJson, mapper);
+            body = mapper.writeValueAsString(
+                    notice != null ? blocks(notice) : blocks(AlertMessage.parse(payloadJson, mapper)));
+        } catch (RuntimeException e) {
+            log.warn("Failed to render alert payload for Slack: {}", e.toString());
+            return Result.permanent("The alert payload could not be rendered: " + e.getMessage());
+        }
+        try {
+            restClient
+                    .post()
+                    .uri(webhookUrl)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
+            return Result.ok();
+        } catch (HttpClientErrorException.NotFound e) {
+            return Result.permanent("Slack webhook not found — likely revoked: " + e.getResponseBodyAsString());
+        } catch (HttpClientErrorException.TooManyRequests e) {
+            return Result.retryable("Slack rate limited", RetryAfter.parse(e.getResponseHeaders()));
+        } catch (HttpStatusCodeException e) {
+            return Result.retryable("Slack responded " + e.getStatusCode());
+        } catch (RestClientException e) {
+            return Result.retryable("Slack request failed: " + e.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * Block Kit: the title as a header, the facts as fields, one line per subject, and a button
+     * back to Rahdar when there is a link. {@code text} is the notification fallback.
+     */
+    static Map<String, Object> blocks(AlertMessage m) {
+        List<Map<String, Object>> blocks = new ArrayList<>();
+        blocks.add(Map.of("type", "header", "text", plain(truncate(AlertMessageFormatter.title(m), 150))));
+        List<Map<String, Object>> fields = new ArrayList<>();
+        fields.add(mrkdwn("*Severity*\n" + AlertMessageFormatter.severityWord(m.severity())));
+        fields.add(mrkdwn("*Rule*\n" + escape(m.ruleName())));
+        if (m.clusterName() != null) {
+            fields.add(mrkdwn("*Cluster*\n" + escape(m.clusterName())));
+        }
+        blocks.add(Map.of("type", SECTION, "fields", fields));
+        StringBuilder lines = new StringBuilder();
+        for (AlertMessage.Line t : m.transitions()) {
+            lines.append("• ").append(escape(AlertMessageFormatter.line(t))).append('\n');
+        }
+        blocks.add(Map.of("type", SECTION, "text", mrkdwn(truncate(lines.toString(), 2900))));
+        if (m.rahdarUrl() != null) {
+            blocks.add(Map.of(
+                    "type",
+                    "actions",
+                    "elements",
+                    List.of(Map.of("type", "button", "text", plain("Open in Rahdar"), "url", m.rahdarUrl()))));
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("text", AlertMessageFormatter.title(m));
+        body.put("blocks", blocks);
+        return body;
+    }
+
+    /** Block Kit for a notice: the headline, the summary, the facts as fields, and a button when there is a link. */
+    static Map<String, Object> blocks(NoticePayload n) {
+        List<Map<String, Object>> blocks = new ArrayList<>();
+        blocks.add(Map.of("type", "header", "text", plain(truncate(NoticeFormatter.headline(n), 150))));
+        if (n.summary() != null && !n.summary().isBlank()) {
+            blocks.add(Map.of("type", SECTION, "text", mrkdwn(truncate(escape(n.summary()), 2900))));
+        }
+        if (!n.facts().isEmpty()) {
+            List<Map<String, Object>> fields = new ArrayList<>();
+            for (NoticeMessage.Fact f : n.facts()) {
+                fields.add(mrkdwn("*" + escape(f.label()) + "*\n" + escape(f.value())));
+            }
+            blocks.add(Map.of("type", SECTION, "fields", fields));
+        }
+        if (n.url() != null) {
+            blocks.add(Map.of(
+                    "type",
+                    "actions",
+                    "elements",
+                    List.of(Map.of("type", "button", "text", plain("Open in Rahdar"), "url", n.url()))));
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("text", NoticeFormatter.headline(n));
+        body.put("blocks", blocks);
+        return body;
+    }
+
+    private static Map<String, Object> plain(String text) {
+        return Map.of("type", "plain_text", "text", text);
+    }
+
+    private static Map<String, Object> mrkdwn(String text) {
+        return Map.of("type", "mrkdwn", "text", text);
+    }
+
+    /** Slack's three control characters in mrkdwn. */
+    static String escape(String value) {
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    private static String truncate(String value, int max) {
+        return value.length() <= max ? value : value.substring(0, max - 1) + "…";
+    }
+}

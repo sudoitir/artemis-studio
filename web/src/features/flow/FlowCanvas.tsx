@@ -66,7 +66,7 @@ const EMPHASIS_CLEAR_MS = 80;
 const REVEAL_MS = 200;
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
-const MINIMAP_KEY = 'artemis-studio.flow.minimap';
+const MINIMAP_KEY = 'rahdar.flow.minimap';
 
 /**
  * The overview map, in the product's own colours and foldable away.

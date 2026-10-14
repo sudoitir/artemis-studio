@@ -437,8 +437,8 @@ function PlanBody({
 
       {scope?.label ? null : (
         <Switch
-          label="Also remove settings and diverts Studio did not apply"
-          description="Off: only what Studio applied and is no longer declared is removed. On: undeclared items are removed too — if broker.xml also has one, the removal reverts on the next restart and Studio cannot tell. A High hazard per item."
+          label="Also remove settings and diverts Rahdar did not apply"
+          description="Off: only what Rahdar applied and is no longer declared is removed. On: undeclared items are removed too — if broker.xml also has one, the removal reverts on the next restart and Rahdar cannot tell. A High hazard per item."
           size="xs"
           checked={removeUndeclared}
           onChange={(e) => setRemoveUndeclared(e.currentTarget.checked)}

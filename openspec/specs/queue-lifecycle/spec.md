@@ -5,7 +5,7 @@ Creating, destroying, pausing, resuming and reconfiguring queues and addresses a
 
 ## Requirements
 
-### Requirement: Queues and addresses can be created and destroyed from Studio
+### Requirement: Queues and addresses can be created and destroyed from Rahdar
 
 The system SHALL allow an authorized operator to create a queue, destroy a queue,
 create an address and destroy an address on a registered cluster, without leaving

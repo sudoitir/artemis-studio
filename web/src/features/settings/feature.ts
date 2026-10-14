@@ -4,7 +4,7 @@ import { createRoute } from '@tanstack/react-router';
 import { CONTRACT, defineFeature } from '../../kernel/feature.ts';
 import { clusterRoute } from '../../kernel/routing/roots.ts';
 import { lazyFeatureView } from '../../kernel/routing/lazy.tsx';
-import { DisplaySection, EncryptionKeysPanel, StudioHealthPanel } from './sections.tsx';
+import { DisplaySection, EncryptionKeysPanel, RahdarHealthPanel } from './sections.tsx';
 import { settingsSearch } from './SettingsPage.tsx';
 
 const settingsRoute = createRoute({
@@ -17,8 +17,8 @@ const settingsRoute = createRoute({
 });
 
 /**
- * A cluster's Settings page, behind `settings:read`: Studio's settings by category. What is not a cluster's lives
- * elsewhere: display preferences on the account page, encryption keys and Studio's health under Administration.
+ * A cluster's Settings page, behind `settings:read`: Rahdar's settings by category. What is not a cluster's lives
+ * elsewhere: display preferences on the account page, encryption keys and Rahdar's health under Administration.
  */
 export const settingsFeature = defineFeature({
   contract: CONTRACT,
@@ -45,7 +45,7 @@ export const settingsFeature = defineFeature({
         group: 'installation',
         Component: EncryptionKeysPanel,
       },
-      { id: 'studio-health', order: 80, title: 'Studio health', group: 'support', Component: StudioHealthPanel },
+      { id: 'rahdar-health', order: 80, title: 'Rahdar health', group: 'support', Component: RahdarHealthPanel },
     ],
   },
 });

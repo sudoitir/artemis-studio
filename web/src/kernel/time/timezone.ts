@@ -4,7 +4,7 @@ import { useSyncExternalStore } from 'react';
  * Which timezone the UI *renders* instants in.
  *
  * Separate from `time.ts`, and the separation is the point. `time.ts` answers
- * "what time is it" — a fact about Studio's clock, which the browser is never
+ * "what time is it" — a fact about Rahdar's clock, which the browser is never
  * asked about. This answers "which offset from UTC should that fact be written
  * down in", which is a property of the person reading the screen and is exactly
  * the thing the browser *should* be asked about. Auto-detecting the zone is

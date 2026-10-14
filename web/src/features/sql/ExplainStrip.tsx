@@ -28,7 +28,7 @@ const FROM_PLAN: ReadonlySet<CostVerdict['badge']> = new Set(['No cost', 'Index'
 /**
  * What the query will cost, stated before it runs and worked out without contacting a broker: one
  * sentence of words and numbers under the editor, then what it rests on (the predicates the broker
- * filters and the ones Studio scans) and what the plan cannot promise.
+ * filters and the ones Rahdar scans) and what the plan cannot promise.
  *
  * <p>The sentence is not a live region: it changes as the operator types, and announcing every
  * estimate would bury the editor. It describes the editor and Run instead (`id`, which they point
@@ -61,7 +61,7 @@ export function ExplainStrip({
       {pushedDown.length > 0 || scanned.length > 0 ? (
         <div className={classes.predicates}>
           <Predicates label="Pushed down" items={pushedDown} />
-          <Predicates label="Scanned by Studio" items={scanned} />
+          <Predicates label="Scanned by Rahdar" items={scanned} />
         </div>
       ) : null}
       {notices.length > 0 ? (

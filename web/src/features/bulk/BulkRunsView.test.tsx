@@ -97,7 +97,7 @@ describe('BulkRunsView', () => {
     );
     renderWithProviders(<BulkRunsView />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Studio failed to complete the request');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Rahdar failed to complete the request');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     expect(screen.queryByText('No bulk runs yet')).not.toBeInTheDocument();
   });

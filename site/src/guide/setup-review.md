@@ -1,6 +1,6 @@
 ---
 title: Setup review
-description: Studio checks each cluster's HA, clustering, durability and message-safety configuration against known mistakes — a single replication pair that cannot win a quorum vote, redistribution left off, a connector advertising localhost — and shows the evidence and the broker.xml fix.
+description: Rahdar checks each cluster's HA, clustering, durability and message-safety configuration against known mistakes — a single replication pair that cannot win a quorum vote, redistribution left off, a connector advertising localhost — and shows the evidence and the broker.xml fix.
 ---
 
 # Setup review
@@ -26,14 +26,14 @@ With only one primary, nobody is left to vote. Artemis skips the vote
 itself whenever it loses its primary. On a network partition the primary is still running
 on the other side, so both serve clients and their journals diverge.
 
-Studio reports this as **critical** and offers:
+Rahdar reports this as **critical** and offers:
 
 - a **distributed lock manager** (ZooKeeper) to coordinate the pair; or
 - **three or more primary/backup pairs**, so a real majority exists; and
 - as a mitigation, a **network pinger** (`network-check-list`), so a node that loses the
   network stops instead of promoting itself.
 
-Studio cannot see whether a pinger is configured: the management API does not expose it.
+Rahdar cannot see whether a pinger is configured: the management API does not expose it.
 The finding says so. If you have one, accept the finding as a known risk (see below).
 With exactly two primaries the review warns instead, because one surviving primary
 decides every vote.

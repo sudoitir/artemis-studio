@@ -19,7 +19,7 @@ describe('RouteNotFound', () => {
     );
     renderAppAt('/no-such-page');
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
-    expect(screen.getByText('Nothing in Studio is at /no-such-page.')).toBeInTheDocument();
+    expect(screen.getByText('Nothing in Rahdar is at /no-such-page.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Go to the start page' })).toHaveAttribute('href', '/');
   });
 });

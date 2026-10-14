@@ -16,7 +16,7 @@ const NOUN: Record<NodeKind, string> = {
 /**
  * Whether a close may be attempted on this target, and why not. A row the broker gave no
  * identifier for has nothing to aim at; the control still shows, with the reason — a missing
- * button would read as "Studio cannot close connections" rather than "this row cannot be
+ * button would read as "Rahdar cannot close connections" rather than "this row cannot be
  * addressed".
  */
 export function useCloseGate(clusterId: string, kind: NodeKind, targetId: string): GateVerdict {

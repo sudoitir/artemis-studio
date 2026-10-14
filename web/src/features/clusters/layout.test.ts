@@ -332,7 +332,7 @@ describe('topology layout', () => {
     expect(box(model, 'old').data.versionFlag).toBe('unsupported');
     expect(box(model, 'old').data.sentence).toContain('Artemis 2.31.2, unsupported release');
     expect(box(model, 'new').data.versionFlag).toBe('untested');
-    expect(box(model, 'new').data.sentence).toContain('newer release than Studio has tested');
+    expect(box(model, 'new').data.sentence).toContain('newer release than Rahdar has tested');
     expect(box(model, 'ok').data.versionFlag).toBeNull();
   });
 

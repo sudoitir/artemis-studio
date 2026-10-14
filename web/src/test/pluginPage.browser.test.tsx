@@ -17,7 +17,7 @@ import { manifestKey } from '../kernel/manifest.ts';
 /**
  * A plugin's page in the real shell, laid out by Chromium. A plugin owns the whole of its page, and a
  * page that opens with a notice is common; the host must put that notice below its fixed header and
- * beside the navigation, in the content area Studio's own pages use, with nothing covering it.
+ * beside the navigation, in the content area Rahdar's own pages use, with nothing covering it.
  */
 beforeAll(() => onlineManager.setOnline(false));
 afterAll(async () => {
@@ -103,7 +103,7 @@ describe.each(SCHEMES)('A plugin page that begins with a notice, in the %s schem
     // Nothing the host draws sits over the notice: what is at its middle is the notice itself.
     const middle = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
     expect(alert.contains(middle)).toBe(true);
-    // And the page is laid out as Studio's own are: it does not scroll to reach its first element.
+    // And the page is laid out as Rahdar's own are: it does not scroll to reach its first element.
     expect(window.scrollY).toBe(0);
   });
 });

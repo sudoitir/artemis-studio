@@ -21,7 +21,7 @@ const REMOVE: ActionVerb = { verb: 'Remove', past: 'Removed', progressive: 'Remo
 const ALLOW: ActionVerb = { verb: 'Change', past: 'Changed', progressive: 'Changing' };
 
 /**
- * Whose signatures Studio accepts on plugins (ADR-0140), and the one switch that lets unverified
+ * Whose signatures Rahdar accepts on plugins (ADR-0140), and the one switch that lets unverified
  * plugins in anyway. Only an installer with a fresh sign-in changes either; the server enforces it.
  */
 export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolean; onClose: () => void }>) {
@@ -142,7 +142,7 @@ export function TrustedKeysDialog({ opened, onClose }: Readonly<{ opened: boolea
               }
             />
             <Text size="sm" className={styles.danger}>
-              Danger: an unverified plugin runs code inside Studio with its access to your brokers and database, and
+              Danger: an unverified plugin runs code inside Rahdar with its access to your brokers and database, and
               nobody you trust vouches for it. Each such install is audited and shown with an Unverified badge. Leave
               this off unless you build the plugins yourself.
             </Text>

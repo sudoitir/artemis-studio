@@ -56,7 +56,7 @@ Inference SHALL bound the depth, size and element count it reads from one payloa
 
 #### Scenario: An XML payload with an external entity
 - **WHEN** a sampled XML payload declares an external entity or expands entities recursively
-- **THEN** no entity is resolved, no request leaves Studio, and memory stays bounded
+- **THEN** no entity is resolved, no request leaves Rahdar, and memory stays bounded
 
 #### Scenario: Deeply nested JSON
 - **WHEN** a JSON payload nests beyond the depth bound

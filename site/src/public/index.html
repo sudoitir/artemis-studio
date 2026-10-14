@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Artemis Studio</title>
+<title>Rahdar</title>
 <meta name="description" content="Open-source, cluster-wide management and observability for Apache ActiveMQ Artemis — live/backup topology, cross-node queues, safe message operations, request-reply tracing, and SQL over your messages.">
-<link rel="canonical" href="https://sudoitir.github.io/artemis-studio/">
-<link rel="icon" type="image/svg+xml" href="https://sudoitir.github.io/artemis-studio/favicon.svg">
+<link rel="canonical" href="https://rahdar.dev/">
+<link rel="icon" type="image/svg+xml" href="https://rahdar.dev/favicon.svg">
 <meta name="theme-color" content="#0b7285">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Artemis Studio">
-<meta property="og:title" content="Artemis Studio — one console for every Artemis cluster you run">
+<meta property="og:site_name" content="Rahdar">
+<meta property="og:title" content="Rahdar — one console for every Artemis cluster you run">
 <meta property="og:description" content="Stop hunting across one tab per broker. Live topology, every queue on every node in one table, safe message operations and SQL over your messages.">
-<meta property="og:url" content="https://sudoitir.github.io/artemis-studio/">
-<meta property="og:image" content="https://sudoitir.github.io/artemis-studio/img/topology.png">
+<meta property="og:url" content="https://rahdar.dev/">
+<meta property="og:image" content="https://rahdar.dev/img/topology.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -202,21 +202,21 @@ section { position: relative; }
 
 /* ── 4. after ───────────────────────────────────────────── */
 .after { padding: 120px 0 80px; }
-.studio {
+.rahdar {
   margin-top: 44px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--bg-2);
   box-shadow: 0 60px 140px -40px rgba(21, 170, 191, .35), 0 0 0 1px rgba(59, 201, 219, .06);
 }
-.studio-bar { display: flex; align-items: center; gap: 18px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #0a1417; font-size: 13px; }
-.studio-bar .brand { font-size: 14px; }
-.studio-bar .brand img { width: 20px; height: 20px; }
-.studio-bar nav { display: flex; gap: 4px; }
-.studio-bar nav span { padding: 4px 10px; border-radius: 6px; color: var(--muted); }
-.studio-bar nav span.on { background: var(--panel-2); color: var(--ink); }
-.studio-bar .live { margin-left: auto; font: 600 11px/1 var(--mono); color: var(--green); display: flex; align-items: center; gap: 6px; }
-.studio-bar .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: blink 1.6s infinite; }
+.rahdar-bar { display: flex; align-items: center; gap: 18px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #0a1417; font-size: 13px; }
+.rahdar-bar .brand { font-size: 14px; }
+.rahdar-bar .brand img { width: 20px; height: 20px; }
+.rahdar-bar nav { display: flex; gap: 4px; }
+.rahdar-bar nav span { padding: 4px 10px; border-radius: 6px; color: var(--muted); }
+.rahdar-bar nav span.on { background: var(--panel-2); color: var(--ink); }
+.rahdar-bar .live { margin-left: auto; font: 600 11px/1 var(--mono); color: var(--green); display: flex; align-items: center; gap: 6px; }
+.rahdar-bar .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: blink 1.6s infinite; }
 @keyframes blink { 50% { opacity: .3; } }
-.studio-body { display: grid; grid-template-columns: 1.05fr 1fr; }
-@media (max-width: 980px) { .studio-body { grid-template-columns: 1fr; } }
+.rahdar-body { display: grid; grid-template-columns: 1.05fr 1fr; }
+@media (max-width: 980px) { .rahdar-body { grid-template-columns: 1fr; } }
 .topo { padding: 18px; border-right: 1px solid var(--line); }
 .topo svg { width: 100%; height: auto; display: block; }
 .topo .cl { fill: rgba(21, 170, 191, .04); stroke: var(--line); }
@@ -365,13 +365,13 @@ footer .wrap { display: grid; gap: 10px; }
 
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="https://sudoitir.github.io/artemis-studio/"><img src="https://sudoitir.github.io/artemis-studio/favicon.svg" alt=""> Artemis Studio</a>
+    <a class="brand" href="https://rahdar.dev/"><img src="https://rahdar.dev/favicon.svg" alt=""> Rahdar</a>
     <nav aria-label="Site">
-      <a href="https://sudoitir.github.io/artemis-studio/guide/">Docs</a>
-      <a href="https://sudoitir.github.io/artemis-studio/guide/sql-console">SQL Console</a>
-      <a href="https://sudoitir.github.io/artemis-studio/guide/mcp">MCP</a>
-      <a href="https://github.com/sudoitir/artemis-studio">GitHub</a>
-      <a class="btn primary" href="https://sudoitir.github.io/artemis-studio/guide/quickstart">Quickstart</a>
+      <a href="https://rahdar.dev/guide/">Docs</a>
+      <a href="https://rahdar.dev/guide/sql-console">SQL Console</a>
+      <a href="https://rahdar.dev/guide/mcp">MCP</a>
+      <a href="https://github.com/sudoitir/rahdar">GitHub</a>
+      <a class="btn primary" href="https://rahdar.dev/guide/quickstart">Quickstart</a>
     </nav>
   </div>
 </header>
@@ -438,9 +438,9 @@ footer .wrap { display: grid; gap: 10px; }
   <div class="chips" id="chips" aria-hidden="true"></div>
   <div class="turn-copy">
     <p class="pre">Now close all eight tabs.</p>
-    <div class="one-window" aria-hidden="true"><img src="https://sudoitir.github.io/artemis-studio/favicon.svg" alt=""></div>
+    <div class="one-window" aria-hidden="true"><img src="https://rahdar.dev/favicon.svg" alt=""></div>
     <h2 id="turn-h">One console for <em>every</em> Artemis cluster you run.</h2>
-    <p class="lede" style="margin:0 auto">Artemis Studio is open source. It talks to every node you run and shows them together, as one estate.</p>
+    <p class="lede" style="margin:0 auto">Rahdar is open source. It talks to every node you run and shows them together, as one estate.</p>
   </div>
 </section>
 
@@ -449,15 +449,15 @@ footer .wrap { display: grid; gap: 10px; }
   <div class="wrap">
     <p class="kicker">After</p>
     <h2 id="after-h" style="margin-top:14px">The same incident. <span class="serif">One screen.</span></h2>
-    <p class="lede">Both clusters on one canvas, with the HA roles Studio actually polled. Every queue on every node in one table, sorted by depth. The broker you were hunting for is the one that's glowing, and its queue is the first row.</p>
+    <p class="lede">Both clusters on one canvas, with the HA roles Rahdar actually polled. Every queue on every node in one table, sorted by depth. The broker you were hunting for is the one that's glowing, and its queue is the first row.</p>
 
-    <div class="studio" id="studio">
-      <div class="studio-bar">
-        <span class="brand"><img src="https://sudoitir.github.io/artemis-studio/favicon.svg" alt=""> Artemis Studio</span>
+    <div class="rahdar" id="rahdar">
+      <div class="rahdar-bar">
+        <span class="brand"><img src="https://rahdar.dev/favicon.svg" alt=""> Rahdar</span>
         <nav aria-hidden="true"><span class="on">Topology</span><span>Queues</span><span>Flow</span><span>SQL</span></nav>
         <span class="live">LIVE · SSE</span>
       </div>
-      <div class="studio-body">
+      <div class="rahdar-body">
         <div class="topo">
           <svg id="topo" viewBox="0 0 640 330" role="img" aria-label="Topology of two clusters, prod-eu and prod-us, each with two live/backup pairs. One live broker is highlighted in red."></svg>
           <div class="topo-legend"><span style="color:var(--teal-hi)">● live</span><span>○ backup</span><span>━ cluster connection</span><span>┅ replication</span></div>
@@ -474,7 +474,7 @@ footer .wrap { display: grid; gap: 10px; }
 
     <div class="verdict">
       <div class="you"><span class="kicker" style="color:var(--amber)">You, one tab at a time</span><div class="num" id="you-num">? s</div><p id="you-text">Try the hunt above. The clock starts on your first click.</p></div>
-      <div class="us"><span class="kicker">Studio</span><div class="num">Row 1</div><p>No tabs, no tree, no guessing. It was the first row before you asked.</p></div>
+      <div class="us"><span class="kicker">Rahdar</span><div class="num">Row 1</div><p>No tabs, no tree, no guessing. It was the first row before you asked.</p></div>
     </div>
 
     <div class="facts">
@@ -496,11 +496,11 @@ footer .wrap { display: grid; gap: 10px; }
         <li>Dots move along every edge, faster and denser as the path gets busier.</li>
         <li>Colour only shows up when something is wrong, and the problem is spelled out: <i>no consumer</i>, <i>stalled</i>, <i>not connected</i>.</li>
       </ul>
-      <a class="more" href="https://sudoitir.github.io/artemis-studio/guide/flow">How Flow works</a>
+      <a class="more" href="https://rahdar.dev/guide/flow">How Flow works</a>
     </div>
     <div class="frame">
-      <div class="fbar"><i></i><i></i><i></i><span>Flow · recorded in Studio</span></div>
-      <video data-src="https://sudoitir.github.io/artemis-studio/img/flow.mp4" poster="https://sudoitir.github.io/artemis-studio/img/flow.png" muted loop playsinline preload="none" aria-label="The Flow graph with moving dots on each path"></video>
+      <div class="fbar"><i></i><i></i><i></i><span>Flow · recorded in Rahdar</span></div>
+      <video data-src="https://rahdar.dev/img/flow.mp4" poster="https://rahdar.dev/img/flow.png" muted loop playsinline preload="none" aria-label="The Flow graph with moving dots on each path"></video>
     </div>
   </div>
 </section>
@@ -516,7 +516,7 @@ footer .wrap { display: grid; gap: 10px; }
         <li>Purge and delete are confirmed by pressing and holding the button until it fills, so a stray click cannot do it.</li>
         <li>The audit event is written in the same transaction as the command, before the broker call, so even a crash mid-operation leaves a record.</li>
       </ul>
-      <a class="more" href="https://sudoitir.github.io/artemis-studio/guide/message-transfer">Moving messages safely</a>
+      <a class="more" href="https://rahdar.dev/guide/message-transfer">Moving messages safely</a>
     </div>
     <div class="stack">
       <div class="frame">
@@ -553,18 +553,18 @@ footer .wrap { display: grid; gap: 10px; }
         <li>It's <code>SELECT</code>-only and parsed to an AST, so no mutation can even be written.</li>
         <li>The plan shows what each predicate costs before it runs: target, pushdown or scan.</li>
       </ul>
-      <a class="more" href="https://sudoitir.github.io/artemis-studio/guide/sql-console">SQL Console guide</a>
+      <a class="more" href="https://rahdar.dev/guide/sql-console">SQL Console guide</a>
     </div>
     <div class="stack">
       <div class="frame" id="sql">
         <div class="fbar"><i></i><i></i><i></i><span>SQL Console</span></div>
         <div class="sql-ed" id="sql-ed" aria-label="SELECT * FROM &quot;ORDERS.#&quot; WHERE body->>'orderId' = '4471' LIMIT 50"></div>
-        <div class="plan" id="sql-plan" aria-label="Query plan"><span class="t">target · "ORDERS.#" → 2 queues × 4 live nodes</span><span>pushdown · none</span><span class="sc">scan · body→&gt;'orderId' (Studio reads the body)</span></div>
+        <div class="plan" id="sql-plan" aria-label="Query plan"><span class="t">target · "ORDERS.#" → 2 queues × 4 live nodes</span><span>pushdown · none</span><span class="sc">scan · body→&gt;'orderId' (Rahdar reads the body)</span></div>
         <div class="res"><table><thead><tr><th>queue</th><th>node</th><th>timestamp</th><th>body</th></tr></thead><tbody id="sql-res"></tbody></table></div>
       </div>
       <div class="frame">
-        <div class="fbar"><i></i><i></i><i></i><span>SQL Console · recorded in Studio</span></div>
-        <video data-src="https://sudoitir.github.io/artemis-studio/img/sql-console.mp4" poster="https://sudoitir.github.io/artemis-studio/img/sql.png" muted loop playsinline preload="none" aria-label="Querying every queue in a cluster from the SQL Console"></video>
+        <div class="fbar"><i></i><i></i><i></i><span>SQL Console · recorded in Rahdar</span></div>
+        <video data-src="https://rahdar.dev/img/sql-console.mp4" poster="https://rahdar.dev/img/sql.png" muted loop playsinline preload="none" aria-label="Querying every queue in a cluster from the SQL Console"></video>
       </div>
     </div>
   </div>
@@ -575,21 +575,21 @@ footer .wrap { display: grid; gap: 10px; }
     <div class="copy">
       <span class="num">04 / Your brokers</span>
       <h2 id="c4-h">Keep your brokers <span class="serif">exactly as they are.</span></h2>
-      <p>Studio registers the brokers you already run. It doesn't install them, doesn't restart them, and never writes <code>broker.xml</code>.</p>
+      <p>Rahdar registers the brokers you already run. It doesn't install them, doesn't restart them, and never writes <code>broker.xml</code>.</p>
       <ul>
         <li>Nothing to rewrite beyond the management endpoints you almost certainly already have on.</li>
         <li>If a capability is missing, the UI says so and shows the exact snippet that enables it. Nothing just silently disappears.</li>
         <li>It goes easy on the broker: reads are batched into one Jolokia POST per node, never one per queue, behind a per-node rate limiter.</li>
       </ul>
-      <a class="more" href="https://sudoitir.github.io/artemis-studio/guide/quickstart">Register your first cluster</a>
+      <a class="more" href="https://rahdar.dev/guide/quickstart">Register your first cluster</a>
     </div>
     <div class="frame">
       <div class="fbar"><i></i><i></i><i></i><span>git diff -- etc/broker.xml</span></div>
       <div class="diff">
-        <div class="h">Changes Studio needs in your broker configuration</div>
+        <div class="h">Changes Rahdar needs in your broker configuration</div>
         <div class="z">0 files changed</div>
         <div class="h">0 insertions(+), 0 deletions(−) · assuming management is on, as it usually is</div>
-<pre><span class="c">&lt;!-- what Studio talks to, already in a typical install --&gt;</span>
+<pre><span class="c">&lt;!-- what Rahdar talks to, already in a typical install --&gt;</span>
 <b>Jolokia</b>  http://broker-01:8161/console/jolokia   <span class="c">reads, operations</span>
 <b>Core</b>     tcp://broker-01:61616                  <span class="c">notifications, message I/O</span></pre>
       </div>
@@ -604,8 +604,8 @@ footer .wrap { display: grid; gap: 10px; }
     <h2 id="real-h" style="margin-top:14px">This is <span class="serif">the real thing.</span></h2>
     <p class="lede">A real session against a real cluster pair: the topology, the cross-node queue grid, a message that went to the dead-letter queue, message flow and the charts.</p>
     <div class="frame">
-      <div class="fbar"><i></i><i></i><i></i><span>Artemis Studio · unedited session</span></div>
-      <video data-src="https://sudoitir.github.io/artemis-studio/img/demo.mp4" poster="https://sudoitir.github.io/artemis-studio/img/topology.png" muted loop playsinline preload="none" aria-label="Artemis Studio demo: topology, cross-node queue grid, dead-letter queue, flow and charts"></video>
+      <div class="fbar"><i></i><i></i><i></i><span>Rahdar · unedited session</span></div>
+      <video data-src="https://rahdar.dev/img/demo.mp4" poster="https://rahdar.dev/img/topology.png" muted loop playsinline preload="none" aria-label="Rahdar demo: topology, cross-node queue grid, dead-letter queue, flow and charts"></video>
     </div>
   </div>
 </section>
@@ -615,12 +615,12 @@ footer .wrap { display: grid; gap: 10px; }
     <p class="kicker">Also in the box</p>
     <h2 id="extras-h" style="margin-top:14px">Everything else you've <span class="serif">been missing.</span></h2>
     <div class="cards">
-      <a class="card" href="https://sudoitir.github.io/artemis-studio/guide/"><h3>Request-reply tracing</h3><p>A request matched to its reply across addresses and nodes, with latency and timeouts measured against expectations you declare.</p></a>
-      <a class="card" href="https://sudoitir.github.io/artemis-studio/guide/mcp"><h3>An MCP server</h3><p>Ask an assistant why ORDERS.DLQ is backed up and get an answer from your real clusters, under the same permissions and audit trail as a person.</p></a>
-      <a class="card" href="https://sudoitir.github.io/artemis-studio/guide/broker-configuration"><h3>Configuration drift</h3><p>Declare what a cluster should run, apply it canary-first, and see in plain words when any node has drifted.</p></a>
-      <a class="card" href="https://sudoitir.github.io/artemis-studio/guide/message-capture"><h3>Message capture</h3><p>Index the queues you care about so messages you've already consumed can still be queried.</p></a>
-      <a class="card" href="https://sudoitir.github.io/artemis-studio/guide/alert-delivery"><h3>Alert delivery</h3><p>Send the alert that woke you up to where your team already works, before it wakes anyone at 3 a.m.</p></a>
-      <a class="card" href="https://sudoitir.github.io/artemis-studio/guide/plugins"><h3>Plugins</h3><p>Install screens, API, assistant tools and data from the UI, most of them without a restart.</p></a>
+      <a class="card" href="https://rahdar.dev/guide/"><h3>Request-reply tracing</h3><p>A request matched to its reply across addresses and nodes, with latency and timeouts measured against expectations you declare.</p></a>
+      <a class="card" href="https://rahdar.dev/guide/mcp"><h3>An MCP server</h3><p>Ask an assistant why ORDERS.DLQ is backed up and get an answer from your real clusters, under the same permissions and audit trail as a person.</p></a>
+      <a class="card" href="https://rahdar.dev/guide/broker-configuration"><h3>Configuration drift</h3><p>Declare what a cluster should run, apply it canary-first, and see in plain words when any node has drifted.</p></a>
+      <a class="card" href="https://rahdar.dev/guide/message-capture"><h3>Message capture</h3><p>Index the queues you care about so messages you've already consumed can still be queried.</p></a>
+      <a class="card" href="https://rahdar.dev/guide/alert-delivery"><h3>Alert delivery</h3><p>Send the alert that woke you up to where your team already works, before it wakes anyone at 3 a.m.</p></a>
+      <a class="card" href="https://rahdar.dev/guide/plugins"><h3>Plugins</h3><p>Install screens, API, assistant tools and data from the UI, most of them without a restart.</p></a>
     </div>
   </div>
 </section>
@@ -631,24 +631,24 @@ footer .wrap { display: grid; gap: 10px; }
     <h2 id="close-h">Next time it's 3 a.m., <span class="serif">open one tab.</span></h2>
     <div class="install">
       <div class="fbar"><span>Install in one command</span><button type="button" id="copy">Copy</button></div>
-<pre id="cmd"><span class="p">$ </span>git clone https://github.com/sudoitir/artemis-studio &amp;&amp; cd artemis-studio
-<span class="p">$ </span>just up   <span class="c"># two Studio replicas + HAProxy + Postgres, secrets generated, pinned to the latest release</span></pre>
-      <p>Your brokers already exist. Studio registers them, it doesn't start them.</p>
+<pre id="cmd"><span class="p">$ </span>git clone https://github.com/sudoitir/rahdar &amp;&amp; cd rahdar
+<span class="p">$ </span>just up   <span class="c"># two Rahdar replicas + HAProxy + Postgres, secrets generated, pinned to the latest release</span></pre>
+      <p>Your brokers already exist. Rahdar registers them, it doesn't start them.</p>
     </div>
     <div class="ctas">
-      <a class="btn primary" href="https://sudoitir.github.io/artemis-studio/guide/quickstart">Read the quickstart</a>
-      <a class="btn" href="https://sudoitir.github.io/artemis-studio/guide/">Docs</a>
-      <a class="btn" href="https://github.com/sudoitir/artemis-studio">★ Star on GitHub</a>
+      <a class="btn primary" href="https://rahdar.dev/guide/quickstart">Read the quickstart</a>
+      <a class="btn" href="https://rahdar.dev/guide/">Docs</a>
+      <a class="btn" href="https://github.com/sudoitir/rahdar">★ Star on GitHub</a>
     </div>
-    <div class="alpha"><b>Alpha.</b> Under active development and not yet feature-complete. Published images are pre-stable dev builds (<code>sudoit1/artemis-studio:dev</code>, no <code>:latest</code> yet). Expect breaking changes.</div>
+    <div class="alpha"><b>Alpha.</b> Under active development and not yet feature-complete. Published images are pre-stable dev builds (<code>sudoit1/rahdar:dev</code>, no <code>:latest</code> yet). Expect breaking changes.</div>
   </div>
 </section>
 </main>
 
 <footer>
   <div class="wrap">
-    <span>Apache-2.0. Apache ActiveMQ and Apache ActiveMQ Artemis are trademarks of the Apache Software Foundation. Artemis Studio is an independent project, not produced by, endorsed by, or affiliated with the ASF.</span>
-    <a href="https://github.com/sudoitir/artemis-studio">github.com/sudoitir/artemis-studio</a>
+    <span>Apache-2.0. Apache ActiveMQ and Apache ActiveMQ Artemis are trademarks of the Apache Software Foundation. Rahdar is an independent project, not produced by, endorsed by, or affiliated with the ASF.</span>
+    <a href="https://github.com/sudoitir/rahdar">github.com/sudoitir/rahdar</a>
   </div>
 </footer>
 
@@ -796,8 +796,8 @@ footer .wrap { display: grid; gap: 10px; }
     const secs = (elapsed() / 1000).toFixed(1), tabs = state.seen.size;
     const f = $('#found');
     f.innerHTML = outcome === 'found'
-      ? `<b>Found it.</b> ${HOT} on ${culprit}: ${fmt(HOT_DEPTH)} messages, 0 consumers. That took you <b>${secs} s</b> and <b>${tabs} tab${tabs === 1 ? '' : 's'}</b>, and you knew what you were looking for. <a href="#turn">Now watch the same thing in Studio ↓</a>`
-      : `It was ${HOT} on <b>${culprit}</b>: ${fmt(HOT_DEPTH)} messages, 0 consumers. You looked for <b>${secs} s</b> across <b>${tabs} tab${tabs === 1 ? '' : 's'}</b>. <a href="#turn">Now watch the same thing in Studio ↓</a>`;
+      ? `<b>Found it.</b> ${HOT} on ${culprit}: ${fmt(HOT_DEPTH)} messages, 0 consumers. That took you <b>${secs} s</b> and <b>${tabs} tab${tabs === 1 ? '' : 's'}</b>, and you knew what you were looking for. <a href="#turn">Now watch the same thing in Rahdar ↓</a>`
+      : `It was ${HOT} on <b>${culprit}</b>: ${fmt(HOT_DEPTH)} messages, 0 consumers. You looked for <b>${secs} s</b> across <b>${tabs} tab${tabs === 1 ? '' : 's'}</b>. <a href="#turn">Now watch the same thing in Rahdar ↓</a>`;
     f.classList.add('show');
     $('#giveup').disabled = true;
     $('#you-num').textContent = secs + ' s';
@@ -891,7 +891,7 @@ footer .wrap { display: grid; gap: 10px; }
   // ── 5. mocks that play once when they scroll into view ──
   const wait = ms => new Promise(r => setTimeout(r, reduced ? 0 : ms));
 
-  // The purge is confirmed as Studio confirms it: held until the button fills, never typed or clicked.
+  // The purge is confirmed as Rahdar confirms it: held until the button fills, never typed or clicked.
   const purgeBtn = $('#purge-btn'), purgeHint = $('#purge-hint');
   const HOLD_MS = 1500;
   let holdTimer = -1;
@@ -1008,8 +1008,8 @@ footer .wrap { display: grid; gap: 10px; }
     // after: the console assembles itself, worst row last
     const edges = $$('#topo path.link');
     edges.forEach(p => { const l = p.getTotalLength(); gsap.set(p, { strokeDasharray: l, strokeDashoffset: l }); });
-    const after = gsap.timeline({ scrollTrigger: { trigger: '#studio', start: 'top 70%', end: 'top 15%', scrub: 1 } });
-    after.from('#studio', { y: 80, scale: .96, autoAlpha: 0, duration: 1 })
+    const after = gsap.timeline({ scrollTrigger: { trigger: '#rahdar', start: 'top 70%', end: 'top 15%', scrub: 1 } });
+    after.from('#rahdar', { y: 80, scale: .96, autoAlpha: 0, duration: 1 })
       .from('#topo .node', { scale: .6, autoAlpha: 0, transformOrigin: '50% 50%', stagger: .06, duration: .5 }, '-=.3')
       .to(edges, { strokeDashoffset: 0, duration: .6, stagger: .05 }, '-=.2')
       .from('#topo path.repl, #topo .dot', { autoAlpha: 0, duration: .4 }, '<')

@@ -1,7 +1,7 @@
 # plugin-runtime Specification
 
 ## Purpose
-Lets an authorised operator extend an installed Studio with third-party plugins. A plugin contributes screens, API, assistant tools and its own data. It is installed, updated, rolled back and removed from the UI, and a faulty plugin can never take Studio down.
+Lets an authorised operator extend an installed Rahdar with third-party plugins. A plugin contributes screens, API, assistant tools and its own data. It is installed, updated, rolled back and removed from the UI, and a faulty plugin can never take Rahdar down.
 
 ## Requirements
 
@@ -11,7 +11,7 @@ A plugin SHALL be delivered as a single jar containing a descriptor that states:
 - its identifier, name, version, vendor and description
 - its change notes
 - its base package and root configuration
-- the extension-contract version it was built against, and the range of Studio versions it supports (a minimum, and optionally a maximum)
+- the extension-contract version it was built against, and the range of Rahdar versions it supports (a minimum, and optionally a maximum)
 - the other features it requires
 - whether it has a UI
 - whether activating it needs a restart
@@ -42,10 +42,10 @@ The system SHALL validate an uploaded plugin and SHALL refuse it, listing every 
 - the jar contains an entry outside its declared base package, its own changelog directory or its own descriptor directory;
 - the jar's manifest declares a class path, an agent, module opens or exports, or native access;
 - the archive exceeds 50 MB compressed or 250 MB uncompressed, holds more than 20 000 entries, has an entry compressed beyond 100:1, contains duplicate, absolute, backslash or parent-relative entry names, or nests an archive;
-- its classes overlap Studio's own packages, a platform library's or another plugin's;
+- its classes overlap Rahdar's own packages, a platform library's or another plugin's;
 - a contribution falls outside the plugin's namespace;
 - it was built against a different contract version;
-- the running Studio version is outside its supported range;
+- the running Rahdar version is outside its supported range;
 - it uses a forbidden construct: process exit or halt, process execution, thread stop, changing the context class loader, storing into the HTTP session, its own scheduling or async annotations, auto-configuration, or component scanning outside its package;
 - a database changeset is non-transactional, or differs from one already applied.
 
@@ -55,8 +55,8 @@ A refused plugin SHALL leave nothing stored.
 - **WHEN** a jar has an entry outside its package and was built for another contract version
 - **THEN** the upload is refused with `422` and both violations are listed, each with the change the author must make
 
-#### Scenario: An incompatible Studio version is named
-- **WHEN** a plugin requires a newer Studio than the one running
+#### Scenario: An incompatible Rahdar version is named
+- **WHEN** a plugin requires a newer Rahdar than the one running
 - **THEN** the refusal names the plugin's minimum version and the running version
 
 #### Scenario: A zip-slip entry is refused
@@ -71,7 +71,7 @@ A plugin's contributions SHALL be confined to its identifier's namespace, so tha
 - stream topics `<id>` or `<id>.…`
 - assistant tools, resources and prompts `<id_with_underscores>_…`
 - HTTP paths under `/api/v1/p/<id>/` or `/api/v1/clusters/{clusterId}/p/<id>/`
-- configuration properties under `artemis-studio.plugins.<id>.`
+- configuration properties under `rahdar.plugins.<id>.`
 - UI routes under `/p/<id>/` or `/clusters/{clusterId}/p/<id>/`
 
 #### Scenario: A plugin cannot claim a core permission
@@ -132,8 +132,8 @@ Activation SHALL be confirmed by typing the plugin's identifier.
 Before confirmation the system SHALL classify every activation, update, enable, disable, uninstall and rollback as one of the following, and SHALL behave as the classification states:
 
 - **Instant.** No pending database changes. The new version starts while the old one keeps serving; only once the new version is ready are requests switched to it, and the old version then finishes its in-flight work and stops. If the new version fails to start, the old version keeps serving.
-- **Brief maintenance.** Pending database changes. The plugin alone answers `503` with problem type `plugin-updating` and a `Retry-After` header while its in-flight work drains, its database changes apply, and the new version starts. The rest of Studio is unaffected.
-- **Restart.** The plugin declares that it needs a restart, or a previous version did not stop cleanly. The system SHALL record the version to start and mark the plugin as needing a restart; the next start of Studio starts it. The review SHALL state beforehand whether Studio will restart itself or the operator must, with the exact command in the latter case.
+- **Brief maintenance.** Pending database changes. The plugin alone answers `503` with problem type `plugin-updating` and a `Retry-After` header while its in-flight work drains, its database changes apply, and the new version starts. The rest of Rahdar is unaffected.
+- **Restart.** The plugin declares that it needs a restart, or a previous version did not stop cleanly. The system SHALL record the version to start and mark the plugin as needing a restart; the next start of Rahdar starts it. The review SHALL state beforehand whether Rahdar will restart itself or the operator must, with the exact command in the latter case.
 
 #### Scenario: An update without database changes has no downtime
 - **WHEN** an installer updates a plugin whose new version has no pending changesets
@@ -147,39 +147,39 @@ Before confirmation the system SHALL classify every activation, update, enable, 
 - **WHEN** an update with pending changesets is activated
 - **THEN** that plugin's API answers `503 plugin-updating` with `Retry-After` until the new version is active, while every other screen and API keeps working
 
-### Requirement: Studio restarts itself for a plugin only when something will start it again
+### Requirement: Rahdar restarts itself for a plugin only when something will start it again
 
-The system SHALL restart itself only by exiting gracefully — every plugin stopped, the stop recorded as clean — with a non-zero exit code, and only when it is supervised: `artemis-studio.plugins.restart.supervised` is true, or, when that is unset, it runs on Kubernetes. When it is not supervised it SHALL refuse to exit and state the command to run. It SHALL NOT offer a restart or shutdown over an actuator endpoint.
+The system SHALL restart itself only by exiting gracefully — every plugin stopped, the stop recorded as clean — with a non-zero exit code, and only when it is supervised: `rahdar.plugins.restart.supervised` is true, or, when that is unset, it runs on Kubernetes. When it is not supervised it SHALL refuse to exit and state the command to run. It SHALL NOT offer a restart or shutdown over an actuator endpoint.
 
-It SHALL restart itself automatically after an activation whose review said it would, once the version to start is recorded. An installer SHALL also be able to request a restart. That request requires a browser session, re-authentication within 5 minutes, and an audit record, and SHALL be refused within 2 minutes of Studio starting.
+It SHALL restart itself automatically after an activation whose review said it would, once the version to start is recorded. An installer SHALL also be able to request a restart. That request requires a browser session, re-authentication within 5 minutes, and an audit record, and SHALL be refused within 2 minutes of Rahdar starting.
 
 The system SHALL report a stopped plugin version whose classes are still in memory a minute after it stopped, and SHALL mark a restart as needed while any such version, or any plugin needing a restart, exists.
 
 #### Scenario: A confirmed restart-class plugin is running after the restart
-- **GIVEN** Studio is supervised
+- **GIVEN** Rahdar is supervised
 - **WHEN** an installer confirms a plugin that declares it needs a restart
-- **THEN** Studio stops gracefully, is started again by its supervisor, and the plugin is active
+- **THEN** Rahdar stops gracefully, is started again by its supervisor, and the plugin is active
 
-#### Scenario: An unsupervised Studio never stops itself
-- **GIVEN** Studio is not supervised
+#### Scenario: An unsupervised Rahdar never stops itself
+- **GIVEN** Rahdar is not supervised
 - **WHEN** a plugin needs a restart
-- **THEN** Studio keeps running, and the plugin shows as needing a restart with the command to run
+- **THEN** Rahdar keeps running, and the plugin shows as needing a restart with the command to run
 
 #### Scenario: Restarts cannot be chained
-- **WHEN** an installer requests a restart less than 2 minutes after Studio started
+- **WHEN** an installer requests a restart less than 2 minutes after Rahdar started
 - **THEN** the request is refused with the time it will be allowed
 
-### Requirement: A plugin's data is isolated and never constrains Studio
+### Requirement: A plugin's data is isolated and never constrains Rahdar
 
 Each plugin SHALL keep its data in its own database schema, reached through its own bounded set of database connections. An activation SHALL fail, and the previous version SHALL resume, when a plugin's database changes:
-- create any object in Studio's own schema; or
-- create a foreign key from the plugin's schema to Studio's schema.
+- create any object in Rahdar's own schema; or
+- create a foreign key from the plugin's schema to Rahdar's schema.
 
 A plugin SHALL be refused activation with a stated reason when activating it would take the installation's database connections above 80 % of the server's limit.
 
 #### Scenario: A plugin cannot block cluster deletion
 - **WHEN** a plugin's changeset declares a foreign key to the cluster table
-- **THEN** the activation fails with a message that plugins may not reference Studio's tables, and the previous version resumes
+- **THEN** the activation fails with a message that plugins may not reference Rahdar's tables, and the previous version resumes
 
 ### Requirement: Database changes fail safely
 
@@ -205,12 +205,12 @@ The system SHALL keep the previous artifact of each plugin and SHALL offer rolli
 - **WHEN** the current version changed the database
 - **THEN** the rollback control is disabled and states that the database changed and a fixed version must be uploaded or a backup restored
 
-### Requirement: Studio always starts, whatever its plugins do
+### Requirement: Rahdar always starts, whatever its plugins do
 
-A plugin SHALL NEVER prevent Studio from starting or serving its built-in features. The system SHALL quarantine a plugin, showing the reason and a fix action, when:
+A plugin SHALL NEVER prevent Rahdar from starting or serving its built-in features. The system SHALL quarantine a plugin, showing the reason and a fix action, when:
 
 - it is invalid;
-- the running Studio version is outside its supported range: the plugin is shown as incompatible;
+- the running Rahdar version is outside its supported range: the plugin is shown as incompatible;
 - it fails, or takes longer than 60 seconds, to start;
 - its stored artifact fails an integrity check.
 
@@ -218,12 +218,12 @@ A crash during a plugin's activation SHALL mark that plugin failed on the next s
 
 Operators SHALL be able to force this safe mode at deploy time.
 
-#### Scenario: An incompatible plugin after a Studio upgrade
-- **WHEN** Studio is upgraded past a plugin's maximum supported version
-- **THEN** Studio starts, the plugin is not started, and it is shown as incompatible with Update and Uninstall offered
+#### Scenario: An incompatible plugin after a Rahdar upgrade
+- **WHEN** Rahdar is upgraded past a plugin's maximum supported version
+- **THEN** Rahdar starts, the plugin is not started, and it is shown as incompatible with Update and Uninstall offered
 
 #### Scenario: A crash loop ends in safe mode
-- **WHEN** Studio stops uncleanly three times within fifteen minutes
+- **WHEN** Rahdar stops uncleanly three times within fifteen minutes
 - **THEN** the next start runs no plugin and administrators see a banner explaining safe mode
 
 ### Requirement: A plugin's security annotations are enforced or the plugin does not run
@@ -236,7 +236,7 @@ Method-security, transaction and validation annotations in a plugin SHALL be enf
 
 ### Requirement: Updates can be found and installed from the UI
 
-An installer SHALL be able to update a plugin by uploading a newer jar, or by asking Studio to check the update URL each plugin declares.
+An installer SHALL be able to update a plugin by uploading a newer jar, or by asking Rahdar to check the update URL each plugin declares.
 
 Checking SHALL happen only on request. The check SHALL:
 - use HTTPS only, with no redirects and a 5-second timeout;
@@ -319,7 +319,7 @@ The release process SHALL build, install, update and roll back a reference plugi
 - **WHEN** a marked API type changes incompatibly and the contract version is unchanged
 - **THEN** the build fails
 
-### Requirement: A plugin's row actions are namespaced and sectioned, and links stay Studio's
+### Requirement: A plugin's row actions are namespaced and sectioned, and links stay Rahdar's
 
 A plugin MAY contribute actions to a resource's row menu. Each such contribution SHALL be
 named with the plugin's id as its prefix and SHALL name one of the menu's sections. A
@@ -332,13 +332,13 @@ stated.
 #### Scenario: A plugin tries to own queue links
 
 - **WHEN** a plugin bundle contributes to the queue link slot
-- **THEN** it is refused, stating that links to built-in resources are Studio's own
+- **THEN** it is refused, stating that links to built-in resources are Rahdar's own
 
-### Requirement: A plugin's assistant tools declare the permission Studio enforces
+### Requirement: A plugin's assistant tools declare the permission Rahdar enforces
 
-Each assistant tool a plugin declares SHALL name a `permission` (one of the plugin's own permissions) and a `scope` (`resource`, `cluster` or `global`), and MAY declare `params: [{name, values?, shape?, note?}]`. A `resource` tool SHALL also name the argument that holds the queue or address name and its kind. Its `posture` SHALL be `read` or `write`. Before a plugin tool runs, Studio SHALL check the caller's permission, as follows:
-- a `cluster` tool's `clusterId` argument is parsed (a missing or malformed one is a malformed call, -32602), and the permission is required on that cluster. A denial hides the cluster exactly as Studio's own tools do.
-- a `resource` tool's `clusterId` and resource arguments are parsed the same way, and the permission is required on that resource. A denial hides the resource exactly as Studio's own tools do.
+Each assistant tool a plugin declares SHALL name a `permission` (one of the plugin's own permissions) and a `scope` (`resource`, `cluster` or `global`), and MAY declare `params: [{name, values?, shape?, note?}]`. A `resource` tool SHALL also name the argument that holds the queue or address name and its kind. Its `posture` SHALL be `read` or `write`. Before a plugin tool runs, Rahdar SHALL check the caller's permission, as follows:
+- a `cluster` tool's `clusterId` argument is parsed (a missing or malformed one is a malformed call, -32602), and the permission is required on that cluster. A denial hides the cluster exactly as Rahdar's own tools do.
+- a `resource` tool's `clusterId` and resource arguments are parsed the same way, and the permission is required on that resource. A denial hides the resource exactly as Rahdar's own tools do.
 - a `global` tool's permission is required globally, and a denial names it.
 
 The plugin's code SHALL NOT run when the check fails. Activation SHALL be refused, naming the tool, when:
@@ -373,15 +373,15 @@ The plugin's code SHALL NOT run when the check fails. Activation SHALL be refuse
 
 ### Requirement: Discovery shows each plugin tool's access and parameters
 
-`studio_help` (its index and each topic) and `studio://tools` SHALL show every plugin tool's permission and scope, and each declared parameter's values, shape and note.
+`rahdar_help` (its index and each topic) and `rahdar://tools` SHALL show every plugin tool's permission and scope, and each declared parameter's values, shape and note.
 
 #### Scenario: Help shows the permission
-- **WHEN** `studio_help` is called with a plugin tool's name
+- **WHEN** `rahdar_help` is called with a plugin tool's name
 - **THEN** it returns the tool's permission, scope and declared parameters
 
 ### Requirement: The SDK offers a code editor
 
-The plugin SDK SHALL export `CodeEditor`, which edits YAML or JSON with Studio's editor and colours. It SHALL take:
+The plugin SDK SHALL export `CodeEditor`, which edits YAML or JSON with Rahdar's editor and colours. It SHALL take:
 - a value;
 - a change handler (without one it is read-only);
 - a language;
@@ -390,7 +390,7 @@ The plugin SDK SHALL export `CodeEditor`, which edits YAML or JSON with Studio's
 - an optional maximum height;
 - optional line wrapping.
 
-It SHALL summarise the diagnostics in a live region. It SHALL highlight keys, values, numbers and booleans, comments, punctuation and document markers distinctly, from Studio's colour tokens. Each token SHALL meet 4.5:1 contrast in both colour schemes. It SHALL fold blocks, match brackets and search.
+It SHALL summarise the diagnostics in a live region. It SHALL highlight keys, values, numbers and booleans, comments, punctuation and document markers distinctly, from Rahdar's colour tokens. Each token SHALL meet 4.5:1 contrast in both colour schemes. It SHALL fold blocks, match brackets and search.
 
 Tab SHALL indent. Escape followed by Tab SHALL move focus out of the editor, and the editor SHALL say so. Past the maximum height the editor SHALL scroll inside itself, and a long line SHALL scroll horizontally within the editor, never past its container.
 
@@ -410,12 +410,12 @@ Tab SHALL indent. Escape followed by Tab SHALL move focus out of the editor, and
 - **WHEN** the editor inside a drawer shows a line wider than the drawer
 - **THEN** the editor scrolls horizontally and the drawer does not
 
-### Requirement: Plugins can read the Studio version and a cluster's name
+### Requirement: Plugins can read the Rahdar version and a cluster's name
 
-Studio SHALL offer plugins a `@PluginApi` bean that gives the running Studio version, empty for a development build. It SHALL also give the display name of a cluster, empty unless the current caller holds a grant on that cluster.
+Rahdar SHALL offer plugins a `@PluginApi` bean that gives the running Rahdar version, empty for a development build. It SHALL also give the display name of a cluster, empty unless the current caller holds a grant on that cluster.
 
 #### Scenario: A plugin names its source
-- **WHEN** a plugin asks for the version and the name of a cluster the caller can see, on a released Studio
+- **WHEN** a plugin asks for the version and the name of a cluster the caller can see, on a released Rahdar
 - **THEN** it receives the release's version and the cluster's name
 
 #### Scenario: A cluster the caller cannot see stays hidden
@@ -426,10 +426,10 @@ Studio SHALL offer plugins a `@PluginApi` bean that gives the running Studio ver
 
 Each permission a plugin declares SHALL state `scope` as `global`, `cluster` or `resource`, and a
 `resource` permission SHALL state `resourceKinds` (`queue`, `address`) and MAY state `requires`
-(other permissions of the plugin or of Studio). A manifest with any other form, including the
-removed `globalOnly` field, SHALL be refused at install, naming the permission. Studio SHALL publish
+(other permissions of the plugin or of Rahdar). A manifest with any other form, including the
+removed `globalOnly` field, SHALL be refused at install, naming the permission. Rahdar SHALL publish
 for plugins a check of a permission on a named queue or address, a filter of a list by such a check,
-and the same check for the console SDK; these SHALL give exactly the answers Studio's own checks give.
+and the same check for the console SDK; these SHALL give exactly the answers Rahdar's own checks give.
 
 #### Scenario: A manifest with globalOnly is refused
 
@@ -443,8 +443,8 @@ and the same check for the console SDK; these SHALL give exactly the answers Stu
 
 ### Requirement: Work that runs as its owner is checked on every run
 
-A plugin's work that runs later as its owner SHALL declare to Studio the permissions and resources
-it needs when it is published or enabled. Studio SHALL refuse the publish when the owner lacks any
+A plugin's work that runs later as its owner SHALL declare to Rahdar the permissions and resources
+it needs when it is published or enabled. Rahdar SHALL refuse the publish when the owner lacks any
 of them, naming each, SHALL check them again before each run, and SHALL suspend the work with the
 reason when the owner has lost one, resuming it only when the owner holds them again and someone
 re-enables it.

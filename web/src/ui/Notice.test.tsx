@@ -7,12 +7,12 @@ import { Notice } from './Notice.tsx';
 describe('Notice', () => {
   it('names itself in words, with its body and its next step', () => {
     renderWithProviders(
-      <Notice title="Studio needs a restart" tone="warning" action={<button type="button">Restart now</button>}>
+      <Notice title="Rahdar needs a restart" tone="warning" action={<button type="button">Restart now</button>}>
         The plugin changes apply after a restart.
       </Notice>,
     );
     const notice = screen.getByRole('status');
-    expect(notice).toHaveTextContent('Studio needs a restart');
+    expect(notice).toHaveTextContent('Rahdar needs a restart');
     expect(notice).toHaveTextContent('The plugin changes apply after a restart.');
     expect(screen.getByRole('button', { name: 'Restart now' })).toBeInTheDocument();
   });

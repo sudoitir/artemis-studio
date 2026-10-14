@@ -16,7 +16,7 @@ export function SeverityBadge({ severity }: Readonly<{ severity: string }>) {
   return <StatusBadge tone={tone}>{word}</StatusBadge>;
 }
 
-/** A rule's or firing's name, marked when it belongs to Studio itself rather than a cluster. */
+/** A rule's or firing's name, marked when it belongs to Rahdar itself rather than a cluster. */
 export function NameWithMark({ name, clusterId }: Readonly<{ name: string; clusterId: string | null | undefined }>) {
   return (
     <span className={classes.inline}>

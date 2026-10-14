@@ -1,0 +1,20 @@
+package io.github.sudoitir.rahdar.feature.alerting;
+
+import io.github.sudoitir.rahdar.kernel.jobs.ScheduledJob;
+import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration(proxyBeanMethods = false)
+class AlertingJobs {
+
+    @Bean
+    ScheduledJob alertDispatchJob(AlertDispatcher dispatcher, SettingsService settings) {
+        return ScheduledJob.fixedDelay(
+                "alert-dispatch",
+                "alerting",
+                ScheduledJob.Scope.INSTANCE,
+                () -> settings.duration(AlertingSettings.DISPATCH_INTERVAL),
+                dispatcher::dispatch);
+    }
+}

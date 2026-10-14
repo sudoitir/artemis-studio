@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:kernel-auditfeed-0001-baseline splitStatements:true
+--changeset rahdar:kernel-auditfeed-0001-baseline splitStatements:true
 CREATE TABLE audit_feed_state (
     retained_from timestamp with time zone,
     only_row boolean DEFAULT true NOT NULL,

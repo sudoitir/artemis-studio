@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines how Artemis Studio reaches an Apache ActiveMQ Artemis broker over its
+Defines how Rahdar reaches an Apache ActiveMQ Artemis broker over its
 Jolokia HTTP management endpoint: what address it is given, how it batches
 reads and operations into one request per node, how broker credentials are
 stored, how TLS is configured, and how connection failures are reported.
@@ -10,19 +10,19 @@ stored, how TLS is configured, and how connection failures are reported.
 ### Requirement: Seed address is an explicit Jolokia base URL
 
 The system SHALL accept the broker management address as a complete Jolokia
-base URL and SHALL NOT derive, guess, or rewrite it. Studio SHALL support the
+base URL and SHALL NOT derive, guess, or rewrite it. Rahdar SHALL support the
 Artemis web console path (`/console/jolokia`) and a standalone agent path
 (`/jolokia`) purely as caller-supplied values.
 
 #### Scenario: Console-style URL accepted
 
 - **WHEN** a user supplies `http://broker-1:8161/console/jolokia`
-- **THEN** Studio issues management requests against exactly that base URL
+- **THEN** Rahdar issues management requests against exactly that base URL
 
 #### Scenario: Standalone-agent URL accepted
 
 - **WHEN** a user supplies `https://broker-1:8778/jolokia`
-- **THEN** Studio issues management requests against exactly that base URL
+- **THEN** Rahdar issues management requests against exactly that base URL
 
 #### Scenario: Bare host is rejected
 
@@ -40,26 +40,26 @@ one HTTP call per attribute, operation, or queue.
 
 - **WHEN** a refresh needs `Active`, `Started`, `Backup`, `ReplicaSync`,
   `NodeID`, `Clustered`, `Version` and `listNetworkTopology()` from a node
-- **THEN** Studio sends a single POST whose body is a JSON array of those requests
+- **THEN** Rahdar sends a single POST whose body is a JSON array of those requests
 
 #### Scenario: A configuration read is one call per node
 
 - **WHEN** a node's configuration is read for comparison against another node —
   broker attributes, address settings, security settings and acceptors
-- **THEN** Studio sends a single POST to that node containing all of those requests
+- **THEN** Rahdar sends a single POST to that node containing all of those requests
 
 #### Scenario: Per-entry errors are isolated
 
 - **WHEN** a batched response array contains one entry with `status` 404 and an
   `error` / `error_type` field, and other entries with `status` 200
-- **THEN** Studio consumes the successful entries and records the failed entry
+- **THEN** Rahdar consumes the successful entries and records the failed entry
   without discarding the batch
 
 #### Scenario: Whole-call HTTP 200 with failed entries
 
 - **WHEN** the batched POST returns HTTP 200 but one array entry has a non-200
   `status`
-- **THEN** Studio inspects each entry's own `status` and does not treat the
+- **THEN** Rahdar inspects each entry's own `status` and does not treat the
   call as wholly successful
 
 ### Requirement: Double-encoded operation results are parsed
@@ -72,20 +72,20 @@ the structured result.
 
 - **WHEN** an `exec` of `listNetworkTopology()` returns `value` as a quoted
   JSON string
-- **THEN** Studio parses that string into an array of node objects before use
+- **THEN** Rahdar parses that string into an array of node objects before use
 
 ### Requirement: Broker credentials are encrypted at rest
 
-The system SHALL store broker credentials only as envelope-encrypted sealed values (`secret-management`): the credential encrypted with AES-GCM under its own data key, and the data key wrapped by a versioned key-encryption key from the configured key provider. With no provider configured, the key comes from `ARTEMIS_STUDIO_SECRET_KEY`, which MUST decode as base64 to exactly 32 bytes (or list numbered keys that each do); if no valid key is available the application SHALL fail to start. The additional authenticated data SHALL bind each ciphertext to its owning cluster and credential kind so a sealed value cannot be moved to another row.
+The system SHALL store broker credentials only as envelope-encrypted sealed values (`secret-management`): the credential encrypted with AES-GCM under its own data key, and the data key wrapped by a versioned key-encryption key from the configured key provider. With no provider configured, the key comes from `RAHDAR_SECRET_KEY`, which MUST decode as base64 to exactly 32 bytes (or list numbered keys that each do); if no valid key is available the application SHALL fail to start. The additional authenticated data SHALL bind each ciphertext to its owning cluster and credential kind so a sealed value cannot be moved to another row.
 
 #### Scenario: Missing key stops startup
 
-- **WHEN** the application starts with the environment provider and no `ARTEMIS_STUDIO_SECRET_KEY` set
+- **WHEN** the application starts with the environment provider and no `RAHDAR_SECRET_KEY` set
 - **THEN** startup fails with an error that names the missing key
 
 #### Scenario: Wrong-length key stops startup
 
-- **WHEN** `ARTEMIS_STUDIO_SECRET_KEY` decodes to 20 bytes
+- **WHEN** `RAHDAR_SECRET_KEY` decodes to 20 bytes
 - **THEN** startup fails with an error stating a 32-byte key is required
 
 #### Scenario: Credentials never leave in plaintext responses
@@ -103,12 +103,12 @@ The system SHALL store broker credentials only as envelope-encrypted sealed valu
 When a broker requires TLS, the system SHALL obtain trust material and client
 identity from a named Spring Boot SSL bundle referenced by the cluster's TLS
 configuration, and SHALL apply that bundle's hostname-verification setting.
-Studio SHALL NOT require a filesystem path plus password to be entered for a broker.
+Rahdar SHALL NOT require a filesystem path plus password to be entered for a broker.
 
 #### Scenario: HTTPS broker with a configured bundle
 
 - **WHEN** a cluster's TLS reference names an SSL bundle that exists
-- **THEN** Studio's requests to that broker use the bundle's trust and key material
+- **THEN** Rahdar's requests to that broker use the bundle's trust and key material
 
 #### Scenario: Missing bundle is reported
 
@@ -160,7 +160,7 @@ assuming the broker's configured `<name>`.
 #### Scenario: Broker name unknown at registration
 
 - **WHEN** a cluster is registered and the broker's `<name>` is not supplied
-- **THEN** Studio issues a `search` request and uses the returned object name
+- **THEN** Rahdar issues a `search` request and uses the returned object name
   for subsequent reads
 
 ### Requirement: Each broker's clock offset is measured without extra calls
@@ -268,7 +268,7 @@ as an unreachable broker. Credentials changed on the brokers outside the system 
 surface as this state within one scrape, and SHALL clear on the next successful call after they
 are updated.
 
-#### Scenario: Password changed outside Studio
+#### Scenario: Password changed outside Rahdar
 - **WHEN** the management password is changed on the brokers and the next scrape runs
 - **THEN** the cluster's health says the management account was rejected on every node and links to the Connection settings
 

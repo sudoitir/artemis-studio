@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:kernel-lifecycle-0001-baseline splitStatements:true
+--changeset rahdar:kernel-lifecycle-0001-baseline splitStatements:true
 CREATE TABLE lifecycle_purge (
     last_run_at timestamp with time zone NOT NULL,
     last_purged bigint NOT NULL,

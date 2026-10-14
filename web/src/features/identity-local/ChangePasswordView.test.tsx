@@ -28,7 +28,7 @@ async function submit() {
 describe('ChangePasswordView', () => {
   it("shows the password policy's reason beside the new password", async () => {
     mockChange(400, {
-      type: 'https://artemis-studio.dev/problems/password-policy',
+      type: 'https://rahdar.dev/problems/password-policy',
       title: 'Password not accepted',
       detail: 'Use at least 12 characters.',
     });
@@ -41,7 +41,7 @@ describe('ChangePasswordView', () => {
 
   it('says the current password is wrong on a 401', async () => {
     mockChange(401, {
-      type: 'https://artemis-studio.dev/problems/invalid-credentials',
+      type: 'https://rahdar.dev/problems/invalid-credentials',
       title: 'Authentication failed',
       detail: 'Invalid username or password.',
     });

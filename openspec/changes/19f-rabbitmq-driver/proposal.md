@@ -6,16 +6,16 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check the client libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs, replace the stub `tasks.md`.
 5. `/opsx:apply` with the harness under **Execution**. New decisions get an ADR. A gap in the SDK is fixed in the SDK, for every driver, never worked around in this driver.
-6. Verify: the driver's tests and the TCK against a real broker; Studio with a cluster of this system next to an Artemis cluster, with screenshots of the shared screens (light and dark, empty and error states).
+6. Verify: the driver's tests and the TCK against a real broker; Rahdar with a cluster of this system next to an Artemis cluster, with screenshots of the shared screens (light and dark, empty and error states).
 7. PR, merge on green CI, `/opsx:archive`.
 
 ## Why
-RabbitMQ is the most widely run AMQP broker, and its routing model differs from both Artemis and Kafka: virtual hosts, exchanges that route to queues by binding, classic, quorum and stream queues, shovels and federation. A RabbitMQ driver brings Studio's estate view to RabbitMQ estates. It is the second test of the SDK before the stable release.
+RabbitMQ is the most widely run AMQP broker, and its routing model differs from both Artemis and Kafka: virtual hosts, exchanges that route to queues by binding, classic, quorum and stream queues, shovels and federation. A RabbitMQ driver brings Rahdar's estate view to RabbitMQ estates. It is the second test of the SDK before the stable release.
 
 ## What Changes
 - A driver, `openbroker-rabbitmq`, implementing the SDK for RabbitMQ through its management HTTP API, AMQP 0-9-1 and the stream protocol
 - The driver passes the TCK for every capability it declares, and declares unavailable what the system cannot do
-- Studio registers clusters of this system and shows them in the estate view; system-only screens come from a `system/rabbitmq` module
+- Rahdar registers clusters of this system and shows them in the estate view; system-only screens come from a `system/rabbitmq` module
 - Virtual hosts are namespaces, exchanges are destinations, queues are subscriptions, and bindings, exchange-to-exchange bindings, shovels and federation links are routes; policies and permissions are policies and access rules
 - Browse only where it is non-destructive (streams); a destructive get-and-requeue is never offered as browse
 - Settlement through acknowledgements, without a transacted batch; events through the event exchange where it is enabled, and the polling watch where not
@@ -36,4 +36,4 @@ RabbitMQ is the most widely run AMQP broker, and its routing model differs from 
 **Subagent-driven**: the driver's facets are separable, and each has TCK cases.
 
 ## Impact
-A new driver module, a Studio system module, the TCK, documentation, and the CI matrix.
+A new driver module, a Rahdar system module, the TCK, documentation, and the CI matrix.

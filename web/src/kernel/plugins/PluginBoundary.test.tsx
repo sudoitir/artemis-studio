@@ -14,11 +14,11 @@ describe('a plugin component that throws', () => {
     const Safe = guarded('acme-notes', Broken);
     renderWithProviders(
       <div>
-        <p>Studio content</p>
+        <p>Rahdar content</p>
         <Safe />
       </div>,
     );
-    expect(screen.getByText('Studio content')).toBeInTheDocument();
+    expect(screen.getByText('Rahdar content')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent(
       'The acme-notes plugin could not show this part of the screen: boom',
     );

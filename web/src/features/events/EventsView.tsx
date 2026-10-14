@@ -138,7 +138,7 @@ function EventsEmpty({
     <EmptyState
       kind="empty"
       title="No broker events yet"
-      description="A broker event is a notification a broker raises when a consumer, session, connection or binding is created or closed. Studio records them as they arrive and keeps them for a limited time, so the first appears here as soon as a client connects or consumes. Leave Live on to watch them as they happen."
+      description="A broker event is a notification a broker raises when a consumer, session, connection or binding is created or closed. Rahdar records them as they arrive and keeps them for a limited time, so the first appears here as soon as a client connects or consumes. Leave Live on to watch them as they happen."
     />
   );
 }
@@ -287,7 +287,7 @@ export function EventsView() {
     <Page fill>
       <PageHeader
         title="Events"
-        description="This cluster's broker notifications, newest first. Studio keeps them for a limited time."
+        description="This cluster's broker notifications, newest first. Rahdar keeps them for a limited time."
         actions={<Switch label="Live" checked={live} onChange={(e) => setLive(e.currentTarget.checked)} />}
       />
 

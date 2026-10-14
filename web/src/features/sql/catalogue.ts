@@ -175,7 +175,7 @@ export const FULL_TEXT = {
 export const EVALUATION_WORDS: Record<Evaluation, string> = {
   TARGET: 'chooses the queues — costs nothing',
   PUSHDOWN: 'the broker filters — costs nothing',
-  SCAN: 'Studio examines every message returned',
+  SCAN: 'Rahdar examines every message returned',
 };
 
 export interface Example {
@@ -197,7 +197,7 @@ export const EXAMPLES: Example[] = [
   {
     title: 'A header predicate, across a wildcard',
     sql: 'SELECT * FROM "ORDER.*"\nWHERE priority > 4\n  AND durable = true\nLIMIT 200',
-    note: 'Both predicates become a JMS selector, so the brokers filter and Studio reads only matches.',
+    note: 'Both predicates become a JMS selector, so the brokers filter and Rahdar reads only matches.',
   },
   {
     title: 'An application property',
@@ -207,7 +207,7 @@ export const EXAMPLES: Example[] = [
   {
     title: 'A body fragment',
     sql: 'SELECT * FROM "ORDER.IN"\nWHERE body LIKE \'%4471%\'\nLIMIT 50',
-    note: 'Nothing but Studio can read a body, so every message returned is examined. Narrow it with a header predicate first.',
+    note: 'Nothing but Rahdar can read a body, so every message returned is examined. Narrow it with a header predicate first.',
   },
   {
     title: 'A JSON field inside the body',

@@ -66,7 +66,7 @@ export interface BrokerNodeData extends Record<string, unknown> {
   liveness: string;
   /** Line 3: the role and the pair. */
   roleLine: string;
-  /** Line 4: the address, or the error that stopped Studio reaching the node. */
+  /** Line 4: the address, or the error that stopped Rahdar reaching the node. */
   detail: string | null;
   detailIsError: boolean;
   /** A standby whose replication is behind, drawn offset from its slot (the offset is in the position). */

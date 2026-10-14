@@ -110,14 +110,14 @@ function InspectStep({
 /** Who the change reaches: it replaces a version, or adds the plugin, for everyone. */
 function scopeWords(plan: PluginPlanView): string {
   return plan.fromVersion
-    ? `Replaces ${plan.info.title} ${plan.fromVersion} for everyone using Studio.`
-    : `Adds ${plan.info.title} for everyone using Studio.`;
+    ? `Replaces ${plan.info.title} ${plan.fromVersion} for everyone using Rahdar.`
+    : `Adds ${plan.info.title} for everyone using Rahdar.`;
 }
 
 /** What confirming interrupts, if anything. */
 function interruptionWords(plan: PluginPlanView): string {
   if (plan.activationClass === 'RESTART' && plan.restart === 'AUTOMATIC') {
-    return 'Studio restarts, disconnecting everyone briefly.';
+    return 'Rahdar restarts, disconnecting everyone briefly.';
   }
   if (plan.activationClass === 'BRIEF_MAINTENANCE' && plan.fromVersion)
     return `${plan.info.title} pauses for a few seconds.`;

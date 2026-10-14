@@ -70,7 +70,7 @@ export function InboxBell() {
       <EmptyState
         kind="empty"
         title="No notifications"
-        description="Studio and its plugins post here when something needs you, such as a request waiting for your approval."
+        description="Rahdar and its plugins post here when something needs you, such as a request waiting for your approval."
       />
     );
   } else {

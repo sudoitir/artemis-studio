@@ -95,7 +95,7 @@ Semantics as observed:
   `Started=true` + `Active=false`. Both compose healthchecks read `Started`.
 - **`NodeID` is shared across the pair.** A synced backup returns the primary's
   NodeID via `getNodeID()` even while passive. The survivor keeps that NodeID
-  through failover and failback. → Studio should key a node/pair by `NodeID`, and
+  through failover and failback. → Rahdar should key a node/pair by `NodeID`, and
   treat "same NodeID on two connectors" as one logical node with a live and a
   backup endpoint, not two nodes.
 - **`ReplicaSync` is the desync alarm.** `false` on a node that is `Backup=true`
@@ -132,7 +132,7 @@ POST http://localhost:8161/console/jolokia
   advertises** — i.e. the compose service names `artemis-primary` /
   `artemis-backup`, resolvable only inside the compose network. This is exactly
   the ADR-0004 "nodes that advertise internal addresses need a manual override"
-  case; it is the norm, not the exception. Studio's stored connector URL must be
+  case; it is the norm, not the exception. Rahdar's stored connector URL must be
   what it can actually reach, and discovery must not overwrite it.
 - Backup returns the **same topology** as the primary.
 - After the primary is stopped, the backup (now live) returns:
@@ -240,7 +240,7 @@ statused**:
 - **Errors are isolated** — the bad entry returns `status:404` with `error` /
   `error_type`; the other three still return `200` + `value`. A batch is never
   poisoned by one bad entry.
-- HTTP status of the whole call is `200` even when some entries failed. Studio
+- HTTP status of the whole call is `200` even when some entries failed. Rahdar
   must inspect per-entry `status`.
 - No size ceiling hit at 4 entries + a 200-`pageSize` `listQueues`. Jolokia has
   no documented array-length limit; the practical cap is request/response body
@@ -287,7 +287,7 @@ Clean pair, `NodeID f7734597-...`, both `ReplicaSync=true`.
 ## 7. `activemq.notifications` catalogue
 
 Consumed over the Core/JMS client (`artemis-jakarta-client`, already a
-dependency). Captured by the Phase 0 spike; `CoreEventClientTest` now checks the types Studio
+dependency). Captured by the Phase 0 spike; `CoreEventClientTest` now checks the types Rahdar
 uses. Provoked by: one JMS
 connection, two sessions, an auto-created queue, a producer + consumer, one
 message sent and received, then everything closed.
@@ -369,8 +369,8 @@ The broker pushes its **cluster topology** to every CORE client on connect, and
 it advertises the `<connector>` hosts — here the compose service names
 `artemis-primary` / `artemis-backup`. A client that cannot resolve those (any
 process outside the compose network) logs `AMQ214033: Cannot resolve host` and
-blocking calls can fail with `AMQ219016`. Mitigations for Studio's Phase 4 Core
-client: run it on the broker network (the compose `studio` service already is),
+blocking calls can fail with `AMQ219016`. Mitigations for Rahdar's Phase 4 Core
+client: run it on the broker network (the compose `rahdar` service already is),
 and/or `useTopologyForLoadBalancing=false` + `reconnectAttempts=0` on the
 `ActiveMQConnectionFactory`, and/or per-node manual connector overrides
 (ADR-0004). The dev spike test sets the factory flags and still logs the resolve
@@ -386,7 +386,7 @@ Nothing contradicts ADR-0002 or ADR-0004. Reinforcements:
 - **ADR-0004** ("nodes that advertise internal addresses need a manual
   override") — confirmed as the *common* case, not the edge. `listNetworkTopology`
   returns the advertised `<connector>` `host:port` verbatim; in any containerised
-  or NAT'd deployment that is not what Studio dials. The stored connector URL and
+  or NAT'd deployment that is not what Rahdar dials. The stored connector URL and
   `manual_override` must be first-class from day one (they already are in
   `002-estate.sql`).
 - **ADR-0002 / non-negotiable #4** — `Active` polling for split-brain is sound.
@@ -456,8 +456,8 @@ Fixtures: `list-sessions.json`, `list-connections.json`, `list-producers.json`,
 
 | Check | Result | Consequence for Phase 2 |
 |---|---|---|
-| **`sortColumn` / `sortOrder` in the options doc** | **Not honoured.** `listQueues` with `{"sortColumn":"messageCount","sortOrder":"desc"}` returns `java.lang.NullPointerException: no mapping for field`, HTTP 500 (`list-queues-sorted.json`). | Studio must **not** sort at the broker. Tier B classifies hot vs idle queues Studio-side from the last `queue_snapshot`; grids sort in the aggregation/DB layer. ADR-0015's tier-B "hot page (sorted)" degrades to the fallback path as the primary path. |
-| **`GREATER_THAN` predicate** | **Unverified.** Host disk was at 98.5% so the broker blocked every producer (`AMQ229119` / `AMQ212054`); all queues stayed at `messageCount 0`, so a `GREATER_THAN 0` filter returning `count 0` (`list-queues-gt.json`) is indistinguishable from "predicate ignored". | Treat numeric predicates as unavailable; classify Studio-side. Re-verify opportunistically on a machine with disk headroom, but the design does not depend on it. |
+| **`sortColumn` / `sortOrder` in the options doc** | **Not honoured.** `listQueues` with `{"sortColumn":"messageCount","sortOrder":"desc"}` returns `java.lang.NullPointerException: no mapping for field`, HTTP 500 (`list-queues-sorted.json`). | Rahdar must **not** sort at the broker. Tier B classifies hot vs idle queues Rahdar-side from the last `queue_snapshot`; grids sort in the aggregation/DB layer. ADR-0015's tier-B "hot page (sorted)" degrades to the fallback path as the primary path. |
+| **`GREATER_THAN` predicate** | **Unverified.** Host disk was at 98.5% so the broker blocked every producer (`AMQ229119` / `AMQ212054`); all queues stayed at `messageCount 0`, so a `GREATER_THAN 0` filter returning `count 0` (`list-queues-gt.json`) is indistinguishable from "predicate ignored". | Treat numeric predicates as unavailable; classify Rahdar-side. Re-verify opportunistically on a machine with disk headroom, but the design does not depend on it. |
 | **`field` / `operation` / `value` filter (`EQUALS`, `CONTAINS`)** | Works (Phase 0 §4, re-confirmed: `EQUALS` on `address` → `count 300`). | Safe to pass through for the grid text filter where a single-field predicate suffices. |
 | **Batch / large page ceiling** | `listQueues` `pageSize=500` on a 603-queue broker → HTTP 200, 500 rows, ~438 KB raw. No error, no truncation beyond the page size (`list-queues-page-500.json`, trimmed to 25 rows in the repo). | One `listQueues` page of 200–500 per node per tick is fine. Page large sets across successive tier-C ticks as planned. |
 | **Queue-name uniqueness per broker** | **Unique.** `createQueue("SPIKE.A","DUPQ",…)` succeeds; a second `createQueue("SPIKE.B","DUPQ",…)` fails with `IllegalStateException`. | `queue_snapshot` PK `(node_id, queue_name)` is safe — no changeset to widen the key with `address`. |
@@ -521,7 +521,7 @@ produces exactly this.
 | Question | Answer | Consequence for Phase 3 |
 |---|---|---|
 | Is `browse()`'s `value` a JSON string (double-decode) or a real array? | **Real JSON array.** Unlike the six `list*` ops, `browse*` returns a `CompositeData[]` that Jolokia serialises directly — no second `JSON.parse`. `BrokerListOps`' double-decode does **not** apply; `MessageBrowser` reads `entry.value()` as an array node. | `MessageBrowser.decodeBrowse` iterates `value` directly. |
-| Does `browse()` page server-side? | **Yes.** `browse(int page, int pageSize, String filter)` — **1-based** page, returns that slice. Verified: `browse(1,3,"")` → ids [78,84,90], `browse(2,3,"")` → [95,102,108]. There is also a hard server cap, `managementBrowsePageSize` (200 here, from `getAddressSettingsAsJSON`) — `browse()` never returns more than that regardless of `pageSize`. | Studio pages at the broker via `browse(page,size,filter)`; no Studio-side slicing needed. `artemis-studio.browse.max-rows` (task 2.5) is **not needed** — the broker already caps. Drop task 2.5 / the `browse.max-rows` setting. |
+| Does `browse()` page server-side? | **Yes.** `browse(int page, int pageSize, String filter)` — **1-based** page, returns that slice. Verified: `browse(1,3,"")` → ids [78,84,90], `browse(2,3,"")` → [95,102,108]. There is also a hard server cap, `managementBrowsePageSize` (200 here, from `getAddressSettingsAsJSON`) — `browse()` never returns more than that regardless of `pageSize`. | Rahdar pages at the broker via `browse(page,size,filter)`; no Rahdar-side slicing needed. `rahdar.browse.max-rows` (task 2.5) is **not needed** — the broker already caps. Drop task 2.5 / the `browse.max-rows` setting. |
 | Browsed-message field set, and which key holds the body? | Per row: `messageID` (String), `address` (`"ADDR::QUEUE"`), `type` (int; 3 = TEXT), `priority` (int), `durable` (bool), `expiration` (long), `timestamp` (long), `userID` (String, `""` when unset), `redelivered` (bool), `protocol` (`"CORE"`), `persistentSize` (int), `largeMessage` (bool), `PropertiesText` (String rendering), and eight typed property maps — `StringProperties`, `IntProperties`, `LongProperties`, `DoubleProperties`, `FloatProperties`, `ShortProperties`, `ByteProperties`, `BooleanProperties` (each `null` when empty). **Body:** `text` for `type == 3` (TEXT). Non-text bodies are not exercised here — Jolokia has no faithful bytes path (Phase 4). | `MessageSummaryView` / `MessageDetailView` fields map straight from this. `bodyPreview` = `text`. There is **no richer "detail" call** than `browse` — a single-message read is `browse(1, N, filter)` scanned for the `messageID` in memory; detail returns the same (still-truncated) `text`, just isolated. |
 | How is body truncation signalled? | **A literal suffix `, + <N> more` appended to the truncated string value.** The oversized message (4000-char body) came back as `text` of length 269 ending `"…PPPP, + 3744 more"`. Visible prefix = `269 − len(", + 3744 more")` = **256** = the broker default `management-message-attribute-size-limit` on 2.44. Detection: the value matches `/, \+ \d+ more$/`. Approx original length = `visiblePrefix + N`. This applies to **any** attribute Jolokia returns (property values too), not just the body. | `MessageBrowser` sets `bodyTruncated = true` when `text` (or any property value) matches that suffix, and reports `truncationLimit ≈ text.length − suffix.length` from a truncated row. There is **no need to `- [ ]` a heuristic ceiling comment** — the `, + N more` marker is an explicit broker signal, not a guess. |
 | Does `getAddressSettingsAsJSON` expose `managementMessageAttributeSizeLimit`? | **No.** `getAddressSettingsAsJSON("#")` returns `addressFullMessagePolicy, maxSizeBytes, maxReadPageBytes, maxReadPageMessages, pageLimitBytes, pageLimitMessages, maxSizeMessages, pageSizeBytes, messageCounterHistoryDayLimit, redeliveryDelay, deadLetterAddress, expiryAddress, slowConsumerThresholdMeasurementUnit, autoCreateQueues, autoDeleteQueues, autoCreateAddresses, autoDeleteAddresses, managementBrowsePageSize` — and **nothing** for the attribute-size limit. No broker MBean attribute or operation exposes it either (checked the full `list`). Its `value` **is** a double-encoded JSON string (unlike `browse`). | **`MESSAGE_BODY_FULL` cannot be probed.** It becomes *observed*, not probed: `UNKNOWN` until a browse actually returns a `, + N more` row, then `UNAVAILABLE` with the observed approximate limit + the `broker.xml` snippet. It can never be asserted `AVAILABLE` over Jolokia (you can't prove no message is truncated without reading them all). **This changes ADR-0021 and the `broker-capabilities` delta** — see §11.3. |
@@ -538,7 +538,7 @@ The design assumed the broker's default `management-message-attribute-size-limit
 could be read and the capability set from it. It cannot (verdict table above).
 The honest, implementable model:
 
-- **`UNKNOWN` by default** — reason: *"Studio learns whether message bodies are
+- **`UNKNOWN` by default** — reason: *"Rahdar learns whether message bodies are
   truncated only by browsing; no message has been browsed yet."* Ships the
   `broker.xml` snippet regardless so the operator can pre-emptively raise the
   limit.
@@ -565,7 +565,7 @@ for this capability. `DlqService` still does, for `deadLetterAddress` /
 1. `browse` returns a **plain array**, not a double-encoded string — simpler
    `decodeBrowse`.
 2. `browse(int,int,String)` **pages at the broker** — drop task **2.5** and the
-   `artemis-studio.browse.max-rows` setting; the broker's `managementBrowsePageSize`
+   `rahdar.browse.max-rows` setting; the broker's `managementBrowsePageSize`
    is the ceiling. `MessageService.browse` passes `(page, size, filter)` straight
    through.
 3. Truncation has an **explicit marker** (`, + N more`) — no length-heuristic
@@ -599,7 +599,7 @@ What actually shipped, against the plan in §8-§9:
   `GET /clusters/{id}` call).
 - **Topology-resolution trap confirmed.** §8's prediction held: the broker
   advertises `<connector>` hosts (`artemis-primary:61616`) that resolve inside
-  the compose network but not from wherever Studio's process runs against a real
+  the compose network but not from wherever Rahdar's process runs against a real
   deployment. `useTopologyForLoadBalancing=false` plus
   `initialConnectAttempts(1)` / `reconnectAttempts(0)` stop the client from
   chasing that advertised topology; a manual Core URL override
@@ -645,7 +645,7 @@ posed before slice 1 committed to a join strategy.
 | # | Question | Verdict |
 |---|---|---|
 | 1 | Does `BINDING_ADDED` fire for a JMS `TemporaryQueue`? | Not reliably observed in this run — see note below. A separate, unrelated `BINDING_ADDED` fires for the *notification subscriber's own* non-durable queue (see note). |
-| 2 | Is temporariness distinguishable from `_AMQ_Binding_Type` alone? | **No.** Every binding observed — the durable notification-subscriber queue and (by elimination) the temp reply queue — carries `_AMQ_Binding_Type=0` (`LOCAL_QUEUE`). The enum does not encode temporary vs. durable. **Moot for the design**: Studio already knows a destination is the temp reply queue because it read `JMSReplyTo` off the browsed request message — it never needs the binding notification to say so. |
+| 2 | Is temporariness distinguishable from `_AMQ_Binding_Type` alone? | **No.** Every binding observed — the durable notification-subscriber queue and (by elimination) the temp reply queue — carries `_AMQ_Binding_Type=0` (`LOCAL_QUEUE`). The enum does not encode temporary vs. durable. **Moot for the design**: Rahdar already knows a destination is the temp reply queue because it read `JMSReplyTo` off the browsed request message — it never needs the binding notification to say so. |
 | 3 | Does `BINDING_REMOVED` fire on `TemporaryQueue.delete()`? | **Yes**, confirmed: `BINDING_REMOVED` then `ADDRESS_REMOVED` fired for the temp queue's routing name immediately after `TemporaryQueue.delete()`. |
 | 4 | Does `MESSAGE_EXPIRED` fire, with a matching `_AMQ_Message_ID`? | **Not observed** — not because the plugin is off, but because a message sent to an address with **no bound queue and no consumer ever created** appears to be dropped at send time; no `ADDRESS_ADDED`/`BINDING_ADDED` notification fired for the stuck-request queue at all, so nothing was ever queued to expire. This is an environment/config fact (auto-create-queues), not a client-side gap — `TIMED_OUT` for this case still resolves correctly via the deadline sweep (design.md D4), which does not depend on `MESSAGE_EXPIRED` firing. |
 | 5 | What does a `QueueBrowser`/consumer-received Core message expose for `JMSReplyTo`/`JMSCorrelationID`/`JMSMessageID`/`JMSExpiration`? | All four are populated exactly as expected on a message received via a plain consumer or a `QueueBrowser`: `getJMSMessageID()` returns a real `ID:...` value (unlike notifications, where it is null — confirmed still distinct), `getJMSCorrelationID()` and `getJMSReplyTo()` round-trip whatever the sender set. |
@@ -660,7 +660,7 @@ is **the spike's own `activemq.notifications` subscriber** — subscribing to a
 topic address auto-creates a non-durable queue bound to it (exactly what the
 `createNonDurableQueue` permission from §7 is for). `RrNotificationObserver`
 must filter these out: any binding/consumer event whose address is
-`activemq.notifications` itself is Studio's own plumbing, not a traced
+`activemq.notifications` itself is Rahdar's own plumbing, not a traced
 request-reply address, and must never be mistaken for a responder or a reply
 destination.
 
@@ -685,7 +685,7 @@ those slices rested on; two of them could have changed the shape of the feature.
 |---|---|---|
 | 1 | Does a **passive backup** answer management reads, and how much surface does it expose? | **Full surface.** The backup's broker MBean returns the *same 90 attributes* as the primary — set difference in both directions is empty. It is `Started=true`, `Active=false`, `Backup=true`, `ReplicaSync=true`, and reports the same `NodeID`. No capability gating is needed: the pair diff works against a passive backup exactly as against a primary. |
 | 2 | Full attribute list and operation catalogue, both sides? | **Identical.** 90 attributes and **78 operations** on each side; no operation exists on one and not the other. Of the 25 attributes that differ, 22 are runtime counters that read 0 on the passive side (`AddressCount`, `QueueCount`, `ConnectionCount`, `Total*`, `SessionCount`, `DiskStoreUsage`, `AddressNames`, `QueueNames`, `AuthenticationSuccessCount`, `Uptime*`, `CurrentTimeMillis`, `Status`) and 3 are HA-role attributes (`Active`, `Backup`, `HAPolicy`) plus `Name`. |
-| 3 | Is `slowConsumerThreshold` returned by `getAddressSettingsAsJSON`? | **No — the Phase-0 capture was right.** The operation returns exactly 18 fields and the only slow-consumer field among them is `slowConsumerThresholdMeasurementUnit` (`MESSAGES_PER_SECOND`). Neither `slowConsumerThreshold`, `slowConsumerCheckPeriod` nor `slowConsumerPolicy` is exposed. **Native slow-consumer detection state is therefore UNKNOWN, not "off"** — Studio cannot observe the difference, and must say so (non-negotiable #5) rather than guess. |
+| 3 | Is `slowConsumerThreshold` returned by `getAddressSettingsAsJSON`? | **No — the Phase-0 capture was right.** The operation returns exactly 18 fields and the only slow-consumer field among them is `slowConsumerThresholdMeasurementUnit` (`MESSAGES_PER_SECOND`). Neither `slowConsumerThreshold`, `slowConsumerCheckPeriod` nor `slowConsumerPolicy` is exposed. **Native slow-consumer detection state is therefore UNKNOWN, not "off"** — Rahdar cannot observe the difference, and must say so (non-negotiable #5) rather than guess. |
 | 4 | Do `getRolesAsJSON` and the acceptor MBeans exist and answer? | **Yes, both sides, identical output.** `getRolesAsJSON("#")` returns the `amq` role's twelve permission flags. Acceptors are better read as the **`AcceptorsAsJSON` attribute** than through the `component=acceptors,*` MBean search: it carries `name`, `factoryClassName`, `params` (port, host, protocols, buffer sizes) and `extraProps` in one entry that batches with everything else, whereas the search costs a second round trip and returns only the queried node's own acceptor. Both `securitySettings` and `acceptors` diff sections are therefore viable. |
 | 5 | Does `broker_event`'s type CHECK accept `CONSUMER_SLOW`? | **There is no CHECK.** `010-broker-events.sql:14` declares `type TEXT NOT NULL` with no constraint — only an index on it. No changeset is needed for `CONSUMER_SLOW`. |
 
@@ -715,11 +715,11 @@ those slices rested on; two of them could have changed the shape of the feature.
   `broker.xml` snippet.
 - **`paused` is already on the wire.** Checked while resolving the paused-queue
   scoping question: a `listQueues` row carries `paused` (and `persistedPause`)
-  alongside the counters Studio already parses. A paused queue with a backlog and
+  alongside the counters Rahdar already parses. A paused queue with a backlog and
   consumers is *correctly* slow but operationally expected, so `queue_snapshot`
   gains a `paused` column (a new changeset — `005-broker-cache.sql` is released)
   and `SlowConsumerCondition` excludes paused queues from its universe. No extra
-  broker call: the field is in the page Studio already reads.
+  broker call: the field is in the page Rahdar already reads.
 
 ## 15. Broker configuration — declare, apply, verify
 
@@ -736,7 +736,7 @@ The six questions the design of change `07-broker-configuration` (ADR-0067) depe
 | M4 | Refusal shapes. | `createDivert(String)` on an existing name → **200, silently no change** (a second call with `exclusive=true` left `Exclusive=false`); `updateDivert(String)` → 200 and also left `Exclusive` unchanged — not relied on. `destroyDivert` on an absent name → `AMQ229012: No binding for divert …` (`ActiveMQInternalErrorException`). `removeAddressSettings` / `removeSecuritySettings` on an absent match → 200 (idempotent). `createQueue(String,boolean)` with `ignoreIfExists=false` on an existing queue → `AMQ229019`. |
 | M5 | Does a wildcard literal resolve its own entry? Are security settings merged? | `getAddressSettingsAsJSON("probe.m1.#")` returned the `probe.m1.#` entry merged over `#`, and `"probe.m1.concrete"` returned the same values — the literal match string is a valid probe. `getRolesAsJSON(match)` returns the role set of the **single most specific** security match; the `amq` role from `#` is not merged in. Re-adding a security match replaces its role set. |
 | M6 | `createQueue(json, ignoreIfExists=true)` on a queue whose config differs? | **200, returns the existing configuration, changes nothing** (a `filter-string` in the request was not applied). So "exists but differs" is detectable from the return value without a second read. |
-| M7 | Do the `view` and `edit` role lists of the 13-String `addSecuritySettings` arm persist? | **Accepted, never reported.** `addSecuritySettings("probe.view.#", "amq" × 12)` → 200, and `getRolesAsJSON("probe.view.#")` read back `view: false, edit: false` for `amq` while the other ten types were `true`. The console's own operation list registers both the 11- and 13-String arms, so the arm is real; whatever it stores for those two types is invisible over management. Consequence: Studio sends them, excludes them from the already/verify/drift comparison (`PermissionType.echoed()`), and says so in the security-setting editor — otherwise every declaration carrying `view` or `edit` would report drift nobody can close. |
+| M7 | Do the `view` and `edit` role lists of the 13-String `addSecuritySettings` arm persist? | **Accepted, never reported.** `addSecuritySettings("probe.view.#", "amq" × 12)` → 200, and `getRolesAsJSON("probe.view.#")` read back `view: false, edit: false` for `amq` while the other ten types were `true`. The console's own operation list registers both the 11- and 13-String arms, so the arm is real; whatever it stores for those two types is invisible over management. Consequence: Rahdar sends them, excludes them from the already/verify/drift comparison (`PermissionType.echoed()`), and says so in the security-setting editor — otherwise every declaration carrying `view` or `edit` would report drift nobody can close. |
 | M8 | Does `updateAddress(String,String)` change routing types in place, and what if a queue is bound? | Measured 2026-09-19 on `apache/activemq-artemis:2.44.0` (ADR-0082). The routing-type list is **replaced** by the one sent: adding `MULTICAST` to an `ANYCAST` address → 200, and dropping `ANYCAST` from an address that has only `MULTICAST` queues bound → 200. Dropping a routing type that has a queue **of that type** bound is refused: `500 IllegalStateException: AMQ229209: Can't remove routing type ANYCAST, queues exists for address: … Please delete queues before removing this routing type.` The address is left unchanged. So the plan keeps a routing type that has a queue of that type bound and reports it as a `DIVERGENT_ADDRESS` finding instead of a step that would fail (ADR-0083), and the queues bound to an address (with their routing type) come from a JMX search of `…,address="X",subcomponent=queues,*`, because the address MBean reports only queue names. |
 | M9 | Which `updateQueue(String)` fields does the broker ignore on a live queue? | Measured 2026-09-19 on 2.44. A document changing `durable` or `address` → **200, silently no change**: the returned configuration still carries the old value. So the plan never sends a change to an `IMMUTABLE_ON_UPDATE` field. It reports it as a `DIVERGENT_QUEUE` finding instead, because the write would report success and change nothing. |
 
@@ -748,7 +748,7 @@ The six questions the design of change `07-broker-configuration` (ADR-0067) depe
   finding, not a silent pass).
 - Replace semantics are real (M2): the plan shows before → after for every echoed key
   of the match and flags undeclared keys that will change (`UNINTENDED_KEY_CHANGE`).
-- Validation must be strict on Studio's side (M1): the broker will not tell an operator
+- Validation must be strict on Rahdar's side (M1): the broker will not tell an operator
   about a misspelt key. `pageSizeBytes < maxSizeBytes` is validated against the merged
   page size read in the plan.
 - A divert that exists with different properties is a delete + create step pair
@@ -759,7 +759,7 @@ The six questions the design of change `07-broker-configuration` (ADR-0067) depe
 
 Measured 2026-09-12 against the same dev pair (`apache/activemq-artemis:2.44.0`,
 `primary` :8161 / `backup` :8261, replication with failback) by
-`scripts/config-e2e.sh`, which drives Studio's own REST API and leaves the pair as it
+`scripts/config-e2e.sh`, which drives Rahdar's own REST API and leaves the pair as it
 found it. §15 answered what the management API does; this section answers what the
 assembled loop does, and it is where the baseline for the hardening work was taken.
 
@@ -777,7 +777,7 @@ the whole run; three 30-second windows were sampled in A/B/A order, where B ran
 dry runs, real applies over a 20-match declaration, and drift evaluations back to
 back with no pause at all.
 
-| Window | Studio | Broker CPU | Consumer throughput |
+| Window | Rahdar | Broker CPU | Consumer throughput |
 | --- | --- | --- | --- |
 | A1 | idle | 150% | 467 msg/s |
 | B | applies + evaluations, continuous | 115% | 433 msg/s |
@@ -787,7 +787,7 @@ A2 reproduced A1 exactly (+0.0%), so the run does not drift over its own length
 and B's **−7.1%** is attributable to the loop rather than to the queue getting
 deeper. Broker CPU *fell* in window B while throughput fell with it, which is the
 signature of contention — the management calls and the dispatch path waiting on
-each other — not of Studio consuming the CPU the broker needed.
+each other — not of Rahdar consuming the CPU the broker needed.
 
 Read it as a worst case that the product never asks for: window B issues applies
 continuously, while the shipped default evaluates once per `config.drift-interval`

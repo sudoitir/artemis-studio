@@ -1,7 +1,7 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.kernel.audit`
+|`io.github.sudoitir.rahdar.kernel.audit`
 |Spring components
 |_Controllers_
 

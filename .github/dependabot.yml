@@ -102,8 +102,8 @@ updates:
       actions:
         patterns: ["*"]
 
-  # Not the plugin template: it pins the versions Studio runs a plugin on, so it moves with
-  # Studio's own pom and SDK, never on its own.
+  # Not the plugin template: it pins the versions Rahdar runs a plugin on, so it moves with
+  # Rahdar's own pom and SDK, never on its own.
   - package-ecosystem: npm
     directory: "/site"
     schedule:

@@ -1,7 +1,7 @@
 # realtime-stream Specification
 
 ## Purpose
-Defines the single server-to-browser event stream Artemis Studio uses to tell
+Defines the single server-to-browser event stream Rahdar uses to tell
 the UI when polled cluster state has changed, the topics it multiplexes, and how
 the client behaves when the stream is unavailable.
 
@@ -247,7 +247,7 @@ SHALL close the connection and reconnect.
   rather than live
 
 ### Requirement: A client sees the same events whichever replica serves it
-When several Studio replicas share one database, every stream frame produced on one replica SHALL reach
+When several Rahdar replicas share one database, every stream frame produced on one replica SHALL reach
 the matching subscribers on every replica within one second, and SHALL be sent only after the change
 that caused it has committed. A replica that loses its link to the other replicas SHALL tell its stream
 clients to refetch once the link is back, so no view stays stale.
@@ -277,8 +277,8 @@ backoff, and SHALL present its last event id.
 - **WHEN** a client opens a stream on a replica that is draining
 - **THEN** the request is refused as unavailable and the client retries elsewhere
 
-### Requirement: A slow event-stream client cannot grow Studio's memory
-Studio SHALL bound the buffered events per subscriber to 1,000 frames and 1 MiB. When a subscriber falls behind, its pending change signals SHALL be coalesced by topic and the resource they are about, so that only the latest signal for each remains. A subscriber that overflows its bound three times within 60 seconds, or whose write stays blocked for more than 30 seconds, SHALL be sent a `reconnect` instruction and closed. The buffer that holds events during a replay SHALL also be bounded, and on overflow the subscriber SHALL be told to resync with a full refresh. Each frame dropped SHALL be counted in a metric.
+### Requirement: A slow event-stream client cannot grow Rahdar's memory
+Rahdar SHALL bound the buffered events per subscriber to 1,000 frames and 1 MiB. When a subscriber falls behind, its pending change signals SHALL be coalesced by topic and the resource they are about, so that only the latest signal for each remains. A subscriber that overflows its bound three times within 60 seconds, or whose write stays blocked for more than 30 seconds, SHALL be sent a `reconnect` instruction and closed. The buffer that holds events during a replay SHALL also be bounded, and on overflow the subscriber SHALL be told to resync with a full refresh. Each frame dropped SHALL be counted in a metric.
 
 #### Scenario: A client stops reading
 - **WHEN** a subscriber reads far slower than events arrive
@@ -306,4 +306,4 @@ Studio SHALL bound the buffered events per subscriber to 1,000 frames and 1 MiB.
 
 #### Scenario: Abuse by many slow clients
 - **WHEN** many subscribers stall at once
-- **THEN** Studio's memory stays bounded and other subscribers are unaffected
+- **THEN** Rahdar's memory stays bounded and other subscribers are unaffected

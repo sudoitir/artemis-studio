@@ -10,7 +10,7 @@ import type { Page } from '@playwright/test';
 
 import type { Scene } from './routes.ts';
 
-/** The primary broker's management URL, as Studio reaches it inside the compose network. */
+/** The primary broker's management URL, as Rahdar reaches it inside the compose network. */
 export const PRIMARY = 'http://artemis-primary:8161/console/jolokia';
 const ACCOUNT = 'artemis';
 

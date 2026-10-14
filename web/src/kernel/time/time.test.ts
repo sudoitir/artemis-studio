@@ -54,7 +54,7 @@ describe('server time', () => {
     await syncServerTime();
 
     // A TanStack `dataUpdatedAt` from four seconds ago must still read as four
-    // seconds old once both sides are on Studio's clock.
+    // seconds old once both sides are on Rahdar's clock.
     const stamped = Date.now() - 4_000;
     expect(toServerMs(stamped)).toBeCloseTo(stamped + 60_000, -2);
   });

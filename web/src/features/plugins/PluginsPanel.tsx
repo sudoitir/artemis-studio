@@ -113,7 +113,7 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
 
   const canInstall = view.canInstall && view.uploadEnabled;
   const cannotInstall = !view.uploadEnabled
-    ? 'Installing and updating plugins is switched off on this installation (artemis-studio.plugins.upload.enabled=false).'
+    ? 'Installing and updating plugins is switched off on this installation (rahdar.plugins.upload.enabled=false).'
     : view.cannotInstall?.message;
   const attention = rows.filter(needsAttention);
   const open = rows.find((p) => p.id === search.plugin);
@@ -195,8 +195,8 @@ function PluginsBody({ view }: Readonly<{ view: PluginsInventory }>) {
 
         {view.safeMode ? (
           <Notice title="Safe mode: no plugin is running" tone="warning">
-            {view.safeModeReason ?? 'Studio started without plugins.'} Fix or remove the plugin that failed, then
-            restart Studio normally.
+            {view.safeModeReason ?? 'Rahdar started without plugins.'} Fix or remove the plugin that failed, then
+            restart Rahdar normally.
           </Notice>
         ) : null}
 

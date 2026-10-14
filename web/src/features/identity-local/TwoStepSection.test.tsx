@@ -49,7 +49,7 @@ const serve = (state: { status: MfaStatusView }) =>
   server.use(http.get('*/api/v1/auth/mfa', () => HttpResponse.json(state.status)));
 
 const problem = (slug: string, status: number, detail?: string) =>
-  HttpResponse.json({ type: `https://artemis-studio.dev/problems/${slug}`, title: slug, detail }, { status });
+  HttpResponse.json({ type: `https://rahdar.dev/problems/${slug}`, title: slug, detail }, { status });
 
 afterEach(() => unstubPasskeys());
 
@@ -128,14 +128,14 @@ describe('TwoStepSection', () => {
     serve({
       status: {
         ...OFF,
-        webauthn: { available: false, reason: 'Set artemis-studio.public-url to use passkeys.' },
+        webauthn: { available: false, reason: 'Set rahdar.public-url to use passkeys.' },
       },
     });
     const user = userEvent.setup();
     renderWithProviders(<TwoStepSection />);
 
     const add = await screen.findByRole('button', { name: 'Add passkey' });
-    expect(add).toHaveAccessibleDescription('Not available. Set artemis-studio.public-url to use passkeys.');
+    expect(add).toHaveAccessibleDescription('Not available. Set rahdar.public-url to use passkeys.');
     expect(add).toHaveAttribute('aria-disabled', 'true');
     await user.click(add);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

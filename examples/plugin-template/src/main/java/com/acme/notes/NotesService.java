@@ -1,10 +1,10 @@
 package com.acme.notes;
 
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditEvent;
-import io.github.sudoitir.artemisstudio.kernel.audit.AuditService;
-import io.github.sudoitir.artemisstudio.kernel.security.ActorResolver;
-import io.github.sudoitir.artemisstudio.kernel.settings.SettingsReader;
-import io.github.sudoitir.artemisstudio.kernel.stream.SseHub;
+import io.github.sudoitir.rahdar.kernel.audit.AuditEvent;
+import io.github.sudoitir.rahdar.kernel.audit.AuditService;
+import io.github.sudoitir.rahdar.kernel.security.ActorResolver;
+import io.github.sudoitir.rahdar.kernel.settings.SettingsReader;
+import io.github.sudoitir.rahdar.kernel.stream.SseHub;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.time.Clock;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Notes, stored in the plugin's own schema. Every change is audited the way Studio's own are —
+ * Notes, stored in the plugin's own schema. Every change is audited the way Rahdar's own are —
  * the audit row committed before the change, then its outcome — and announced on the live stream
  * so every open Notes view refreshes.
  */

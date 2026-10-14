@@ -1,7 +1,7 @@
 # secret-management Specification
 
 ## Purpose
-How Studio protects every secret it stores: envelope encryption under versioned key-encryption keys from a configured key provider, online rotation of those keys, and redaction of credentials wherever output could leak them (ADR-0132, ADR-0133).
+How Rahdar protects every secret it stores: envelope encryption under versioned key-encryption keys from a configured key provider, online rotation of those keys, and redaction of credentials wherever output could leak them (ADR-0132, ADR-0133).
 
 ## Requirements
 
@@ -21,18 +21,18 @@ Each stored secret SHALL be encrypted with its own data key, and each data key S
 - **THEN** decryption fails there
 
 #### Scenario: Stored secrets from an earlier version
-- **WHEN** Studio is upgraded to this version
+- **WHEN** Rahdar is upgraded to this version
 - **THEN** secrets stored in the earlier format are removed and must be entered again, and the release note says so
 
 ### Requirement: The key-encryption key can be rotated online
-An administrator SHALL be able to start a rotation to the newest key version the provider offers. The rotation SHALL re-wrap every data key with that version while Studio keeps serving, and the administrator SHALL see its progress and result. New secrets SHALL be wrapped with the new version from the moment the rotation starts.
+An administrator SHALL be able to start a rotation to the newest key version the provider offers. The rotation SHALL re-wrap every data key with that version while Rahdar keeps serving, and the administrator SHALL see its progress and result. New secrets SHALL be wrapped with the new version from the moment the rotation starts.
 
 #### Scenario: Rotation in progress
 - **WHEN** a rotation runs
 - **THEN** reads and writes of secrets keep working and progress is visible
 
 #### Scenario: Rotation interrupted
-- **WHEN** Studio stops during a rotation
+- **WHEN** Rahdar stops during a rotation
 - **THEN** the rotation resumes after the restart and no secret becomes unreadable
 
 #### Scenario: Rotation with several replicas
@@ -48,15 +48,15 @@ An administrator SHALL be able to start a rotation to the newest key version the
 - **THEN** it is refused and audited
 
 ### Requirement: The key provider is optional and selected by configuration
-Studio SHALL obtain its key-encryption keys and the OIDC client secret from one provider chosen by configuration: environment (the default when none is configured), file, HashiCorp Vault (KV version 2) or Kubernetes Secrets. The environment provider SHALL accept either a single base64 key, which is version 1, or a list of numbered keys.
+Rahdar SHALL obtain its key-encryption keys and the OIDC client secret from one provider chosen by configuration: environment (the default when none is configured), file, HashiCorp Vault (KV version 2) or Kubernetes Secrets. The environment provider SHALL accept either a single base64 key, which is version 1, or a list of numbered keys.
 
 #### Scenario: No provider configured
-- **WHEN** no provider is configured and `ARTEMIS_STUDIO_SECRET_KEY` holds a 32-byte base64 key
-- **THEN** Studio starts, encrypts secrets at rest in its database under key version 1, and reports the provider as environment
+- **WHEN** no provider is configured and `RAHDAR_SECRET_KEY` holds a 32-byte base64 key
+- **THEN** Rahdar starts, encrypts secrets at rest in its database under key version 1, and reports the provider as environment
 
 #### Scenario: Provider unreachable at start
 - **WHEN** the configured provider cannot deliver a valid key
-- **THEN** Studio refuses to start with a message naming the provider, and no fallback provider is used
+- **THEN** Rahdar refuses to start with a message naming the provider, and no fallback provider is used
 
 #### Scenario: Wrong-length key
 - **WHEN** a key from the provider does not decode to exactly 32 bytes
@@ -64,14 +64,14 @@ Studio SHALL obtain its key-encryption keys and the OIDC client secret from one 
 
 #### Scenario: OIDC client secret from the provider
 - **WHEN** OIDC is enabled and the provider holds the OIDC client secret
-- **THEN** Studio authenticates to the identity provider with it
+- **THEN** Rahdar authenticates to the identity provider with it
 
 #### Scenario: Provider switched
 - **WHEN** the configured provider changes
 - **THEN** a documented procedure moves the current key to the new provider and re-wraps the data keys under a key held there
 
 ### Requirement: Secrets and credential-like values are redacted everywhere they could leak
-Studio SHALL redact stored secrets and values that look like credentials in logs, audit parameters, error responses and exported configuration.
+Rahdar SHALL redact stored secrets and values that look like credentials in logs, audit parameters, error responses and exported configuration.
 
 #### Scenario: Error response
 - **WHEN** a failing call involved a credential

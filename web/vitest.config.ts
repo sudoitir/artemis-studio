@@ -78,7 +78,7 @@ export default defineConfig({
             'uqr',
           ],
         },
-        // Every browser test runs with Trusted Types enforced, as Studio's pages do (ADR-0168).
+        // Every browser test runs with Trusted Types enforced, as Rahdar's pages do (ADR-0168).
         server: { headers: { 'Content-Security-Policy': TRUSTED_TYPES_DIRECTIVES } },
         test: {
           name: 'browser',

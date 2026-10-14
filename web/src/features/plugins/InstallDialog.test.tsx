@@ -18,7 +18,7 @@ const RESUME: Source = { kind: 'resume', sha: SHA };
 
 function refusal(violations: object[]) {
   return HttpResponse.json(
-    { type: 'https://artemis-studio.dev/problems/plugin-refused', title: 'Refused', detail: 'refused', violations },
+    { type: 'https://rahdar.dev/problems/plugin-refused', title: 'Refused', detail: 'refused', violations },
     { status: 422 },
   );
 }
@@ -82,7 +82,7 @@ describe('InstallDialog inspection', () => {
     open(UPDATE);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(alert).toHaveTextContent('The vendor did not answer.');
     expect(screen.getByText('Nothing was stored.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Copy report/ })).not.toBeInTheDocument();
@@ -154,7 +154,7 @@ describe('InstallDialog review and confirmation', () => {
     [
       'a restart the server makes',
       { activationClass: 'RESTART', restart: 'AUTOMATIC' },
-      'Studio restarts, disconnecting everyone briefly.',
+      'Rahdar restarts, disconnecting everyone briefly.',
     ],
     ['a manual restart', { activationClass: 'RESTART', restart: 'MANUAL' }, 'Nobody is interrupted.'],
     [
@@ -186,7 +186,7 @@ describe('InstallDialog review and confirmation', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Continue' }));
 
-    expect(screen.getByText(/Replaces Notes 0\.9\.0 for everyone using Studio\./)).toBeInTheDocument();
+    expect(screen.getByText(/Replaces Notes 0\.9\.0 for everyone using Rahdar\./)).toBeInTheDocument();
   });
 
   it('will not arm the confirmation while a requirement is missing, even once signed in and typed', async () => {
@@ -262,7 +262,7 @@ describe('InstallDialog review and confirmation', () => {
       http.put('*/api/v1/admin/plugins/upload', () => HttpResponse.json(upload(), { status: 201 })),
       http.post('*/api/v1/admin/plugins/uploads/:sha/activate', () =>
         HttpResponse.json(
-          { type: 'https://artemis-studio.dev/problems/reauthentication-required', title: 'Sign in again' },
+          { type: 'https://rahdar.dev/problems/reauthentication-required', title: 'Sign in again' },
           { status: 403 },
         ),
       ),

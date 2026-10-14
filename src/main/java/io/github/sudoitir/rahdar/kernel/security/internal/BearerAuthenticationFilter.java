@@ -1,0 +1,87 @@
+package io.github.sudoitir.rahdar.kernel.security.internal;
+
+import io.github.sudoitir.rahdar.kernel.security.BearerIdentityProvider;
+import io.github.sudoitir.rahdar.kernel.security.IdentityProviders;
+import io.github.sudoitir.rahdar.kernel.security.RahdarPrincipal;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+/**
+ * Authenticates an {@code Authorization: Bearer} request through the bearer identity providers,
+ * independently of any session cookie (api-tokens spec). Placed after
+ * {@code SecurityContextHolderFilter}, which would otherwise overwrite this filter's
+ * authentication with the session-less empty context it loads.
+ *
+ * <p>Any other {@code Authorization} header, and a bearer token no provider accepts, is answered
+ * with the 401 problem here. Only a request this filter authenticated skips the CSRF check
+ * ({@link #AUTHENTICATED}); otherwise a junk header plus the session cookie would skip it too.
+ */
+class BearerAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final String BEARER_PREFIX = "Bearer ";
+
+    /** Request attribute set once a bearer token authenticated the request. */
+    static final String AUTHENTICATED = BearerAuthenticationFilter.class.getName() + ".AUTHENTICATED";
+
+    private final List<IdentityProviders> contributions;
+    private final RequestAttributeSecurityContextRepository requestContexts =
+            new RequestAttributeSecurityContextRepository();
+
+    private final AuthenticationEntryPoint entryPoint;
+
+    BearerAuthenticationFilter(List<IdentityProviders> contributions, AuthenticationEntryPoint entryPoint) {
+        this.contributions = contributions;
+        this.entryPoint = entryPoint;
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        String header = request.getHeader("Authorization");
+        if (header == null) {
+            chain.doFilter(request, response);
+            return;
+        }
+        Optional<RahdarPrincipal> principal = header.startsWith(BEARER_PREFIX)
+                ? authenticate(header.substring(BEARER_PREFIX.length()).trim())
+                : Optional.empty();
+        if (principal.isEmpty()) {
+            entryPoint.commence(request, response, new BadCredentialsException("Bearer token not accepted"));
+            return;
+        }
+        RahdarPrincipal p = principal.get();
+        var authentication = UsernamePasswordAuthenticationToken.authenticated(p, null, p.getAuthorities());
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
+        // Recorded on the request, so SessionManagementFilter sees the authentication as already saved
+        // and does not save it into a session: a token call has no session, and must not create one.
+        requestContexts.saveContext(context, request, response);
+        request.setAttribute(AUTHENTICATED, Boolean.TRUE);
+        chain.doFilter(request, response);
+    }
+
+    private Optional<RahdarPrincipal> authenticate(String token) {
+        return contributions.stream()
+                .flatMap(c -> c.providers().stream())
+                .filter(BearerIdentityProvider.class::isInstance)
+                .map(BearerIdentityProvider.class::cast)
+                .map(p -> p.authenticate(token))
+                .flatMap(Optional::stream)
+                .findFirst();
+    }
+}

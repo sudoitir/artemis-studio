@@ -132,7 +132,7 @@ export function divertRows(item: ConfigDivertView): Row[] {
 }
 
 /**
- * A declared bridge's rows. The credential is a reference into Studio's vault and
+ * A declared bridge's rows. The credential is a reference into Rahdar's vault and
  * is shown as one; there is no password to show, here or anywhere (ADR-0092).
  */
 export function bridgeRows(item: ConfigBridgeView): Row[] {
@@ -173,7 +173,7 @@ export function bridgeRows(item: ConfigBridgeView): Row[] {
   for (const [key, value] of optional) {
     if (value !== null && value !== undefined) rows.push({ key, value: prettyValue(key, value) });
   }
-  if (item.credentialRef) rows.push({ key: 'credential', value: `${item.credentialRef} (held in Studio's vault)` });
+  if (item.credentialRef) rows.push({ key: 'credential', value: `${item.credentialRef} (held in Rahdar's vault)` });
   return rows;
 }
 

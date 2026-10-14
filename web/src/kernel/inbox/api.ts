@@ -28,7 +28,7 @@ export function unreadLabel(count: InboxCount | undefined): string {
 }
 
 /**
- * Whether a notice's link is a path inside Studio. The server refuses any other on posting; this is the
+ * Whether a notice's link is a path inside Rahdar. The server refuses any other on posting; this is the
  * second check, so a notice can never send the operator to another site.
  */
 export function isInAppPath(link: string | null | undefined): link is string {
