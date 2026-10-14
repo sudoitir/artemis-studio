@@ -7,7 +7,7 @@
 # The stack is compose project artemis-studio-load on 127.0.0.1:$LOAD_PORT (default 18090), apart from the
 # development stack and the demo. It starts from the image LOAD_IMAGE, or from the jar LOAD_JAR run in the released
 # runtime image, or from an image built here from the Dockerfile. It is removed with its volumes on every exit.
-# Every size in the profile can be overridden from the environment, for example `LOAD_QUEUES=5000 just load`.
+# Every size in the profile can be overridden (the brokers are clusters x nodes per cluster, one container each) from the environment, for example `LOAD_QUEUES=5000 just load`.
 #
 # Writes load/target/report/summary.{json,md}; exits 1 on a Gatling assertion or a figure below its published target.
 # Runs on bash 3.2 and Linux: no mapfile, no ${x,,}, no GNU-only flags.
@@ -20,7 +20,16 @@ profile=${1:-reference}
 # shellcheck source=/dev/null
 . "load/profiles/$profile.env"
 
+# A broker belongs to one cluster (Studio refuses to register it twice), so the clusters need distinct brokers.
+LOAD_BROKERS=$((LOAD_CLUSTERS * LOAD_NODES_PER_CLUSTER))
 LOAD_PORT=${LOAD_PORT:-18090}
+# A broker holding thousands of queues needs more than 256 MB of heap (it runs out of memory at about 3,000).
+LOAD_BROKER_HEAP=${LOAD_BROKER_HEAP:-256}
+# Studio walks a node's queues one page of 200 per tier-C tick (5 minutes by default), so a node with 1,000 queues
+# is fully known after 25 minutes. The load stack ticks every 15 s so that seeded queues are all known within the
+# run; this makes its broker reads more frequent than a default installation's, never less.
+LOAD_TIER_C=${LOAD_TIER_C:-15s}
+export LOAD_TIER_C
 LOAD_RUNTIME_IMAGE=${LOAD_RUNTIME_IMAGE:-sudoit1/artemis-studio:dev}
 out=$root/load/target
 stack=$out/stack
@@ -39,8 +48,16 @@ fi
 
 COMPOSE="docker compose -p $project --env-file $stack/stack.env -f $root/deploy/compose/compose.ha.yaml -f $stack/compose.load.yaml"
 sampler=""
+churner=""
 cleanup() {
   [ -z "$sampler" ] || kill "$sampler" 2>/dev/null || true
+  # shellcheck disable=SC2086 # a list of process ids
+  [ -z "${churner:-}" ] || kill $churner 2>/dev/null || true
+  if [ "${LOAD_KEEP:-}" = 1 ]; then
+    echo "LOAD_KEEP=1: the stack stays up on ${STUDIO:-}; remove it with: $COMPOSE down -v --remove-orphans" >&2
+    rmdir "$lock" 2>/dev/null || true
+    return
+  fi
   say "removing the load stack and its volumes"
   $COMPOSE down -v --remove-orphans >/dev/null 2>&1 || true
   rmdir "$lock" 2>/dev/null || true
@@ -54,6 +71,9 @@ mkdir -p "$stack" "$out/seed" "$out/scrape" "$out/report"
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 2; }
 avail_mb=$(df -Pm "$out" | awk 'NR == 2 { print $4 }')
 [ "$avail_mb" -ge 4096 ] || { echo "only ${avail_mb} MB free: brokers block at 90% disk use, free some space first" >&2; exit 2; }
+
+# Compile the simulation first, so a mistake there does not cost a started stack.
+(cd "$root/load" && ../mvnw -B -q test-compile) || { echo "the simulation does not compile" >&2; exit 2; }
 
 # --- the image ---
 volumes=""
@@ -89,7 +109,7 @@ services:
       - "127.0.0.1:$LOAD_PORT:8080"
 YAML
   for s in studio-1 studio-2; do
-    printf '  %s:\n    depends_on:\n' "$s"
+    printf '  %s:\n    environment:\n      ARTEMIS_STUDIO_SCRAPE_TIER_C_INTERVAL: %s\n    depends_on:\n' "$s" "$LOAD_TIER_C"
     i=0
     while [ "$i" -lt "$LOAD_BROKERS" ]; do
       printf '      broker-%d:\n        condition: service_healthy\n' "$i"
@@ -106,7 +126,7 @@ YAML
       ARTEMIS_USER: artemis
       ARTEMIS_PASSWORD: artemis
       ANONYMOUS_LOGIN: "false"
-      JAVA_ARGS_APPEND: "-Xms64m -Xmx256m"
+      JAVA_ARGS_APPEND: "-Xms64m -Xmx${LOAD_BROKER_HEAP}m"
     ports:
       - "127.0.0.1::8161"
     healthcheck:
@@ -156,10 +176,30 @@ sample_loop() {
   done
 }
 
+# Messages keep arriving during the run (LOAD_CHURN producers in parallel), so the streams carry queue and event
+# frames and a stalled subscriber's socket really fills.
+churn_loop() {
+  local i
+  while :; do
+    i=0
+    while [ "$i" -lt "$LOAD_BROKERS" ]; do
+      $COMPOSE exec -T -e 'JAVA_ARGS_APPEND=-Xms16m -Xmx64m -XX:+UseSerialGC' "broker-$i" /var/lib/artemis-instance/bin/artemis producer \
+        --url tcp://localhost:61616 --user artemis --password artemis --destination "queue://load.churn.$i" \
+        --message-count 300 --message-size 4096 >/dev/null 2>&1 || true
+      i=$((i + 1))
+    done
+  done
+}
+
 say "running the simulation (profile $profile, ${LOAD_DURATION}s)"
 scrape before
 sample_loop &
 sampler=$!
+
+if [ "${LOAD_CHURN:-0}" = 1 ]; then
+  churn_loop &
+  churner=$!
+fi
 
 pages=$(((LOAD_QUEUES + 99) / 100))
 rc=0
@@ -179,10 +219,13 @@ capped() {
     -Dload.sql="$LOAD_SQL" -Dload.queue.pages="$pages"
 ) || rc=$?
 
-kill "$sampler" 2>/dev/null || true
-wait "$sampler" 2>/dev/null || true
+kill "$sampler" $churner 2>/dev/null || true
+wait "$sampler" $churner 2>/dev/null || true
 sampler=""
+churner=""
 scrape after
+# Query plans and the event writer's throughput, from the database itself.
+$COMPOSE exec -T postgres psql -q -U artemis_studio -d artemis_studio < "$root/load/explain.sql" > "$out/report/explain.txt" 2>&1 || true
 
 say "report"
 version=$(git describe --tags --always 2>/dev/null || echo unknown)

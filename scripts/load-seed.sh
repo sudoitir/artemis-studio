@@ -66,8 +66,7 @@ while [ "$i" -lt "$LOAD_BROKERS" ] && [ "$per_queue" -gt 0 ]; do
 done
 
 say "registering $LOAD_CLUSTERS clusters of $LOAD_NODES_PER_CLUSTER nodes"
-# Cluster c takes brokers c, c+1, ... round-robin, so more clusters than brokers share brokers: Studio's rows,
-# pollers and streams are per cluster, whatever the broker behind them.
+# Cluster c takes its own brokers, c x nodes onward: Studio refuses to register a broker in two clusters.
 printf 'clusterId,clusterName,queue\n' > "$SEED_DIR/clusters.csv"
 cluster_ids=()
 c=0
@@ -75,12 +74,13 @@ while [ "$c" -lt "$LOAD_CLUSTERS" ]; do
   seeds=""
   n=0
   while [ "$n" -lt "$LOAD_NODES_PER_CLUSTER" ]; do
-    b=$(((c + n) % LOAD_BROKERS))
+    b=$((c * LOAD_NODES_PER_CLUSTER + n))
     seeds="$seeds${seeds:+,}\"http://broker-$b:8161/console/jolokia\""
     n=$((n + 1))
   done
   name="load-$c"
-  id=$(api POST /clusters -d "{\"seedUrls\":[$seeds],\"name\":\"$name\",\"description\":\"Load test cluster $c\",\"credentials\":{\"username\":\"artemis\",\"password\":\"artemis\"},\"coreCredentials\":{\"username\":\"artemis\",\"password\":\"artemis\"}}" | json 'd["id"]')
+  reply=$(api POST /clusters -d "{\"seedUrls\":[$seeds],\"name\":\"$name\",\"description\":\"Load test cluster $c\",\"credentials\":{\"username\":\"artemis\",\"password\":\"artemis\"},\"coreCredentials\":{\"username\":\"artemis\",\"password\":\"artemis\"}}")
+  id=$(json 'd["id"]' <<<"$reply" 2>/dev/null) || { echo "registering $name failed: $reply" >&2; exit 1; }
   echo "  $name: $id"
   cluster_ids+=("$id")
   q=0
@@ -93,8 +93,11 @@ done
 
 say "waiting for Studio to read the queues"
 want=$LOAD_QUEUES
+# One page of 200 queues per node and tier-C tick (15 s in the load stack).
+tick=${LOAD_TIER_C%s}
+tries=$((((LOAD_QUEUES + 199) / 200) * tick / 3 + 40))
 for id in "${cluster_ids[@]}"; do
-  for _ in $(seq 1 60); do
+  for _ in $(seq 1 "$tries"); do
     have=$(api GET "/clusters/$id/queues?size=1" | json 'd["count"]' 2>/dev/null || echo 0)
     [ "$have" -ge "$want" ] && break
     sleep 3

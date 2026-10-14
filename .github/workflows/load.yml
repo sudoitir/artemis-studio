@@ -11,12 +11,8 @@ on:
         type: choice
         options: [reference, smoke]
         default: reference
-      brokers:
-        description: Artemis brokers (empty keeps the profile's)
-        type: string
-        default: ""
       clusters:
-        description: Registered clusters
+        description: Registered clusters (each with its own brokers; empty keeps the profile's)
         type: string
         default: ""
       nodes_per_cluster:
@@ -75,7 +71,6 @@ jobs:
       - name: Run the load test
         env:
           PROFILE: ${{ inputs.profile }}
-          LOAD_BROKERS: ${{ inputs.brokers }}
           LOAD_CLUSTERS: ${{ inputs.clusters }}
           LOAD_NODES_PER_CLUSTER: ${{ inputs.nodes_per_cluster }}
           LOAD_QUEUES: ${{ inputs.queues }}

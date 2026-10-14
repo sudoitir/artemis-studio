@@ -32,7 +32,7 @@ final class StalledStreams {
             var socket = new java.net.Socket();
             socket.setReceiveBufferSize(1024);
             socket.connect(new java.net.InetSocketAddress(base.getHost(), base.getPort()), 5000);
-            String request = "GET /api/v1/stream?clusterId=" + cluster + "&topics=topology,health,queues HTTP/1.1\r\n"
+            String request = "GET /api/v1/stream?clusterId=" + cluster + "&topics=topology,health,queues,events HTTP/1.1\r\n"
                     + "Host: " + base.getHost() + ":" + base.getPort() + "\r\n"
                     + "Accept: text/event-stream\r\nCookie: " + cookie + "\r\n\r\n";
             socket.getOutputStream().write(request.getBytes(StandardCharsets.US_ASCII));

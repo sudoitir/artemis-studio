@@ -40,7 +40,10 @@ for start in range(0, count, 200):
         }
         for i in range(start, min(start + 200, count))
     ]
-    for result in post(batch):
+    results = post(batch)
+    if not isinstance(results, list):
+        sys.exit(f"the broker answered a batch of queues with {str(results)[:300]}")
+    for result in results:
         # A queue that exists is a re-run, not a failure.
         if result["status"] != 200 and "AMQ229019" not in result.get("error", "") and "exists" not in result.get("error", ""):
             failed += 1

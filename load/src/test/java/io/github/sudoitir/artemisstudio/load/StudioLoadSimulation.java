@@ -128,23 +128,24 @@ public class StudioLoadSimulation extends Simulation {
                             Counters.REFUSED_SQL.incrementAndGet();
                             return session;
                         }))
-                .orElse(exec(session -> {
-                            Counters.ACCEPTED_SQL.incrementAndGet();
-                            return session;
-                        })
-                                .exec(sse("heavy.sql.stream")
-                                        .get("/clusters/#{clusterId}/sql/stream?queryId=#{queryId}")
-                                        .await(60)
-                                        .on(sse.checkMessage("heavy.sql.result")
-                                                .matching(jsonPath("$.event").in("done", "error"))
-                                                .check(jsonPath("$.event").saveAs("sqlEvent"))))
+                .orElse(exec(http("heavy.sql.stream")
+                                .get("/clusters/#{clusterId}/sql/stream?queryId=#{queryId}")
+                                .header("Accept", "text/event-stream")
+                                .check(status().is(200), bodyString().saveAs("sqlBody")))
+                        // A static query's stream ends, from the server, with `done` or `failed`, so a plain GET reads it
+                        // whole. A refusal by the per-user limit is a `failed` frame of problem type
+                        // too-many-heavy-requests, not a status.
                         .exec(session -> {
-                            if ("error".equals(session.getString("sqlEvent"))) {
+                            String body = session.getString("sqlBody");
+                            if (body.matches("(?s).*event:\\s*done.*")) {
+                                Counters.ACCEPTED_SQL.incrementAndGet();
+                            } else if (body.contains("too-many-heavy-requests")) {
+                                Counters.REFUSED_SQL.incrementAndGet();
+                            } else {
                                 Counters.SQL_ERROR_FRAMES.incrementAndGet();
                             }
                             return session;
-                        })
-                        .exec(sse("heavy.sql.close").close()));
+                        }));
     }
 
     private ScenarioBuilder sqlScenario() {
