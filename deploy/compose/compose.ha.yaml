@@ -1,8 +1,8 @@
-# Artemis Studio — high-availability reference stack.
+# Rahdar — high-availability reference stack.
 #
 #   docker compose -f deploy/compose/compose.ha.yaml --env-file .env up -d
 #
-# Two Studio replicas behind HAProxy, on one Postgres. The replicas are stateless: sessions,
+# Two Rahdar replicas behind HAProxy, on one Postgres. The replicas are stateless: sessions,
 # settings and cluster ownership live in the database, and stream events reach every
 # replica through it, so the load balancer needs no sticky sessions. Each registered cluster
 # is polled by one replica at a time (site/src/guide/high-availability.md).
@@ -10,22 +10,22 @@
 # Uses the same .env as compose.prod.yaml (deploy/compose/.env.example). Postgres here is a
 # single container: its availability is yours to provide (managed Postgres, Patroni, ...).
 
-name: artemis-studio-ha
+name: rahdar-ha
 
-x-studio: &studio
-  image: ${STUDIO_IMAGE:-sudoit1/artemis-studio:dev}
+x-rahdar: &rahdar
+  image: ${RAHDAR_IMAGE:-sudoit1/rahdar:dev}
   environment:
-    ARTEMIS_STUDIO_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
-    ARTEMIS_STUDIO_DB_USER: ${DB_USER}
-    ARTEMIS_STUDIO_DB_PASSWORD: ${DB_PASSWORD}
-    ARTEMIS_STUDIO_SECRET_KEY: ${SECRET_KEY:?}
-    ARTEMIS_STUDIO_CAPTURE_BROKER_ROLE: ${CAPTURE_BROKER_ROLE:-}
+    RAHDAR_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+    RAHDAR_DB_USER: ${DB_USER}
+    RAHDAR_DB_PASSWORD: ${DB_PASSWORD}
+    RAHDAR_SECRET_KEY: ${SECRET_KEY:?}
+    RAHDAR_CAPTURE_BROKER_ROLE: ${CAPTURE_BROKER_ROLE:-}
     # A plugin that needs a restart restarts its replica; `restart: unless-stopped` starts it again.
-    ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED: "true"
+    RAHDAR_PLUGINS_RESTART_SUPERVISED: "true"
     # Pin plugin publishers' keys here instead of in the UI (ADR-0166; site/src/guide/plugins.md).
     # Each key needs a name and a PEM certificate or public key; the number is the item's index.
-    # ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_NAME: Example Publisher
-    # ARTEMIS_STUDIO_PLUGINS_TRUSTED_KEYS_0_PEM: ${PUBLISHER_KEY_PEM:?}
+    # RAHDAR_PLUGINS_TRUSTED_KEYS_0_NAME: Example Publisher
+    # RAHDAR_PLUGINS_TRUSTED_KEYS_0_PEM: ${PUBLISHER_KEY_PEM:?}
     JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=50 -XX:MaxMetaspaceSize=384m}
     # The standard OpenTelemetry variables from .env (.env.example): empty ones stay unset, so nothing is
     # exported until OTEL_EXPORTER_OTLP_ENDPOINT and a signal's exporter are set (site/src/guide/observability.md).
@@ -79,17 +79,17 @@ services:
       timeout: 5s
       retries: 20
 
-  studio-1:
-    <<: *studio
+  rahdar-1:
+    <<: *rahdar
     depends_on:
       postgres:
         condition: service_healthy
 
-  # Starts once studio-1 is ready, so schema migrations run once.
-  studio-2:
-    <<: *studio
+  # Starts once rahdar-1 is ready, so schema migrations run once.
+  rahdar-2:
+    <<: *rahdar
     depends_on:
-      studio-1:
+      rahdar-1:
         condition: service_healthy
 
   lb:
@@ -97,9 +97,9 @@ services:
     volumes:
       - ./ha/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     ports:
-      - "${STUDIO_BIND:-127.0.0.1:8080}:8080"
+      - "${RAHDAR_BIND:-127.0.0.1:8080}:8080"
     depends_on:
-      studio-1:
+      rahdar-1:
         condition: service_healthy
     restart: unless-stopped
 

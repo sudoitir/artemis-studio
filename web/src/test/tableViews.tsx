@@ -646,7 +646,7 @@ const flowEdge = (i: number): FlowEdgeView => ({
   bypassed: false,
   presentOn: null,
   presentOf: null,
-  studio: false,
+  rahdar: false,
   faults: i === 2 ? ['NO_CONSUMER'] : [],
   byNode: null,
 });

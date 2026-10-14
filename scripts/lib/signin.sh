@@ -1,27 +1,27 @@
-# Sign in to Studio over its API the way the scripts need to. Sourced, not run.
+# Sign in to Rahdar over its API the way the scripts need to. Sourced, not run.
 #
 # The built-in ADMIN role requires a second factor (ADR-0143), so on a fresh stack a script has to change the
 # one-time password, enrol an authenticator app and confirm it before it can do anything; on every later run
 # it signs in with the password and a code computed from ADMIN_TOTP_SECRET, the secret the first run printed.
 #
-# Needs STUDIO, COOKIES (a curl cookie jar) and ADMIN_USER, ADMIN_PASSWORD and, once enrolled, ADMIN_TOTP_SECRET.
-# Provides csrf, api and studio_sign_in. Works sourced from bash (3.2 and later) and zsh, so no variable here is
+# Needs RAHDAR, COOKIES (a curl cookie jar) and ADMIN_USER, ADMIN_PASSWORD and, once enrolled, ADMIN_TOTP_SECRET.
+# Provides csrf, api and rahdar_sign_in. Works sourced from bash (3.2 and later) and zsh, so no variable here is
 # named path, status or options, which zsh ties to its own state.
 
 _SIGNIN_LIB=$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)
 
-# Studio protects mutating calls with the double-submit CSRF cookie a browser sends by itself; curl echoes it by hand.
+# Rahdar protects mutating calls with the double-submit CSRF cookie a browser sends by itself; curl echoes it by hand.
 csrf() { awk '$6 == "XSRF-TOKEN" { print $7 }' "$COOKIES" | tail -1; }
 
 # api METHOD PATH [curl args...] → response body on stdout
 api() {
   local method=$1 endpoint=$2
   shift 2
-  curl -sS -b "$COOKIES" -c "$COOKIES" -X "$method" "$STUDIO/api/v1$endpoint" \
+  curl -sS -b "$COOKIES" -c "$COOKIES" -X "$method" "$RAHDAR/api/v1$endpoint" \
     -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $(csrf)" "$@"
 }
 
-# The next code Studio has not seen; TOTP_LAST_STEP is the step of the one before.
+# The next code Rahdar has not seen; TOTP_LAST_STEP is the step of the one before.
 _next_code() {
   local out
   out=$(python3 "$_SIGNIN_LIB/totp.py" "$ADMIN_TOTP_SECRET" "${TOTP_LAST_STEP:--1}") || return 1
@@ -73,12 +73,12 @@ _enrol_totp() {
   echo "two-step verification is set up for $ADMIN_USER. Use ADMIN_TOTP_SECRET=$secret from now on." >&2
 }
 
-# studio_sign_in [NEW_PASSWORD [NAME]] → 0 when signed in with a full session.
+# rahdar_sign_in [NEW_PASSWORD [NAME]] → 0 when signed in with a full session.
 # NEW_PASSWORD is what a one-time password becomes, and what an earlier run may already have changed it to;
 # NAME is the variable that holds it, for the message when it is missing.
-studio_sign_in() {
+rahdar_sign_in() {
   local new=${1:-} name=${2:-NEW_PASSWORD} me http_code
-  curl -sS -b "$COOKIES" -c "$COOKIES" "$STUDIO/api/v1/auth/me" >/dev/null || true # issues the CSRF cookie
+  curl -sS -b "$COOKIES" -c "$COOKIES" "$RAHDAR/api/v1/auth/me" >/dev/null || true # issues the CSRF cookie
   local password rc=1
   for password in "$ADMIN_PASSWORD" ${new:+"$new"}; do
     _login "$password" && rc=0 || rc=$?
@@ -96,7 +96,7 @@ studio_sign_in() {
   me=$(api GET /auth/me) || return 1
   if grep -q '"mustChangePassword":true' <<<"$me"; then
     if [ -z "$new" ]; then
-      echo "Studio requires the one-time admin password to be changed first." >&2
+      echo "Rahdar requires the one-time admin password to be changed first." >&2
       echo "Rerun with $name=<a password you choose>, and use that password from then on." >&2
       return 1
     fi

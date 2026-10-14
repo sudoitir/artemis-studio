@@ -52,7 +52,7 @@ function pickerNotice(queues: ReturnType<typeof useQueues>, optionCount: number,
     <Combobox.Empty>
       {typeCount > 0
         ? 'No address here matches that name and routing type. Clear the type filter, or type the name in full to use it anyway.'
-        : 'No address on this cluster matches that name. Type it in full to use it anyway — Studio will start tracing once it appears.'}
+        : 'No address on this cluster matches that name. Type it in full to use it anyway — Rahdar will start tracing once it appears.'}
     </Combobox.Empty>
   );
 }

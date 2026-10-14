@@ -41,7 +41,7 @@ Each firing SHALL carry labels including cluster, environment and severity, and 
 - **THEN** it goes to the default route and is never dropped
 
 ### Requirement: Alerts can be silenced and suppressed by maintenance windows
-A user with the matching permission SHALL be able to silence alerts matching labels for a time span, and to define maintenance windows, and Studio SHALL record who did so and why. Silenced alerts SHALL remain in the history marked as silenced.
+A user with the matching permission SHALL be able to silence alerts matching labels for a time span, and to define maintenance windows, and Rahdar SHALL record who did so and why. Silenced alerts SHALL remain in the history marked as silenced.
 
 #### Scenario: A window is active
 - **WHEN** an alert fires inside a maintenance window for its cluster

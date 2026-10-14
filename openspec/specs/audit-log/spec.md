@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines how Artemis Studio records who did what to which broker and with what
+Defines how Rahdar records who did what to which broker and with what
 outcome — the real, authenticated actor an action is attributed to, the
 lifecycle of an audit row within the command's transaction, and the filtered
 read an operator uses to review the trail.
@@ -253,9 +253,9 @@ The audit screen SHALL open the details of the event named by an `event` search 
 - **THEN** the address of the audit screen with `?event=` set to that row's id is copied
 
 ### Requirement: Audit events have a configurable retention, keeping everything by default
-Studio SHALL keep audit events forever unless an administrator sets a retention period for the audit
+Rahdar SHALL keep audit events forever unless an administrator sets a retention period for the audit
 store, which SHALL be at least 30 days. The purge of audit events SHALL itself be recorded as an audit
-event that the purge does not remove. Studio SHALL consult every plugin that declares an audit retention
+event that the purge does not remove. Rahdar SHALL consult every plugin that declares an audit retention
 hold before purging, and SHALL leave every record a hold covers, whatever the retention. A hold
 provider that errors, does not answer in time or is unavailable SHALL cause that run to purge no audit
 event and to report the failure. The purge SHALL NOT remove events a registered receiver has not
@@ -295,7 +295,7 @@ would without partitions.
 
 ### Requirement: Refused requests are audited
 
-Studio SHALL record an audit event for every request refused for lack of a permission, naming the
+Rahdar SHALL record an audit event for every request refused for lack of a permission, naming the
 actor, the permission, the cluster and the resource, and whether the resource was hidden (answered
 as not found) or forbidden. Identical refusals by the same actor within one minute SHALL be counted
 on one event rather than recorded again. A refused broker change SHALL leave a refused audit event,
@@ -323,7 +323,7 @@ grant) SHALL see only that cluster's audit events about resources they may read.
 
 ### Requirement: Users with permission SHALL be able to export filtered audit records
 
-Studio SHALL export the audit records matching the current filters as CSV, JSON or NDJSON. The export SHALL be limited to users with the right permission and SHALL be streamed so a large export does not exhaust memory.
+Rahdar SHALL export the audit records matching the current filters as CSV, JSON or NDJSON. The export SHALL be limited to users with the right permission and SHALL be streamed so a large export does not exhaust memory.
 
 #### Scenario: Filtered NDJSON export
 
@@ -342,7 +342,7 @@ Studio SHALL export the audit records matching the current filters as CSV, JSON 
 
 ### Requirement: Every audit export SHALL itself be audited
 
-Studio SHALL record who exported audit data, with which filters and format.
+Rahdar SHALL record who exported audit data, with which filters and format.
 
 #### Scenario: Export audited
 
@@ -370,7 +370,7 @@ Exported records SHALL contain exactly what the exporter could see in the audit 
 
 ### Requirement: A plugin SHALL be able to receive audit events reliably and in order
 
-Studio SHALL deliver every audit event to registered plugin receivers at least once, in commit order, across all replicas. Each delivered record SHALL carry its position in that order; a record that changes (an outcome replacing `PENDING`, a recount) SHALL be delivered again at a new position, and `(id, position)` SHALL identify a delivery for de-duplication. Once an audit record has an outcome, Studio SHALL refuse any further change to it except the count of a refused request. A receiver that is slow or down SHALL NOT lose events or block the audited operation, and events SHALL be replayed from the last acknowledged position. The audit purge SHALL NOT remove events a registered receiver has not acknowledged, up to a configured maximum age; past it, Studio SHALL record the gap as an audit event and alert. Receiving audit events SHALL be a plugin capability shown to the admin when the plugin is installed.
+Rahdar SHALL deliver every audit event to registered plugin receivers at least once, in commit order, across all replicas. Each delivered record SHALL carry its position in that order; a record that changes (an outcome replacing `PENDING`, a recount) SHALL be delivered again at a new position, and `(id, position)` SHALL identify a delivery for de-duplication. Once an audit record has an outcome, Rahdar SHALL refuse any further change to it except the count of a refused request. A receiver that is slow or down SHALL NOT lose events or block the audited operation, and events SHALL be replayed from the last acknowledged position. The audit purge SHALL NOT remove events a registered receiver has not acknowledged, up to a configured maximum age; past it, Rahdar SHALL record the gap as an audit event and alert. Receiving audit events SHALL be a plugin capability shown to the admin when the plugin is installed.
 
 #### Scenario: Receiver down
 
@@ -379,7 +379,7 @@ Studio SHALL deliver every audit event to registered plugin receivers at least o
 
 #### Scenario: Duplicate delivery
 
-- **WHEN** Studio restarts before an acknowledgment is stored
+- **WHEN** Rahdar restarts before an acknowledgment is stored
 - **THEN** events after the last acknowledged position are delivered again, with a stable identifier for de-duplication
 
 #### Scenario: Operation not blocked
@@ -414,4 +414,4 @@ The export and SPI SHALL NOT be tied to any named product or destination.
 #### Scenario: Third-party receiver
 
 - **WHEN** a third-party plugin implements a receiver
-- **THEN** it works with no Studio change
+- **THEN** it works with no Rahdar change

@@ -1,0 +1,69 @@
+package io.github.sudoitir.rahdar.kernel.security.web;
+
+import io.github.sudoitir.rahdar.kernel.core.PagedView;
+import io.github.sudoitir.rahdar.kernel.core.ResourceQuery;
+import io.github.sudoitir.rahdar.kernel.gate.HeldResponse;
+import io.github.sudoitir.rahdar.kernel.security.internal.RoleService;
+import io.github.sudoitir.rahdar.kernel.security.web.UserViews.PermissionView;
+import io.github.sudoitir.rahdar.kernel.security.web.UserViews.RoleRequest;
+import io.github.sudoitir.rahdar.kernel.security.web.UserViews.RoleView;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.validation.Valid;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+/** Custom role CRUD and the permission catalogue (authorization spec). Every write needs {@code user:admin}. */
+@RestController
+@RequiredArgsConstructor
+public class RolesController {
+
+    private final RoleService roleService;
+
+    @GetMapping("/roles")
+    public PagedView<RoleView> list(
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(roleService.list(), null);
+    }
+
+    @HeldResponse
+    @PostMapping("/roles")
+    @ResponseStatus(HttpStatus.CREATED)
+    public RoleView create(@Valid @RequestBody RoleRequest request) {
+        return roleService.create(request);
+    }
+
+    @ApiResponse(
+            responseCode = "200",
+            description = "OK",
+            content = @Content(schema = @Schema(implementation = RoleView.class)))
+    @HeldResponse
+    @PutMapping("/roles/{roleId}")
+    public RoleView update(@PathVariable UUID roleId, @Valid @RequestBody RoleRequest request) {
+        return roleService.update(roleId, request);
+    }
+
+    @HeldResponse
+    @DeleteMapping("/roles/{roleId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID roleId) {
+        roleService.delete(roleId);
+    }
+
+    @GetMapping("/permissions")
+    public PagedView<PermissionView> permissions(
+            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+        return ResourceQuery.ofPage(page, size).paginate(roleService.catalogue(), null);
+    }
+}

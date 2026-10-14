@@ -65,11 +65,11 @@ MUST NOT be reported under one verdict.
 
 Where the broker has reported a consumer slow through its own detection, the system SHALL
 report that as the verdict and name the consumer the broker identified, in preference to
-any verdict Studio derived from sampled counters.
+any verdict Rahdar derived from sampled counters.
 
 #### Scenario: A broker notification supersedes a derived verdict
 
-- **WHEN** the broker has recently reported a slow consumer on a queue that Studio's own
+- **WHEN** the broker has recently reported a slow consumer on a queue that Rahdar's own
   signals would classify as `FALLING_BEHIND`
 - **THEN** the reported verdict is `BROKER_SLOW` and it carries the consumer name the
   broker supplied
@@ -78,7 +78,7 @@ any verdict Studio derived from sampled counters.
 
 - **WHEN** a verdict other than `BROKER_SLOW` is derived for a queue whose address has no
   broker-side slow-consumer detection configured
-- **THEN** the verdict states that it is Studio's own derivation and that the broker has
+- **THEN** the verdict states that it is Rahdar's own derivation and that the broker has
   not been asked to judge
 
 ### Requirement: Every verdict carries the evidence it rests on
@@ -184,7 +184,7 @@ independently reimplemented per surface.
 
 ### Requirement: Consumer health issues no broker call of its own
 
-Verdicts SHALL be derived from state Studio has already collected. Reading consumer health
+Verdicts SHALL be derived from state Rahdar has already collected. Reading consumer health
 SHALL NOT cause a request to a broker.
 
 #### Scenario: Reading health does not touch the broker

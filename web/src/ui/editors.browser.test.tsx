@@ -7,7 +7,7 @@ import { MantineProvider } from '@mantine/core';
 import { shikiAdapter } from './codeHighlightAdapter.ts';
 import { CodeEditor } from './CodeEditor.tsx';
 
-// The browser project is served with Studio's Trusted Types directives (vitest.config.ts). The editor and
+// The browser project is served with Rahdar's Trusted Types directives (vitest.config.ts). The editor and
 // the code views show and edit markup that came from a broker, so what goes in must come out unchanged and
 // nothing may be refused by the page's policy (ADR-0168).
 const XML =

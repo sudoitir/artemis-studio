@@ -1,0 +1,84 @@
+package io.github.sudoitir.rahdar.feature.bulk.web;
+
+import io.github.sudoitir.rahdar.feature.bulk.BulkService;
+import io.github.sudoitir.rahdar.feature.bulk.web.BulkViews.BulkExecuteRequest;
+import io.github.sudoitir.rahdar.feature.bulk.web.BulkViews.BulkPreviewRequest;
+import io.github.sudoitir.rahdar.feature.bulk.web.BulkViews.BulkRunDetailView;
+import io.github.sudoitir.rahdar.feature.bulk.web.BulkViews.BulkRunView;
+import io.github.sudoitir.rahdar.kernel.core.HeavyRequests;
+import io.github.sudoitir.rahdar.kernel.core.PagedView;
+import io.github.sudoitir.rahdar.kernel.core.ResourceQuery;
+import io.github.sudoitir.rahdar.kernel.gate.HeldResponse;
+import io.github.sudoitir.rahdar.kernel.security.ActorResolver;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.validation.Valid;
+import java.time.Duration;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Preview, execute, stop and read bulk runs (ADR-0093). Authorization goes through
+ * {@code ClusterAccessGuard} inside {@link BulkService}, keyed on the single-queue
+ * operation's own permission.
+ */
+@RestController
+@RequestMapping("/clusters/{clusterId}/bulk")
+@RequiredArgsConstructor
+public class BulkController {
+
+    private final BulkService bulk;
+    private final HeavyRequests heavy;
+    private final ActorResolver actors;
+
+    /** A preview resolves and plans a whole selection; a few at once per user, the queue cap bounds its rows. */
+    private static final HeavyRequests.Endpoint PREVIEW =
+            new HeavyRequests.Endpoint("bulk previews", 2, Duration.ofSeconds(60), Integer.MAX_VALUE);
+
+    @PostMapping("/preview")
+    @ResponseStatus(HttpStatus.CREATED)
+    public BulkRunDetailView preview(@PathVariable UUID clusterId, @Valid @RequestBody BulkPreviewRequest request) {
+        return heavy.run(PREVIEW, actors.resolve().displayName(), _ -> bulk.preview(clusterId, request));
+    }
+
+    /** Starts the run, or, when an approval provider holds it, answers 202 with the held request and starts nothing. */
+    @ApiResponse(
+            responseCode = "202",
+            description = "Started: the run",
+            content = @Content(schema = @Schema(implementation = BulkRunView.class)))
+    @HeldResponse
+    @PostMapping("/runs/{runId}/execute")
+    public ResponseEntity<BulkRunView> execute(
+            @PathVariable UUID clusterId, @PathVariable UUID runId, @Valid @RequestBody BulkExecuteRequest request) {
+        return ResponseEntity.accepted().body(bulk.execute(clusterId, runId, request));
+    }
+
+    @PostMapping("/runs/{runId}/stop")
+    public BulkRunView stop(@PathVariable UUID clusterId, @PathVariable UUID runId) {
+        return bulk.stop(clusterId, runId);
+    }
+
+    @GetMapping("/runs")
+    public PagedView<BulkRunView> history(
+            @PathVariable UUID clusterId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        return bulk.history(clusterId, ResourceQuery.ofPage(page, size));
+    }
+
+    @GetMapping("/runs/{runId}")
+    public BulkRunDetailView get(@PathVariable UUID clusterId, @PathVariable UUID runId) {
+        return bulk.get(clusterId, runId);
+    }
+}

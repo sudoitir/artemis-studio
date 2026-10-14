@@ -86,7 +86,7 @@ export function NodesPanel({
 
 /**
  * Why an agreeing node agrees. "In sync" after an adoption and "in sync" after a
- * verified apply look identical and mean opposite things — one says Studio wrote
+ * verified apply look identical and mean opposite things — one says Rahdar wrote
  * the values and read them back, the other says the declaration was copied from
  * whatever the broker happened to be doing. A node that agrees for no recorded
  * reason says that too, rather than implying the stronger one.
@@ -105,7 +105,7 @@ function SyncEvidence({ node, clusterId }: Readonly<{ node: ConfigNodeStateView;
     ADOPTED: node.basisRef
       ? `Adopted as revision ${node.basisRef}; no broker was written`
       : 'Adopted from this cluster',
-    OBSERVED_MATCH: 'Observed to match; Studio has not written to this node',
+    OBSERVED_MATCH: 'Observed to match; Rahdar has not written to this node',
   }[node.basis];
   return (
     <Link to={`/clusters/${clusterId}/configuration?tab=history`} className={linkClasses.link}>

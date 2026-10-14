@@ -6,11 +6,11 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one), replace the stub `tasks.md`.
 5. `/opsx:apply` with the harness under **Execution**. New decisions get an ADR.
-6. Verify: `just verify`; for UI, run Studio and check screenshots (light and dark, empty and error states).
+6. Verify: `just verify`; for UI, run Rahdar and check screenshots (light and dark, empty and error states).
 7. PR, merge on green CI, `/opsx:archive`.
 
 ## Why
-Teams keep development, test and production clusters in step by hand. Studio can compare two nodes of one cluster, keeps a declaration per cluster with revisions, XML import and export and a canary-first apply, and groups clusters into environments. It cannot compare two clusters' declarations or two environments, or carry a change from one to the other, and there is no way to keep a whole environment's declarations in version control. Operators feel this at every release, where a missed queue or divert causes an incident.
+Teams keep development, test and production clusters in step by hand. Rahdar can compare two nodes of one cluster, keeps a declaration per cluster with revisions, XML import and export and a canary-first apply, and groups clusters into environments. It cannot compare two clusters' declarations or two environments, or carry a change from one to the other, and there is no way to keep a whole environment's declarations in version control. Operators feel this at every release, where a missed queue or divert causes an incident.
 
 ## What Changes
 - Compare queues, addresses, diverts, bridges and security settings across two environments or clusters

@@ -1,0 +1,43 @@
+package io.github.sudoitir.rahdar.kernel.plugin;
+
+import java.util.List;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * {@code rahdar.plugins.*}. {@code rahdarVersionOverride} exists only so tests can pin
+ * the running version without a real {@code build-info.properties} (task 5.2). {@code safeMode}
+ * forces the crash-loop guard's safe mode regardless of boot history (design.md §2).
+ * {@code startTimeoutSeconds} bounds how long a plugin gets to start at boot before it is marked
+ * {@code needs_restart}. {@code initialInstallers} names who may install plugins while nobody can
+ * yet — a username, or {@code <registrationId>:<subject>} for a single-sign-on user (ADR-0103).
+ * {@code upload.enabled=false} is the kill switch: nothing new can be installed or updated.
+ * {@code restart.supervised} says whether something restarts Rahdar after it exits; unset, it is
+ * true only on Kubernetes (ADR-0104). {@code trustedKeys} pins publisher keys by configuration; each
+ * start reconciles the trusted key table with it (ADR-0166).
+ */
+@ConfigurationProperties(prefix = "rahdar.plugins")
+public record PluginProperties(
+        String rahdarVersionOverride,
+        boolean safeMode,
+        Integer startTimeoutSeconds,
+        List<String> initialInstallers,
+        Upload upload,
+        Restart restart,
+        List<TrustedKey> trustedKeys) {
+
+    public PluginProperties {
+        rahdarVersionOverride = rahdarVersionOverride == null ? "" : rahdarVersionOverride;
+        startTimeoutSeconds = startTimeoutSeconds == null ? 60 : startTimeoutSeconds;
+        initialInstallers = initialInstallers == null ? List.of() : List.copyOf(initialInstallers);
+        upload = upload == null ? new Upload(true) : upload;
+        restart = restart == null ? new Restart(null) : restart;
+        trustedKeys = trustedKeys == null ? List.of() : List.copyOf(trustedKeys);
+    }
+
+    public record Upload(boolean enabled) {}
+
+    public record Restart(Boolean supervised) {}
+
+    /** {@code pem} is an X.509 certificate or a public key, which is what the key dialog accepts. */
+    public record TrustedKey(String name, String pem) {}
+}

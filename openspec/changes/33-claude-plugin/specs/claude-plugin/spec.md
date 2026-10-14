@@ -22,12 +22,12 @@ The plugin SHALL provide skills for addressing and routing, client configuration
 - **WHEN** the question concerns a broker outside the supported range
 - **THEN** the skill says so and does not guess
 
-### Requirement: The plugin connects to Studio's MCP server without storing secrets
-The connector SHALL let the user point to their Studio and authenticate with an API token supplied at install or run time, and SHALL NOT store a token in the repository or in plugin files.
+### Requirement: The plugin connects to Rahdar's MCP server without storing secrets
+The connector SHALL let the user point to their Rahdar and authenticate with an API token supplied at install or run time, and SHALL NOT store a token in the repository or in plugin files.
 
 #### Scenario: Connect
-- **WHEN** a user configures their Studio address and token
-- **THEN** the assistant can call Studio's MCP tools within the token's scopes
+- **WHEN** a user configures their Rahdar address and token
+- **THEN** the assistant can call Rahdar's MCP tools within the token's scopes
 
 #### Scenario: Leak check
 - **WHEN** the repository is scanned
@@ -37,11 +37,11 @@ The connector SHALL let the user point to their Studio and authenticate with an 
 - **WHEN** a user follows the documented setup
 - **THEN** it mints a token limited to read permissions and to the tools the skills use, and the skills work with it
 
-### Requirement: The plugin is versioned with Studio
-Each Studio release SHALL publish the plugin at the same version, and the plugin SHALL name the Studio versions it works with.
+### Requirement: The plugin is versioned with Rahdar
+Each Rahdar release SHALL publish the plugin at the same version, and the plugin SHALL name the Rahdar versions it works with.
 
 #### Scenario: Release
-- **WHEN** Studio is released
+- **WHEN** Rahdar is released
 - **THEN** the plugin version matches and its compatibility is stated
 
 ### Requirement: The plugin is documented
@@ -49,4 +49,4 @@ The documentation SHALL describe installation, the skills, the connector and the
 
 #### Scenario: A new user reads it
 - **WHEN** they follow the guide
-- **THEN** they can install the plugin and run a Studio tool from the assistant
+- **THEN** they can install the plugin and run a Rahdar tool from the assistant

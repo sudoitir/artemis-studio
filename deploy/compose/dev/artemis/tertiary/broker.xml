@@ -44,7 +44,7 @@
     <page-sync-timeout>348000</page-sync-timeout>
     <global-max-messages>-1</global-max-messages>
 
-    <!-- Connectors are what listNetworkTopology() advertises to Artemis Studio,
+    <!-- Connectors are what listNetworkTopology() advertises to Rahdar,
          so they must be reachable from other containers: compose service names,
          not localhost. -->
     <connectors>
@@ -66,7 +66,7 @@
     <cluster-password>password-admin</cluster-password>
 
     <cluster-connections>
-      <cluster-connection name="studio-dev">
+      <cluster-connection name="rahdar-dev">
         <connector-ref>tertiary-connector</connector-ref>
         <message-load-balancing>ON_DEMAND</message-load-balancing>
         <max-hops>1</max-hops>

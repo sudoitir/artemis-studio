@@ -1,13 +1,13 @@
 # notification-inbox Specification
 
 ## Purpose
-Give every user an in-app inbox of notices, from Studio and from plugins, with a live unread count.
+Give every user an in-app inbox of notices, from Rahdar and from plugins, with a live unread count.
 
 ## Requirements
 
 ### Requirement: Every user SHALL have an in-app inbox
 
-Studio SHALL keep, for each user, an inbox of notices sent by Studio features and plugins. The header SHALL show an unread count that updates live, without a page reload, on every Studio replica. Users SHALL be able to open the inbox, follow a notice's link, mark notices read, and dismiss them. A user SHALL only ever see their own notices.
+Rahdar SHALL keep, for each user, an inbox of notices sent by Rahdar features and plugins. The header SHALL show an unread count that updates live, without a page reload, on every Rahdar replica. Users SHALL be able to open the inbox, follow a notice's link, mark notices read, and dismiss them. A user SHALL only ever see their own notices.
 
 #### Scenario: Live unread count
 
@@ -16,7 +16,7 @@ Studio SHALL keep, for each user, an inbox of notices sent by Studio features an
 
 #### Scenario: Another replica
 
-- **WHEN** a notice is posted on one Studio replica while the user's browser is connected to another
+- **WHEN** a notice is posted on one Rahdar replica while the user's browser is connected to another
 - **THEN** the user still sees it live
 
 #### Scenario: Reconnect
@@ -29,9 +29,9 @@ Studio SHALL keep, for each user, an inbox of notices sent by Studio features an
 - **WHEN** a user requests another user's notice by id
 - **THEN** it is not found
 
-### Requirement: Notice links SHALL stay inside Studio
+### Requirement: Notice links SHALL stay inside Rahdar
 
-A notice's link SHALL be a path within Studio. Studio SHALL refuse a notice whose link points elsewhere.
+A notice's link SHALL be a path within Rahdar. Rahdar SHALL refuse a notice whose link points elsewhere.
 
 #### Scenario: External link
 
@@ -40,7 +40,7 @@ A notice's link SHALL be a path within Studio. Studio SHALL refuse a notice whos
 
 ### Requirement: Plugins SHALL post notices through a public API
 
-A plugin SHALL be able to post notices to given users, or to every user who holds a permission at a scope. The notice's source SHALL be the plugin, and the plugin SHALL NOT be able to change it. Studio SHALL limit notice sizes and fan-out, and SHALL de-duplicate notices that share a key.
+A plugin SHALL be able to post notices to given users, or to every user who holds a permission at a scope. The notice's source SHALL be the plugin, and the plugin SHALL NOT be able to change it. Rahdar SHALL limit notice sizes and fan-out, and SHALL de-duplicate notices that share a key.
 
 #### Scenario: Post to permission holders
 
@@ -49,7 +49,7 @@ A plugin SHALL be able to post notices to given users, or to every user who hold
 
 ### Requirement: Notices SHALL expire
 
-Studio SHALL delete notices past their retention, and read notices sooner, on a schedule an administrator can change.
+Rahdar SHALL delete notices past their retention, and read notices sooner, on a schedule an administrator can change.
 
 #### Scenario: Retention
 

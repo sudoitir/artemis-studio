@@ -14,7 +14,7 @@ export function RegisterSection() {
   return (
     <>
       <Text size="sm" c="dimmed" mb="sm" className={classes.intro}>
-        Register another cluster; remove this one under This cluster → Remove cluster. Studio finds brokers that join a
+        Register another cluster; remove this one under This cluster → Remove cluster. Rahdar finds brokers that join a
         registered cluster on its own.
       </Text>
       {/* A button is as wide as its words, not the section's. */}
@@ -41,13 +41,13 @@ function SectionBody({
   return <LoadingState label="Loading the cluster" blockSize={blockSize} />;
 }
 
-/** Settings section: how Studio connects to this cluster, checked before it is saved. */
+/** Settings section: how Rahdar connects to this cluster, checked before it is saved. */
 export function ConnectionSection({ clusterId }: Readonly<{ clusterId: string }>) {
   const cluster = useCluster(clusterId);
   return (
     <>
       <Text size="sm" c="dimmed" mb="sm" className={classes.intro}>
-        How Studio reaches <strong>{cluster.data?.name ?? 'this cluster'}</strong>: the management address you gave, the
+        How Rahdar reaches <strong>{cluster.data?.name ?? 'this cluster'}</strong>: the management address you gave, the
         pattern that gives every other node its own, and the management and Core accounts, which are stored separately.
         Check a change first; nothing is saved until you save it.
       </Text>

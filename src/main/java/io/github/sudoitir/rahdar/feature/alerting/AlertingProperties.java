@@ -1,0 +1,20 @@
+package io.github.sudoitir.rahdar.feature.alerting;
+
+import java.time.Duration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+
+/**
+ * Notification delivery (ADR-0036, ADR-0105). A separate {@code RestClient} from the broker one — no
+ * sharing of the per-node rate limiter or broker TLS bundles with an outbound webhook call.
+ *
+ * @param emailTimeout connect, read and write timeout of one SMTP delivery
+ */
+@ConfigurationProperties(prefix = "rahdar.alerting")
+public record AlertingProperties(
+        @DefaultValue("5s") Duration dispatchInterval,
+        @DefaultValue("5") int maxAttempts,
+        @DefaultValue("10s") Duration connectTimeout,
+        @DefaultValue("5s") Duration initialBackoff,
+        @DefaultValue("10m") Duration maxBackoff,
+        @DefaultValue("15s") Duration emailTimeout) {}

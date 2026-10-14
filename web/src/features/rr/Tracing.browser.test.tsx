@@ -142,7 +142,7 @@ function page(search: string) {
 
 const TABS = [
   { name: 'Flows', search: '', ready: 'Flows', flows: FLOWS },
-  { name: 'Flows, with none yet', search: '', ready: 'No flows to show — here is what Studio did', flows: [] },
+  { name: 'Flows, with none yet', search: '', ready: 'No flows to show — here is what Rahdar did', flows: [] },
   { name: 'Stuck', search: '?tab=stuck', ready: 'Stuck flows', flows: FLOWS },
   { name: 'Latency', search: '?tab=latency', ready: 'Latency', flows: FLOWS },
   { name: 'Expectations', search: '?tab=expectations', ready: 'Traced addresses', flows: FLOWS },

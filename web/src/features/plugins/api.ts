@@ -20,7 +20,7 @@ export type PluginTrustView = Schemas['PluginTrustView'];
 export type TrustedKeysView = Schemas['TrustedKeysView'];
 export type TrustedKeyView = Schemas['TrustedKeyView'];
 export type AddKeyRequest = Schemas['AddKeyRequest'];
-export type StudioRestartView = Schemas['StudioRestartView'];
+export type RahdarRestartView = Schemas['RahdarRestartView'];
 export type AuditEventView = Schemas['AuditEventView'];
 
 const BASE = '/admin/plugins';
@@ -51,7 +51,7 @@ const FAST_MS = 1_000;
 const QUIET_MS = 30_000;
 
 /**
- * How soon to ask for the inventory again. While something is changing (a plugin activating or Studio
+ * How soon to ask for the inventory again. While something is changing (a plugin activating or Rahdar
  * restarting) it is every second, and a failed poll is then expected. A refusal for lack of the
  * permission is final, so it stops polling. Any other failure backs off from one second to the quiet
  * interval, by the failures in a row, so a server that stays down is not asked every second.
@@ -69,7 +69,7 @@ export function pollInterval(state: {
 }
 
 /**
- * The inventory. Polled every second while a plugin is activating or Studio is restarting, and
+ * The inventory. Polled every second while a plugin is activating or Rahdar is restarting, and
  * every 30 seconds otherwise (design.md §8: progress is polled, not streamed); see {@link pollInterval}
  * for failures.
  */
@@ -191,7 +191,7 @@ export function usePurge() {
   );
 }
 
-export function useRestartStudio() {
+export function useRestartRahdar() {
   return useInvalidating(() => request<void>(`${BASE}/restart`, { method: 'POST' }));
 }
 
@@ -223,7 +223,7 @@ export function useTrustPolicy() {
   );
 }
 
-/** Sends the license file as the raw request body. Studio stores it as is; the plugin judges it. */
+/** Sends the license file as the raw request body. Rahdar stores it as is; the plugin judges it. */
 export function useUploadLicense() {
   return useInvalidating(({ id, file }: { id: string; file: File }) =>
     request<PluginLicenseView>(`${BASE}/${encodeURIComponent(id)}/license`, {

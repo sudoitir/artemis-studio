@@ -1,12 +1,12 @@
 package com.acme.notes;
 
-import io.github.sudoitir.artemisstudio.kernel.settings.SettingDef;
-import io.github.sudoitir.artemisstudio.kernel.settings.SettingsContribution;
+import io.github.sudoitir.rahdar.kernel.settings.SettingDef;
+import io.github.sudoitir.rahdar.kernel.settings.SettingsContribution;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
- * A setting an administrator changes on the Settings page, under Plugins, while Studio runs.
+ * A setting an administrator changes on the Settings page, under Plugins, while Rahdar runs.
  * Its key starts with the plugin's id and is declared in plugin.json.
  */
 @Component

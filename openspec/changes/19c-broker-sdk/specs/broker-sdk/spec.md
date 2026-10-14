@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
 ### Requirement: The SDK is a framework-free library with a driver SPI
-The SDK SHALL ship as `openbroker-api` (consumer API and driver SPI in separate packages, with a `module-info.java`), `openbroker-support`, `openbroker-tck` and `openbroker-bom`, targeting Java 25. `openbroker-api` SHALL depend on nothing except nullness annotations. Drivers SHALL be found through `ServiceLoader`. The SDK SHALL carry no Studio type and no product brand.
+The SDK SHALL ship as `openbroker-api` (consumer API and driver SPI in separate packages, with a `module-info.java`), `openbroker-support`, `openbroker-tck` and `openbroker-bom`, targeting Java 25. `openbroker-api` SHALL depend on nothing except nullness annotations. Drivers SHALL be found through `ServiceLoader`. The SDK SHALL carry no Rahdar type and no product brand.
 
 #### Scenario: An outside project adopts the SDK
-- **WHEN** a project with no Spring and no Studio dependency adds `openbroker-api` and a driver
+- **WHEN** a project with no Spring and no Rahdar dependency adds `openbroker-api` and a driver
 - **THEN** it can connect to a cluster and use every facet the driver offers
 
 #### Scenario: A driver is discovered

@@ -1,5 +1,5 @@
 /**
- * Real-browser verification of the Flow screen against a running, seeded Studio (not a capture).
+ * Real-browser verification of the Flow screen against a running, seeded Rahdar (not a capture).
  *
  *   ADMIN_PASSWORD=… ADMIN_TOTP_SECRET=… node --experimental-strip-types scripts/verify-flow.ts
  *

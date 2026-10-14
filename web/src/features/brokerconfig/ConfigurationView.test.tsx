@@ -73,12 +73,12 @@ describe('ConfigurationView', () => {
     expect(within(list).queryByRole('link', { name: /routing/i })).toBeNull();
   });
 
-  it('disables apply with the reason when the cluster is managed outside Studio', async () => {
+  it('disables apply with the reason when the cluster is managed outside Rahdar', async () => {
     server.use(...baseHandlers(declaration({ applyMode: 'CONFIG_MANAGED' })));
     const user = userEvent.setup();
     renderWithProviders(<ConfigurationView />);
 
-    expect(await screen.findByText(/Managed outside Studio/)).toBeInTheDocument();
+    expect(await screen.findByText(/Managed outside Rahdar/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Why review and apply is unavailable' }));
     expect(await screen.findByText(/owned by configuration management/)).toBeInTheDocument();
     // The primary action flipped to the fragment.
@@ -359,7 +359,7 @@ describe('ConfigurationView', () => {
     expect(await screen.findByText('maxDeliveryAttempts')).toBeInTheDocument();
     expect(screen.getByText(/as broker-1 runs it today/)).toBeInTheDocument();
 
-    // A gap Studio cannot close is named with its snippet, never omitted.
+    // A gap Rahdar cannot close is named with its snippet, never omitted.
     expect(screen.getByText('Emit connection and session events')).toBeInTheDocument();
     expect(screen.getByText(/These still need a broker.xml edit/)).toBeInTheDocument();
 
@@ -377,7 +377,7 @@ describe('ConfigurationView', () => {
           recommendations: [
             {
               capability: 'notifications',
-              title: 'Let Studio subscribe to broker notifications',
+              title: 'Let Rahdar subscribe to broker notifications',
               rationale: 'A Core subscriber needs three permissions.',
               appliable: true,
               section: 'SECURITY_SETTING',
@@ -418,7 +418,7 @@ describe('ConfigurationView', () => {
     renderWithProviders(<ConfigurationView />);
 
     // Adoption and a verified apply both read "in sync"; only one of them means
-    // Studio wrote anything, so the difference is on the screen.
+    // Rahdar wrote anything, so the difference is on the screen.
     expect(
       await screen.findByRole('link', { name: /Adopted as revision 3; no broker was written/ }),
     ).toBeInTheDocument();
@@ -540,7 +540,7 @@ describe('ConfigurationView', () => {
     // A disagreement is named on the card, not discovered after opening the drawer.
     expect(screen.getByText(/differs between broker-1 and broker-2/)).toBeInTheDocument();
     // The reason auto-adoption is refused is on the screen, keyboard-reachable.
-    expect(screen.getByRole('button', { name: /Why does Studio not do this for me/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Why does Rahdar not do this for me/ })).toBeInTheDocument();
     // Previewing is a read. Nothing was saved by rendering the suggestion.
     expect(saved).not.toHaveBeenCalled();
   });

@@ -270,7 +270,7 @@ export function useApplyBrokerConfig(clusterId: string) {
 
 /**
  * Each node's connector names, for a bridge to reference (ADR-0091). `known:
- * false` is "Studio could not read them", which is not the same as "there are
+ * false` is "Rahdar could not read them", which is not the same as "there are
  * none" — the editor says so and keeps the field usable (ADR-0049 D5).
  *
  * <p>One batched read per serving node, on demand: it is asked for only when a

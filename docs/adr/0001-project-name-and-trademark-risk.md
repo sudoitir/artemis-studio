@@ -1,6 +1,6 @@
 # ADR-0001: Project name "Artemis Studio" and its trademark risk
 
-- **Status**: accepted
+- **Status**: superseded by [ADR-0201](0201-the-product-is-rahdar-and-the-broker-sdk-is-openbroker.md)
 - **Date**: 2026-09-03
 - **Deciders**: Mahdi Amirabdollahi
 

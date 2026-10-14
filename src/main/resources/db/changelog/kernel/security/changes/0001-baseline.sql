@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:kernel-security-0001-baseline splitStatements:true
+--changeset rahdar:kernel-security-0001-baseline splitStatements:true
 CREATE TABLE access_change_log (
     at timestamp with time zone DEFAULT now() NOT NULL,
     id bigint NOT NULL,

@@ -1,4 +1,4 @@
-# Artemis Studio — task runner.  Run `just` for the menu.
+# Rahdar — task runner.  Run `just` for the menu.
 
 set shell := ["bash", "-uc"]
 set dotenv-load := true
@@ -16,25 +16,25 @@ git_cliff    := "git-cliff@2.13.1"
 
 # List all recipes, grouped.
 default:
-    @just --list --unsorted --list-heading $'Artemis Studio tasks\n'
+    @just --list --unsorted --list-heading $'Rahdar tasks\n'
 
 # ── stack ────────────────────────────────────────────────────────────────────
 
-# Run Artemis Studio from the published image: two replicas behind HAProxy on one Postgres (runs `just setup`).
-# Register your brokers in the UI. Studio is on http://localhost:8080.
+# Run Rahdar from the published image: two replicas behind HAProxy on one Postgres (runs `just setup`).
+# Register your brokers in the UI. Rahdar is on http://localhost:8080.
 [group('stack')]
 up: setup
     {{compose_ha}} up -d --wait --wait-timeout 300
     @echo "→ http://localhost:8080"
-    @{{compose_ha}} logs studio-1 studio-2 2>/dev/null | grep -A8 'Created administrator' \
+    @{{compose_ha}} logs rahdar-1 rahdar-2 2>/dev/null | grep -A8 'Created administrator' \
         || echo "→ admin account already exists (its password was shown on first boot)"
 
-# The same, with one Studio replica and no load balancer (compose.prod.yaml).
+# The same, with one Rahdar replica and no load balancer (compose.prod.yaml).
 [group('stack')]
 up-single: setup
     {{compose_prod}} up -d --wait --wait-timeout 300
     @echo "→ http://localhost:8080"
-    @{{compose_prod}} logs studio 2>/dev/null | grep -A8 'Created administrator' \
+    @{{compose_prod}} logs rahdar 2>/dev/null | grep -A8 'Created administrator' \
         || echo "→ admin account already exists (its password was shown on first boot)"
 
 # Stop the HA stack (keeps the Postgres volume).
@@ -47,7 +47,7 @@ down:
 down-single:
     {{compose_prod}} down
 
-# Tail logs of the HA stack (all services, or `just logs studio-1`).
+# Tail logs of the HA stack (all services, or `just logs rahdar-1`).
 [group('stack')]
 logs *service:
     {{compose_ha}} logs -f {{service}}
@@ -74,21 +74,21 @@ setup:
         | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]+$' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1 || true)
     if [ -n "$latest" ]; then
         tmp=$(mktemp)
-        sed "s|^STUDIO_IMAGE=.*|STUDIO_IMAGE=sudoit1/artemis-studio:$latest|" "$env" > "$tmp"
+        sed "s|^RAHDAR_IMAGE=.*|RAHDAR_IMAGE=sudoit1/rahdar:$latest|" "$env" > "$tmp"
         mv "$tmp" "$env"
-        echo "→ pinned STUDIO_IMAGE to :$latest"
+        echo "→ pinned RAHDAR_IMAGE to :$latest"
     else
-        echo "→ no release tag found; STUDIO_IMAGE stays :dev"
+        echo "→ no release tag found; RAHDAR_IMAGE stays :dev"
     fi
 
 # ── develop ──────────────────────────────────────────────────────────────────
 
-# Full dev stack: Postgres + a real Artemis primary/backup pair + Studio, built locally.
+# Full dev stack: Postgres + a real Artemis primary/backup pair + Rahdar, built locally.
 [group('develop')]
 dev-up:
     {{compose_dev}} up --build -d --wait --wait-timeout 180
     @echo "→ http://localhost:8080   (Artemis console: http://localhost:8161)"
-    @{{compose_dev}} logs studio 2>/dev/null | grep -A8 'Created administrator' \
+    @{{compose_dev}} logs rahdar 2>/dev/null | grep -A8 'Created administrator' \
         || echo "→ admin account already exists (reset with 'just dev-down' then 'just dev-up')"
 
 # Dev stack plus a second and a third live/backup pair, filled with realistic traffic.
@@ -118,7 +118,7 @@ demo-gif:
 dev-down:
     {{compose_demo}} down -v
 
-# Project artemis-studio-qa-<name>, Studio on 127.0.0.1:<port>, every broker on a random loopback port, Postgres
+# Project rahdar-qa-<name>, Rahdar on 127.0.0.1:<port>, every broker on a random loopback port, Postgres
 # unpublished. It seeds long and large content (scripts/qa-seed.sh), raises the session timeouts, signs in once
 # per account and saves the Playwright sessions to web/.sweep/auth. `demo=1` adds the demo's second and third
 # broker pair and its traffic. The admin's credentials stay in web/.sweep/auth/credentials.env for reruns.
@@ -135,8 +135,8 @@ qa-up name port demo="":
     # QA_JAR runs a jar built on the host in the released runtime image, instead of building the image.
     build=--build
     if [ -n "${QA_JAR:-}" ]; then files+=(-f deploy/compose/dev/compose.isolated-jar.yaml); build=; fi
-    export COMPOSE="docker compose -p artemis-studio-qa-{{name}} ${files[*]}"
-    export STUDIO=http://127.0.0.1:{{port}}
+    export COMPOSE="docker compose -p rahdar-qa-{{name}} ${files[*]}"
+    export RAHDAR=http://127.0.0.1:{{port}}
     auth=web/.sweep/auth
     creds=$auth/credentials.env
     $COMPOSE up $build -d --wait
@@ -148,13 +148,13 @@ qa-up name port demo="":
         . "$creds"
     else
         # The one-time password the first boot printed; the admin then chooses its own, and enrols two-step verification.
-        logs=$($COMPOSE logs --no-log-prefix studio 2>/dev/null || true)
+        logs=$($COMPOSE logs --no-log-prefix rahdar 2>/dev/null || true)
         ADMIN_PASSWORD=$(awk '/^ *password: / { print $2; exit }' <<<"$logs")
         [ -n "$ADMIN_PASSWORD" ] || { echo "no one-time admin password in the logs and no $creds: run just qa-down {{name}} first" >&2; exit 1; }
         NEW_ADMIN_PASSWORD=$(openssl rand -hex 16)
         QA_USER_PASSWORD=$(openssl rand -hex 16)
     fi
-    studio_sign_in "${NEW_ADMIN_PASSWORD:-}" NEW_ADMIN_PASSWORD
+    rahdar_sign_in "${NEW_ADMIN_PASSWORD:-}" NEW_ADMIN_PASSWORD
     (umask 077; printf 'ADMIN_PASSWORD=%s\nADMIN_TOTP_SECRET=%s\nQA_USER_PASSWORD=%s\n' \
         "$ADMIN_PASSWORD" "${ADMIN_TOTP_SECRET:-}" "$QA_USER_PASSWORD" > "$creds")
     # Sessions created after this last for the sweep: 24 hours idle, 72 hours absolute (ADR-0145).
@@ -163,16 +163,16 @@ qa-up name port demo="":
     if [ -n "{{demo}}" ]; then TRAFFIC_MINUTES=${TRAFFIC_MINUTES:-3} ./scripts/demo-seed.sh; fi
     ./scripts/qa-seed.sh
     node --experimental-strip-types web/scripts/sweep/auth.ts
-    echo "→ $STUDIO   (sweep: STUDIO=$STUDIO npm --prefix web run sweep -- --label <name>)"
+    echo "→ $RAHDAR   (sweep: RAHDAR=$RAHDAR npm --prefix web run sweep -- --label <name>)"
 
 # Stop an isolated QA stack, delete its volumes and forget its saved sessions.
 [group('develop')]
 qa-down name:
-    docker compose -p artemis-studio-qa-{{name}} down -v --remove-orphans
+    docker compose -p rahdar-qa-{{name}} down -v --remove-orphans
     rm -rf web/.sweep/auth
 
-# Sizes come from load/profiles/<profile>.env and any LOAD_* variable; LOAD_IMAGE or LOAD_JAR picks the Studio build
-# (else the Dockerfile is built). The stack is project artemis-studio-load on 127.0.0.1:18090, removed with its volumes.
+# Sizes come from load/profiles/<profile>.env and any LOAD_* variable; LOAD_IMAGE or LOAD_JAR picks the Rahdar build
+# (else the Dockerfile is built). The stack is project rahdar-load on 127.0.0.1:18090, removed with its volumes.
 # Run the load test (ADR-0198, docs/sizing.md) and write load/target/report; REGRESSION marks a figure below its target.
 [group('test')]
 load profile="reference":
@@ -183,7 +183,7 @@ load profile="reference":
 load-smoke:
     ./scripts/load.sh smoke
 
-# Tail dev stack logs (all services, or `just dev-logs studio`).
+# Tail dev stack logs (all services, or `just dev-logs rahdar`).
 [group('develop')]
 dev-logs *service:
     {{compose_dev}} logs -f {{service}}
@@ -222,7 +222,7 @@ build:
 
 # Build the container image locally.
 [group('build')]
-image tag="artemis-studio:local":
+image tag="rahdar:local":
     docker build -t {{tag}} .
 
 # ── quality ──────────────────────────────────────────────────────────────────
@@ -246,7 +246,7 @@ verify-web:
     {{npm}} run test:coverage
     {{npm}} run test:browser
 
-# Kill, then drain, a replica of the HA reference stack under load (HA_IMAGE_BUILT=1 reuses artemis-studio:ci). Needs Docker, Node.
+# Kill, then drain, a replica of the HA reference stack under load (HA_IMAGE_BUILT=1 reuses rahdar:ci). Needs Docker, Node.
 [group('quality')]
 ha-failover:
     #!/usr/bin/env bash
@@ -254,9 +254,9 @@ ha-failover:
     # Requests, event streams and scraping must carry on; web/scripts/ha-failover.ts says what is checked.
     # Throwaway secrets for a stack that lives for one run.
     export DB_PASSWORD="$(openssl rand -hex 16)" SECRET_KEY="$(openssl rand -base64 32)"
-    export COMPOSE="docker compose -p artemis-studio-ha-test --env-file deploy/compose/dev/ha/test.env -f deploy/compose/compose.ha.yaml -f deploy/compose/dev/compose.ha.test.yaml"
-    [ -n "${HA_IMAGE_BUILT:-}" ] || docker build -t artemis-studio:ci .
-    trap 'status=$?; [ "$status" = 0 ] || $COMPOSE logs --tail 200 studio-1 studio-2 lb; $COMPOSE down -v' EXIT
+    export COMPOSE="docker compose -p rahdar-ha-test --env-file deploy/compose/dev/ha/test.env -f deploy/compose/compose.ha.yaml -f deploy/compose/dev/compose.ha.test.yaml"
+    [ -n "${HA_IMAGE_BUILT:-}" ] || docker build -t rahdar:ci .
+    trap 'status=$?; [ "$status" = 0 ] || $COMPOSE logs --tail 200 rahdar-1 rahdar-2 lb; $COMPOSE down -v' EXIT
     $COMPOSE up -d --wait --wait-timeout 300
     node --experimental-strip-types web/scripts/ha-failover.ts
 
@@ -302,4 +302,4 @@ db-rollback count="1":
 # psql into the dev-stack database.
 [group('database')]
 db-shell:
-    {{compose_dev}} exec postgres psql -U artemis_studio -d artemis_studio
+    {{compose_dev}} exec postgres psql -U rahdar -d rahdar

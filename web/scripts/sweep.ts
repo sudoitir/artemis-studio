@@ -1,7 +1,7 @@
 /**
- * Photograph and check every route of a running, seeded Studio, in every colour scheme, width and state.
+ * Photograph and check every route of a running, seeded Rahdar, in every colour scheme, width and state.
  *
- *   STUDIO=http://127.0.0.1:18080 npm --prefix web run sweep -- --label before
+ *   RAHDAR=http://127.0.0.1:18080 npm --prefix web run sweep -- --label before
  *   … run sweep -- --label after --only queues,admin --states default,error --widths 1280,zoom
  *
  * Needs the sessions `just qa-up` saved to `web/.sweep/auth` and the content `scripts/qa-seed.sh` made. Writes
@@ -455,7 +455,7 @@ async function main() {
   await mkdir(OUT, { recursive: true });
   await writeFile(
     resolve(OUT, 'report.json'),
-    JSON.stringify({ label: flags.label, studio: BASE, cluster, captures }, null, 2),
+    JSON.stringify({ label: flags.label, rahdar: BASE, cluster, captures }, null, 2),
   );
 
   const byCheck = new Map<string, number>();

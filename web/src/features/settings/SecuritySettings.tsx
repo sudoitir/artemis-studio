@@ -103,7 +103,7 @@ function useRotationFlow() {
 
 /**
  * The key provider, the key versions and the stored secrets under each, the last rotation, and the
- * control that starts one. Rotation re-wraps secrets in the background while Studio keeps serving,
+ * control that starts one. Rotation re-wraps secrets in the background while Rahdar keeps serving,
  * so progress is shown and announced rather than awaited.
  */
 export function SecuritySettings() {
@@ -134,7 +134,7 @@ export function SecuritySettings() {
         title="Key provider"
         headingLevel={3}
         variant="card"
-        description="Studio reads its key versions from here; the keys themselves never reach Studio’s database or this screen."
+        description="Rahdar reads its key versions from here; the keys themselves never reach Rahdar’s database or this screen."
       >
         <Text fw={600}>{PROVIDERS[s.provider] ?? s.provider}</Text>
       </Section>
@@ -250,7 +250,7 @@ function RotateDialog({
       consequence={
         <Stack gap="md">
           <Text size="sm">
-            {explanation} Studio keeps serving meanwhile. Keep the old key in the provider until this succeeds.
+            {explanation} Rahdar keeps serving meanwhile. Keep the old key in the provider until this succeeds.
           </Text>
           {needsReauthentication(rotate.error) ? (
             // Back to this page as it is, wherever it lives and whatever its address holds.
@@ -278,7 +278,7 @@ function versionState(s: SecretsStatus, v: number, running: boolean): string {
 /** What the operator does next, in the words of the state they are in. */
 function guidance(s: SecretsStatus, target: number | null, running: boolean, succeeded: boolean): string {
   if (running)
-    return 'A rotation is running. Studio keeps serving; keep the old key in the provider until it succeeds.';
+    return 'A rotation is running. Rahdar keeps serving; keep the old key in the provider until it succeeds.';
   if (target !== null) return `Version ${target} is available. Rotate to re-wrap your stored secrets under it.`;
   if (straggling(s)) return 'Some secrets still use an older key. Rotate to finish moving them to the current version.';
   const removable = s.availableVersions.filter((v) => v < s.currentVersion && !s.countsByVersion[String(v)]);
@@ -291,7 +291,7 @@ function guidance(s: SecretsStatus, target: number | null, running: boolean, suc
 function nextAction(type: string): string {
   if (type.endsWith('/no-newer-key')) return 'Add a newer key version to the provider, then try again.';
   if (type.endsWith('/rotation-running')) return 'Wait for the running rotation to finish.';
-  return 'Try again; if it keeps failing, check the Studio log.';
+  return 'Try again; if it keeps failing, check the Rahdar log.';
 }
 
 function RotationSummary({ rotation: r }: Readonly<{ rotation: RotationView }>) {
@@ -318,7 +318,7 @@ function RotationSummary({ rotation: r }: Readonly<{ rotation: RotationView }>) 
         </Text>
         {settling ? (
           <Text size="sm">
-            Every secret is re-wrapped. Studio is confirming that no replica still writes under the old key; this
+            Every secret is re-wrapped. Rahdar is confirming that no replica still writes under the old key; this
             finishes within a minute.
           </Text>
         ) : null}

@@ -4,11 +4,11 @@
 All Artemis-specific transport code (Jolokia, the Core protocol client, MBean names, notifications, relay and broker.xml remedy snippets) SHALL live in `openbroker-artemis`. No other module SHALL import the Artemis client or Jolokia types; build-time architecture tests SHALL enforce this.
 
 #### Scenario: A feature needs an Artemis-only function
-- **WHEN** Studio's broker.xml configuration needs Artemis management
+- **WHEN** Rahdar's broker.xml configuration needs Artemis management
 - **THEN** it reaches it through `unwrap` in the `system/artemis` module, and nowhere else
 
 ### Requirement: Moving behind the SDK changes no behaviour
-For every operation Studio performs on Artemis, the requests sent after this change SHALL match the recorded golden files of the previous version: the same bodies, headers and number of requests per node. That covers scrape, browse, purge, bulk move, the capability probe and staging.
+For every operation Rahdar performs on Artemis, the requests sent after this change SHALL match the recorded golden files of the previous version: the same bodies, headers and number of requests per node. That covers scrape, browse, purge, bulk move, the capability probe and staging.
 
 #### Scenario: Scrape load is unchanged
 - **WHEN** a scrape cycle runs against a node

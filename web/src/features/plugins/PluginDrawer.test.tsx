@@ -185,7 +185,7 @@ describe('PluginDrawer: contributions', () => {
     );
     await tab(user, 'Contributions');
 
-    expect(screen.getByText('Screens in Studio')).toBeInTheDocument();
+    expect(screen.getByText('Screens in Rahdar')).toBeInTheDocument();
     expect(screen.getByText('acme-notes:write').closest('li')).toHaveTextContent(
       'Permission acme-notes:write — Write notes',
     );
@@ -258,7 +258,7 @@ describe('PluginDrawer: data', () => {
     await tab(user, 'Data');
 
     expect(await screen.findByText('schema is locked')).toBeInTheDocument();
-    expect(screen.getByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(screen.getByText('Rahdar failed to complete the request')).toBeInTheDocument();
   });
 });
 

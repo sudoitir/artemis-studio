@@ -9,7 +9,7 @@ import { server } from '../../test/setup.ts';
 import { ReportBugDialog } from './ReportBugDialog.tsx';
 
 const SUMMARY = {
-  studioVersion: '2026.09.4',
+  rahdarVersion: '2026.09.4',
   contractVersion: 6,
   java: '25.0.4+7 (Eclipse Adoptium)',
   os: 'Linux 6.8 (amd64)',
@@ -62,7 +62,7 @@ describe('ReportBugDialog', () => {
     await waitFor(() => expect(open).toHaveBeenCalledOnce());
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Could not copy the report');
-    expect(alert).toHaveTextContent('The browser did not allow Studio to write to your clipboard.');
+    expect(alert).toHaveTextContent('The browser did not allow Rahdar to write to your clipboard.');
     expect(alert).toHaveTextContent('Use "Copy as Markdown" in this dialog');
   });
 
@@ -100,7 +100,7 @@ describe('ReportBugDialog', () => {
     expect(dialog).toBeInTheDocument();
   });
 
-  it('fills the environment from Studio and opens the issue only when asked', async () => {
+  it('fills the environment from Rahdar and opens the issue only when asked', async () => {
     const requests: string[] = [];
     server.events.on('request:start', ({ request }) => requests.push(request.url));
     server.use(http.get('*/api/v1/diagnostics/summary', () => HttpResponse.json(SUMMARY)));
@@ -131,7 +131,7 @@ describe('ReportBugDialog', () => {
     server.events.removeAllListeners();
   });
 
-  it('still offers the report when Studio cannot describe itself', async () => {
+  it('still offers the report when Rahdar cannot describe itself', async () => {
     server.use(http.get('*/api/v1/diagnostics/summary', () => HttpResponse.json({ title: 'Error' }, { status: 500 })));
     renderWithProviders(<ReportBugDialog opened onClose={() => {}} />);
 

@@ -6,7 +6,7 @@ import { SectionNav } from './SectionNav.tsx';
 import classes from './Views.module.css';
 
 /**
- * Studio-wide administration (authorization spec): one section per contribution, such as users, roles,
+ * Rahdar-wide administration (authorization spec): one section per contribution, such as users, roles,
  * environments and identity provider group mappings, under fixed headings — who may do what, what is
  * installed, what rules data and changes follow, then support (operator-ui spec). The open section is in
  * the URL. Each panel brings its own heading.

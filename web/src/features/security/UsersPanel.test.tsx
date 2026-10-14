@@ -121,7 +121,7 @@ describe('UsersPanel account lock', () => {
 });
 
 const problem = (slug: string, status: number) =>
-  HttpResponse.json({ type: `https://artemis-studio.dev/problems/${slug}`, title: slug }, { status });
+  HttpResponse.json({ type: `https://rahdar.dev/problems/${slug}`, title: slug }, { status });
 
 const me = (authenticatedAt = new Date().toISOString()) =>
   http.get('*/api/v1/auth/me', () =>

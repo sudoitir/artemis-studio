@@ -1,0 +1,24 @@
+package io.github.sudoitir.rahdar.platform.mcp;
+
+import io.github.sudoitir.rahdar.kernel.plugin.FeatureDescriptor;
+import io.github.sudoitir.rahdar.kernel.plugin.McpToolDef;
+import java.util.List;
+
+/** The agent surface over MCP. Module descriptor (ADR-0070). */
+public final class McpModule {
+
+    public static final FeatureDescriptor DESCRIPTOR = FeatureDescriptor.builder()
+            .id("mcp")
+            .title("MCP server")
+            .kind(FeatureDescriptor.Kind.PLATFORM)
+            .mcpTool(new McpToolDef(
+                    McpToolCatalog.HELP_TOOL,
+                    McpToolDef.Posture.READ,
+                    "This index, or one tool's accepted values and body shapes.",
+                    List.of(McpToolDef.Param.note("topic", "A tool name. Omit for the index of every tool."))))
+            .settingKey(McpSettings.READ_ONLY)
+            .apiPrefix("/api/v1/mcp")
+            .build();
+
+    private McpModule() {}
+}

@@ -51,7 +51,7 @@ function sentence(run: Run): string {
     case 'STOPPED':
       return `Stopped.${held} Resume it${stages(run) ? ', or return the held messages to the source' : ''}.`;
     case 'INTERRUPTED':
-      return `Interrupted: Studio stopped while it ran.${held} Nothing is lost; resume it${stages(run) ? ' or return it' : ''}.`;
+      return `Interrupted: Rahdar stopped while it ran.${held} Nothing is lost; resume it${stages(run) ? ' or return it' : ''}.`;
     case 'FAILED':
       return `This run failed.${held} Nothing held is lost; resume it once the cause is fixed${stages(run) ? ', or return the held messages' : ''}.`;
     case 'RETURNED':

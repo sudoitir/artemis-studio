@@ -1,12 +1,12 @@
 /**
- * `@artemis-studio/plugin-sdk` — everything a plugin's UI may use from Studio (ADR-0100). The host
- * shares this module as a singleton, so a plugin's bundle uses the running Studio's own copy:
+ * `@rahdar/plugin-sdk` — everything a plugin's UI may use from Rahdar (ADR-0100). The host
+ * shares this module as a singleton, so a plugin's bundle uses the running Rahdar's own copy:
  * the same router roots, the same query cache, the same permission checks. Nothing outside this
- * file is part of the contract; a plugin that reaches past it breaks on the next Studio release.
+ * file is part of the contract; a plugin that reaches past it breaks on the next Rahdar release.
  */
 import type { ComponentProps, ComponentType, ReactElement } from 'react';
 
-import type { PluginId, StudioFeature } from '../kernel/feature.ts';
+import type { PluginId, RahdarFeature } from '../kernel/feature.ts';
 import { featureView as kernelFeatureView } from '../kernel/routing/roots.ts';
 import { DescriptionList } from '../ui/DescriptionList.tsx';
 import { ErrorState } from '../ui/ErrorState.tsx';
@@ -26,7 +26,7 @@ export type {
   PaletteSource,
   PluginId,
   RouteContributions,
-  StudioFeature,
+  RahdarFeature,
   TopicHandler,
 } from '../kernel/feature.ts';
 export {
@@ -121,7 +121,7 @@ export { MetricChart } from '../kernel/metrics/MetricChart.tsx';
 export { usePluginSeries } from '../kernel/metrics/pluginSeries.ts';
 export { METRIC_RANGES, type MetricRange } from '../kernel/time/ranges.ts';
 /**
- * Shows a toast in Studio's own notification area, announced through `aria-live`. Import this, never
+ * Shows a toast in Rahdar's own notification area, announced through `aria-live`. Import this, never
  * `@mantine/notifications` directly: that is not shared, so a plugin's own copy would show nothing.
  */
 export { notify, type ActionVerb } from '../ui/notify.ts';
@@ -152,13 +152,13 @@ export type StatusBadgeProps = ComponentProps<typeof StatusBadge>;
 export type StatProps = ComponentProps<typeof Stat>;
 export type DescriptionListProps = ComponentProps<typeof DescriptionList>;
 
-/** A plugin's description of itself: a {@link StudioFeature} whose id is the plugin's own. */
-export interface StudioPlugin extends StudioFeature {
+/** A plugin's description of itself: a {@link RahdarFeature} whose id is the plugin's own. */
+export interface RahdarPlugin extends RahdarFeature {
   id: PluginId;
 }
 
 /** Declares a plugin's UI; its bundle exposes the result as `./feature`'s default export. */
-export function definePlugin<T extends StudioPlugin>(plugin: T): T {
+export function definePlugin<T extends RahdarPlugin>(plugin: T): T {
   return plugin;
 }
 

@@ -29,7 +29,7 @@ Every channel states the same facts, taken from one formatter:
 - the severity **in words** (`CRITICAL`, `WARNING`, `INFO`), the rule and the cluster;
 - each subject in readable form, such as `node primary-1` or `queue orders`;
 - the observed value and the time of each transition;
-- a link back to the cluster’s alerts, when `ARTEMIS_STUDIO_PUBLIC_URL` is set.
+- a link back to the cluster’s alerts, when `RAHDAR_PUBLIC_URL` is set.
 
 One evaluation that fires fifty queues sends **one** notification listing all fifty,
 never fifty notifications.
@@ -62,7 +62,7 @@ id is stable across retries of one delivery, so use it to deduplicate. The paylo
   "version": 2,
   "ruleId": "…", "ruleName": "Split-brain", "severity": "CRITICAL",
   "clusterId": "…", "clusterName": "prod-eu",
-  "studioUrl": "https://studio.example.com/clusters/…/alerts",
+  "rahdarUrl": "https://rahdar.example.com/clusters/…/alerts",
   "firedCount": 1, "resolvedCount": 0,
   "transitions": [
     { "subject": "cluster", "subjectLabel": "cluster prod-eu", "kind": "FIRED", "value": 1, "at": "2026-09-24T10:00:00Z" }

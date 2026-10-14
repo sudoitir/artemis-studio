@@ -158,7 +158,7 @@ describe('ConsumerHealthView', () => {
 
     // The failure names its cause and offers a retry, and is not reported as an empty cluster.
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     expect(screen.queryByText('No queues to report on yet')).not.toBeInTheDocument();
   });

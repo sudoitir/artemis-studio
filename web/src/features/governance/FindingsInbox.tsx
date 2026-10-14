@@ -26,7 +26,7 @@ function FindingsEmpty({ status, onClear }: Readonly<{ status: string; onClear: 
       <EmptyState
         kind="empty"
         title="No findings"
-        description="No personal data has been detected in a field that no rule covers. Findings appear here as Studio reads messages."
+        description="No personal data has been detected in a field that no rule covers. Findings appear here as Rahdar reads messages."
       />
     );
   }

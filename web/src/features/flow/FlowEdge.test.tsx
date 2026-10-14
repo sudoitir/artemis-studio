@@ -16,7 +16,7 @@ describe('flow edge', () => {
         stale: false,
         faults: [],
         bypassed: false,
-        studio: false,
+        rahdar: false,
       }),
     ).toBe('copy · 12.5 msg/s');
     expect(
@@ -26,7 +26,7 @@ describe('flow edge', () => {
         stale: true,
         faults: ['STALLED'],
         bypassed: false,
-        studio: false,
+        rahdar: false,
       }),
     ).toBe('measuring… · stalled · stale');
   });

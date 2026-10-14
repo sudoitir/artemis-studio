@@ -100,7 +100,7 @@ export function AdoptionSuggestion({
           <Popover width="22.5rem" position="bottom-start" withArrow shadow="md">
             <Popover.Target>
               <Button variant="subtle" size="compact-sm">
-                Why does Studio not do this for me?
+                Why does Rahdar not do this for me?
               </Button>
             </Popover.Target>
             <Popover.Dropdown>

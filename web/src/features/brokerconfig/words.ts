@@ -311,7 +311,7 @@ export function applyOutcomeWords(outcome: 'DRY_RUN' | 'APPLIED' | 'HALTED' | 'F
 }
 
 export function applyModeWords(mode: ConfigDeclarationView['applyMode']): string {
-  return mode === 'CONFIG_MANAGED' ? 'Managed outside Studio' : 'Managed by Studio';
+  return mode === 'CONFIG_MANAGED' ? 'Managed outside Rahdar' : 'Managed by Rahdar';
 }
 
 /**
@@ -320,9 +320,9 @@ export function applyModeWords(mode: ConfigDeclarationView['applyMode']): string
  * and the answer is a decision (ADR-0067 D8, ADR-0176), not an omission.
  */
 export const WHY_NOT_AUTOMATIC =
-  'Studio adopts only when an operator says so: when registering a cluster, or here. An adoption declares that ' +
+  'Rahdar adopts only when an operator says so: when registering a cluster, or here. An adoption declares that ' +
   'whatever the brokers happen to be running right now is intended, including a setting someone changed by hand ' +
-  'an hour ago and has not finished thinking about. Only an operator can say that, so Studio never does it after ' +
+  'an hour ago and has not finished thinking about. Only an operator can say that, so Rahdar never does it after ' +
   'registration on its own, and drift stays advisory until one does (ADR-0176).';
 
 export const CONFIG_MANAGED_REASON =

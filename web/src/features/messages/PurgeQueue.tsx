@@ -25,7 +25,7 @@ function Consequence({
     return (
       <Stack gap="sm">
         <Text size="sm">
-          Studio could not take an estimate, so it cannot tell you how many messages purging {queueName} would destroy.
+          Rahdar could not take an estimate, so it cannot tell you how many messages purging {queueName} would destroy.
           The purge can still proceed. This cannot be undone. The broker's bulk safety cap still applies: if the depth
           turns out to be over it, the purge is refused.
         </Text>

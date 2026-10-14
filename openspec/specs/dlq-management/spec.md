@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines the dead-letter management view: how Artemis Studio learns which
+Defines the dead-letter management view: how Rahdar learns which
 addresses are dead-letter and expiry targets for a cluster, how it presents the
 queues on those addresses across nodes, and how an operator replays messages out
 of them safely.

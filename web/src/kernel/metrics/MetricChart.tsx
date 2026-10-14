@@ -23,7 +23,7 @@ const UNITS: Record<string, { label: string; format: (v: number) => string }> = 
 };
 
 /**
- * Studio's time-proportional chart of one plugin metric for one subject (ADR-0055, ADR-0113):
+ * Rahdar's time-proportional chart of one plugin metric for one subject (ADR-0055, ADR-0113):
  * a titled panel that tells loading, failure and an empty window apart, over a live range.
  */
 export function MetricChart({

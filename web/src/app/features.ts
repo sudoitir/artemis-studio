@@ -24,14 +24,14 @@ import { settingsFeature } from '../features/settings/feature.ts';
 import { sqlFeature } from '../features/sql/feature.ts';
 import { transferFeature } from '../features/transfer/feature.ts';
 import { triageFeature } from '../features/triage/feature.ts';
-import type { StudioFeature } from '../kernel/feature.ts';
+import type { RahdarFeature } from '../kernel/feature.ts';
 
 /**
  * The composition root (ADR-0069): the one list of frontend features. Each feature uses its backend
  * module's id, so the manifest decides which of them this installation offers. The order is the order
  * of their palette groups; nav entries and slot contributions carry their own.
  */
-export const FEATURES: StudioFeature[] = [
+export const FEATURES: RahdarFeature[] = [
   clustersFeature,
   metricsFeature,
   alertingFeature,

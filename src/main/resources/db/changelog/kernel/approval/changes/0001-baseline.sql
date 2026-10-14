@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:kernel-approval-0001-baseline splitStatements:true
+--changeset rahdar:kernel-approval-0001-baseline splitStatements:true
 CREATE TABLE held_operation (
     requested_at timestamp with time zone DEFAULT now() NOT NULL,
     expires_at timestamp with time zone NOT NULL,
@@ -128,7 +128,7 @@ ALTER TABLE ONLY held_operation
 --rollback DROP TABLE IF EXISTS held_operation_event CASCADE;
 --rollback DROP TABLE IF EXISTS held_operation CASCADE;
 
---changeset artemis-studio:kernel-approval-0001-baseline-held-operation-delete-guard splitStatements:false
+--changeset rahdar:kernel-approval-0001-baseline-held-operation-delete-guard splitStatements:false
 CREATE FUNCTION held_operation_delete_guard() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -142,7 +142,7 @@ END
 $$;
 --rollback DROP FUNCTION IF EXISTS held_operation_delete_guard CASCADE;
 
---changeset artemis-studio:kernel-approval-0001-baseline-held-operation-event-guard splitStatements:false
+--changeset rahdar:kernel-approval-0001-baseline-held-operation-event-guard splitStatements:false
 CREATE FUNCTION held_operation_event_guard() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -163,7 +163,7 @@ END
 $$;
 --rollback DROP FUNCTION IF EXISTS held_operation_event_guard CASCADE;
 
---changeset artemis-studio:kernel-approval-0001-baseline-held-operation-guard splitStatements:false
+--changeset rahdar:kernel-approval-0001-baseline-held-operation-guard splitStatements:false
 CREATE FUNCTION held_operation_guard() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
@@ -228,7 +228,7 @@ END
 $$;
 --rollback DROP FUNCTION IF EXISTS held_operation_guard CASCADE;
 
---changeset artemis-studio:kernel-approval-0001-baseline-held-operation-kek splitStatements:false
+--changeset rahdar:kernel-approval-0001-baseline-held-operation-kek splitStatements:false
 CREATE FUNCTION held_operation_kek(blob bytea) RETURNS bigint
     LANGUAGE sql IMMUTABLE
     AS $$
@@ -243,7 +243,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 --rollback DROP FUNCTION IF EXISTS held_operation_kek CASCADE;
 
---changeset artemis-studio:kernel-approval-0001-baseline-triggers splitStatements:true
+--changeset rahdar:kernel-approval-0001-baseline-triggers splitStatements:true
 CREATE TRIGGER tg_held_operation_delete_guard BEFORE DELETE ON held_operation FOR EACH ROW EXECUTE FUNCTION held_operation_delete_guard();
 
 CREATE TRIGGER tg_held_operation_event_guard BEFORE INSERT OR DELETE OR UPDATE ON held_operation_event FOR EACH ROW EXECUTE FUNCTION held_operation_event_guard();

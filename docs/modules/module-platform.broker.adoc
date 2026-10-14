@@ -1,54 +1,54 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.platform.broker`
+|`io.github.sudoitir.rahdar.platform.broker`
 |Spring components
 |_Services_
 
-* `i.g.s.a.p.b.ClockOffsetService`
+* `i.g.s.r.p.b.ClockOffsetService`
 
 _Event listeners_
 
-* `i.g.s.a.p.b.BrokerSessions`
-* `i.g.s.a.p.b.CoreRelay`
+* `i.g.s.r.p.b.BrokerSessions`
+* `i.g.s.r.p.b.CoreRelay`
 
 _Configuration properties_
 
-* `i.g.s.a.p.b.BrokerProperties`
-* `i.g.s.a.p.b.RateLimitProperties`
-* `i.g.s.a.p.b.SafetyProperties`
+* `i.g.s.r.p.b.BrokerProperties`
+* `i.g.s.r.p.b.RateLimitProperties`
+* `i.g.s.r.p.b.SafetyProperties`
 
 _Others_
 
-* `i.g.s.a.p.b.AcceptanceProbe`
-* `i.g.s.a.p.b.BrokerAccountRoles`
-* `i.g.s.a.p.b.BrokerCallGuard`
-* `i.g.s.a.p.b.BrokerClientFactory`
-* `i.g.s.a.p.b.BrokerConnections`
-* `i.g.s.a.p.b.BrokerConnectors`
-* `i.g.s.a.p.b.BrokerListOps`
-* `i.g.s.a.p.b.BrokerSettings`
-* `i.g.s.a.p.b.CapabilityProbe`
-* `i.g.s.a.p.b.ClockOffsetRegistry`
-* `i.g.s.a.p.b.CoreAccountCheck`
-* `i.g.s.a.p.b.CoreConnectionFactory`
-* `i.g.s.a.p.b.MessageTransport` (via `i.g.s.a.p.b.CoreMessageTransport`)
-* `i.g.s.a.p.b.CoreObservations`
-* `i.g.s.a.p.b.CorePool`
-* `i.g.s.a.p.b.CoreSubscriptionCheck`
-* `i.g.s.a.p.b.CoreSubscriptionManager`
-* `i.g.s.a.p.b.MessageTransport` (via `i.g.s.a.p.b.JolokiaMessageTransport`)
-* `i.g.s.a.p.b.MessageBrowser`
-* `i.g.s.a.p.b.MessageOperations`
-* `i.g.s.a.p.b.MonotonicClockWatch`
-* `i.g.s.a.p.b.NodeCallHealth`
-* `i.g.s.a.p.b.NodeCallLimiter`
-* `i.g.s.a.p.b.NotificationMapper`
-* `i.g.s.a.p.b.StagingQueues`
+* `i.g.s.r.p.b.AcceptanceProbe`
+* `i.g.s.r.p.b.BrokerAccountRoles`
+* `i.g.s.r.p.b.BrokerCallGuard`
+* `i.g.s.r.p.b.BrokerClientFactory`
+* `i.g.s.r.p.b.BrokerConnections`
+* `i.g.s.r.p.b.BrokerConnectors`
+* `i.g.s.r.p.b.BrokerListOps`
+* `i.g.s.r.p.b.BrokerSettings`
+* `i.g.s.r.p.b.CapabilityProbe`
+* `i.g.s.r.p.b.ClockOffsetRegistry`
+* `i.g.s.r.p.b.CoreAccountCheck`
+* `i.g.s.r.p.b.CoreConnectionFactory`
+* `i.g.s.r.p.b.MessageTransport` (via `i.g.s.r.p.b.CoreMessageTransport`)
+* `i.g.s.r.p.b.CoreObservations`
+* `i.g.s.r.p.b.CorePool`
+* `i.g.s.r.p.b.CoreSubscriptionCheck`
+* `i.g.s.r.p.b.CoreSubscriptionManager`
+* `i.g.s.r.p.b.MessageTransport` (via `i.g.s.r.p.b.JolokiaMessageTransport`)
+* `i.g.s.r.p.b.MessageBrowser`
+* `i.g.s.r.p.b.MessageOperations`
+* `i.g.s.r.p.b.MonotonicClockWatch`
+* `i.g.s.r.p.b.NodeCallHealth`
+* `i.g.s.r.p.b.NodeCallLimiter`
+* `i.g.s.r.p.b.NotificationMapper`
+* `i.g.s.r.p.b.StagingQueues`
 |Bean references
-|* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
-* `i.g.s.a.k.j.JobStatuses` (in Scheduled jobs)
+|* `i.g.s.r.k.r.ReplicaRegistry` (in Replicas)
+* `i.g.s.r.k.j.JobStatuses` (in Scheduled jobs)
 |Events listened to
-|* `i.g.s.a.k.r.ReplicaSignal` 
+|* `i.g.s.r.k.r.ReplicaSignal` 
 * `org.springframework.boot.context.event.ApplicationReadyEvent` 
 |===

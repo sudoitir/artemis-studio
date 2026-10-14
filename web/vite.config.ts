@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { federation } from '@module-federation/vite';
 
 import pkg from './package.json' with { type: 'json' };
-// The one list of what plugin bundles take from Studio; the plugin preset reads it too.
+// The one list of what plugin bundles take from Rahdar; the plugin preset reads it too.
 import { SDK, SHARED_LIBRARIES, packageOf } from './packages/plugin-sdk/shared.js';
 
 /**
@@ -30,16 +30,16 @@ const shared = Object.fromEntries([
 ]);
 
 // The Spring Boot app serves the built SPA from classpath:/static and owns
-// /api/**. In dev, Vite runs standalone on :5173 and proxies API + SSE to :8080, or to the Studio
-// named by STUDIO_API (an isolated QA stack listens on another port).
-const api = process.env.STUDIO_API ?? 'http://localhost:8080';
+// /api/**. In dev, Vite runs standalone on :5173 and proxies API + SSE to :8080, or to the Rahdar
+// named by RAHDAR_API (an isolated QA stack listens on another port).
+const api = process.env.RAHDAR_API ?? 'http://localhost:8080';
 
 export default defineConfig({
   plugins: [
     react(),
     // The host side of Module Federation: plugin bundles are registered at runtime from the
     // manifest (kernel/plugins/boot.ts), never declared here.
-    federation({ name: 'artemis_studio', filename: 'remoteEntry.js', shared, dts: false }),
+    federation({ name: 'rahdar', filename: 'remoteEntry.js', shared, dts: false }),
   ],
   server: {
     port: 5173,

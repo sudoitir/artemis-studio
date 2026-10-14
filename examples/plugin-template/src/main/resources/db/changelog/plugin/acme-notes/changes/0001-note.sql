@@ -1,7 +1,7 @@
 --liquibase formatted sql
 
--- A note on a queue. cluster_id is a plain uuid, never a foreign key into Studio's tables:
--- a plugin's schema may not constrain Studio's (activation refuses it).
+-- A note on a queue. cluster_id is a plain uuid, never a foreign key into Rahdar's tables:
+-- a plugin's schema may not constrain Rahdar's (activation refuses it).
 --changeset acme:0001-note
 CREATE TABLE note (
     created_at timestamp with time zone NOT NULL,

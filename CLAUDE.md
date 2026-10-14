@@ -1,4 +1,4 @@
-# Artemis Studio — project instructions
+# Rahdar — project instructions
 
 Cluster-wide management and observability for Apache ActiveMQ Artemis. One instance,
 many clusters: topology, cross-node resource views, safe message operations, and
@@ -10,12 +10,12 @@ session, in number order.
 
 ## Layout: kernel, platform, features (ADR-0069)
 
-Studio is a modular monolith with the same module ids on both sides:
+Rahdar is a modular monolith with the same module ids on both sides:
 
-- **Backend** `io.github.sudoitir.artemisstudio`: `kernel.*` (core, plugin, security,
+- **Backend** `io.github.sudoitir.rahdar`: `kernel.*` (core, plugin, security,
   audit, settings, jobs, stream) defines contracts and never imports a platform or
   feature type; `platform.*` (broker, clusters, scrape, mcp) is what features build on;
-  `feature.*` is one module per capability. `app/StudioFeatures` is the one list of
+  `feature.*` is one module per capability. `app/RahdarFeatures` is the one list of
   modules. Boundaries are checked by `ModularityTest` (Spring Modulith) and
   `BoundaryRulesTest` (ArchUnit); `docs/modules/` is generated from the same model.
 - **Frontend** `web/src`: `kernel/` (contract, manifest, slots, nav groups, routing
@@ -27,7 +27,7 @@ Studio is a modular monolith with the same module ids on both sides:
 (`@ApplicationModule(allowedDependencies)`), an `<Id>Module` holding its
 `FeatureDescriptor`, an `<Id>Feature` carrying `@FeatureModule("<id>")`, its tables in
 `db/changelog/feature/<id>/` (included from the master changelog), and an
-`@ApplicationModuleTest`; registered in `app/StudioFeatures`. A frontend folder
+`@ApplicationModuleTest`; registered in `app/RahdarFeatures`. A frontend folder
 `web/src/features/<id>/` with `feature.ts` (`defineFeature`: routes, nav, palette,
 topics, slots) and `api.ts`, listed in `web/src/app/features.ts`; its id added to
 `FEATURE_IDS`. Cross-feature needs are a slot or a named public export on an allowed
@@ -37,7 +37,7 @@ edge, never a reach into another module's internals.
 in Admin → Plugins and run in its own child context, class loader, schema and pool.
 Their host is `kernel.plugin.internal.{host,runtime,validation,store}`, their admin API
 `feature/plugins`, their UI loader `web/src/kernel/plugins/`, the SDK surface
-`web/src/sdk/` (published as `@artemis-studio/plugin-sdk` from `web/packages/plugin-sdk`),
+`web/src/sdk/` (published as `@rahdar/plugin-sdk` from `web/packages/plugin-sdk`),
 and the author's starting point `examples/plugin-template/`. Only `@PluginApi` types
 are the supported Java API. A class that JVM-wide caches may key by a plugin type gets
 an eviction in `PluginClassloaderCaches`; `PluginUnloadIntegrationTest` fails with a heap dump when
@@ -46,7 +46,7 @@ one is missing.
 ## Stack (fixed — changing any of these needs an ADR)
 
 - **Backend**: Java 25, Spring Boot 4.1.1, Maven. Package root
-  `io.github.sudoitir.artemisstudio`. groupId `io.github.sudoitir`.
+  `io.github.sudoitir.rahdar`. groupId `io.github.sudoitir`.
 - **Persistence**: JPA (Hibernate) entities mapped to the Liquibase-owned schema,
   `spring.jpa.hibernate.ddl-auto=validate` (ADR-0011). **Lombok** for entity /
   component boilerplate and **MapStruct** for entity↔domain↔DTO mapping
@@ -75,7 +75,7 @@ one is missing.
 ## Non-negotiables
 
 1. **Broker-friendly by construction.** Batched Jolokia reads (one POST per node,
-   not per queue), tiered polling, a per-node rate limiter. Studio must never be
+   not per queue), tiered polling, a per-node rate limiter. Rahdar must never be
    the reason a broker falls over.
 2. **Safe by default.** Every destructive operation takes `?dryRun=true` and returns
    the affected count without acting. Purge/delete are confirmed in the UI by pressing and holding a button (ADR-0186).
@@ -105,7 +105,7 @@ one is missing.
 9. **State has one owner.** Server state via TanStack Query; navigable state in the
    URL; local state stays local. No global store for what a URL can hold.
 10. **The product name lives in two files.** `Branding.java` and `web/src/branding.ts`.
-   Never hard-code "Artemis Studio" anywhere else. See ADR-0001 for why.
+   Never hard-code "Rahdar" anywhere else. See ADR-0001 and ADR-0201 for why.
 
 ## Process
 
@@ -130,9 +130,9 @@ one is missing.
 
 ```bash
 just                 # menu of all tasks, grouped
-just up / just down  # HA stack from the published image: 2 Studio replicas + HAProxy + Postgres (runs `just setup`: .env + version pin)
+just up / just down  # HA stack from the published image: 2 Rahdar replicas + HAProxy + Postgres (runs `just setup`: .env + version pin)
 just up-single / down-single  # the one-replica compose.prod.yaml stack
-just dev-up / dev-down  # full dev stack: postgres + artemis primary/backup + studio, built locally
+just dev-up / dev-down  # full dev stack: postgres + artemis primary/backup + rahdar, built locally
 just dev             # backend :8080 + vite :5173 (proxied), together
 just verify          # everything CI runs: verify-api + verify-web
 just fmt             # Palantir (Spotless) + Prettier + eslint --fix
@@ -159,7 +159,6 @@ ADR-0051). `just changelog` previews the pending release.
 
 ## Trademark
 
-"Artemis" is an Apache Software Foundation mark. This project uses it as a product
-name by a deliberate, recorded decision (ADR-0001) with a cheap rename path.
-Keep the disclaimer (`NOTICE`, README, About dialog) intact. References to the
-broker are nominative use.
+"Artemis" is an Apache Software Foundation mark. The product is Rahdar (ADR-0201, which
+superseded ADR-0001), so "Artemis" names only the broker, as nominative use. Keep the
+disclaimer (`NOTICE`, README, About dialog) intact.

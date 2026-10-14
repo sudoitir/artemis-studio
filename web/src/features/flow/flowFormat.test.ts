@@ -37,7 +37,7 @@ describe('routing edge text', () => {
         rateSource: 'NONE',
         stale: false,
         bypassed: false,
-        studio: false,
+        rahdar: false,
         presentOn: 1,
         presentOf: 2,
         faults: ['PARTIAL_PRESENCE'],
@@ -53,7 +53,7 @@ describe('routing edge text', () => {
         rateSource: 'SAMPLER',
         stale: false,
         bypassed: false,
-        studio: false,
+        rahdar: false,
         faults: ['BRIDGE_DOWN'],
       }),
     ).toBe('bridge · 5 msg/s · not connected');
@@ -65,12 +65,12 @@ describe('routing edge text', () => {
         rate: 2,
         stale: false,
         bypassed: true,
-        studio: false,
+        rahdar: false,
         faults: [],
       }),
     ).toBe('shared · bypassed by an exclusive divert · 2 msg/s');
     expect(
-      edgeText({ kind: 'WILDCARD', rateSource: 'NONE', stale: false, bypassed: false, studio: false, faults: [] }),
+      edgeText({ kind: 'WILDCARD', rateSource: 'NONE', stale: false, bypassed: false, rahdar: false, faults: [] }),
     ).toBe('matches');
   });
 });

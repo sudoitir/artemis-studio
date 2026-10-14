@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:platform-scrape-0001-baseline splitStatements:true
+--changeset rahdar:platform-scrape-0001-baseline splitStatements:true
 CREATE TABLE metric_sample (
     ts timestamp with time zone NOT NULL,
     value double precision NOT NULL,

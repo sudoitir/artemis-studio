@@ -2,7 +2,7 @@
 
 ## Purpose
 Defines the opt-in historical message index: a per-queue, retention-bounded copy of
-observed messages held by Studio so that the SQL Console can answer questions about
+observed messages held by Rahdar so that the SQL Console can answer questions about
 messages the broker no longer has, and the contract that keeps that copy honest,
 bounded, and easy to get rid of.
 
@@ -194,7 +194,7 @@ revealed only to a caller holding clear access for the row's cluster. Each row
 SHALL record the policy version it was stored under.
 
 The interface that creates a subscription SHALL state, before it is confirmed, that
-message bodies will be stored by Studio for the chosen retention period, and that
+message bodies will be stored by Rahdar for the chosen retention period, and that
 sensitive values are stored masked.
 
 #### Scenario: The operator is told what is being stored

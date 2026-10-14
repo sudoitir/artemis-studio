@@ -1,9 +1,9 @@
-# Artemis Studio
+# Rahdar
 
 **One console for every Apache ActiveMQ Artemis cluster you run.**
 
 The bundled Hawtio console manages one broker at a time and has no idea a cluster
-exists. Artemis Studio is the other thing: one instance across many clusters —
+exists. Rahdar is the other thing: one instance across many clusters —
 live/backup topology, cross-node queues and addresses in a single table, safe
 message operations, first-class request-reply tracing, and SQL over your
 messages.
@@ -12,40 +12,40 @@ It works against your **existing** brokers. No `broker.xml` rewrite beyond
 enabling the management endpoints you almost certainly already run.
 
 Extend it with **plugins**, installed from the UI: screens, API, assistant tools and
-data of their own, most without a restart. When a plugin needs one, Studio restarts
+data of their own, most without a restart. When a plugin needs one, Rahdar restarts
 itself if the container has a restart policy — the compose file sets
-`ARTEMIS_STUDIO_PLUGINS_RESTART_SUPERVISED=true` beside `restart: unless-stopped`.
+`RAHDAR_PLUGINS_RESTART_SUPERVISED=true` beside `restart: unless-stopped`.
 
 > **⚠️ Alpha.** Under active development, not yet feature-complete. These images are
 > **pre-stable dev builds** — the `:dev` tag is the moving pointer and there is no
 > `:latest` yet. Expect breaking changes.
 
-**Documentation:** [sudoitir.github.io/artemis-studio](https://sudoitir.github.io/artemis-studio/)
+**Documentation:** [rahdar.dev](https://rahdar.dev/)
 &nbsp;·&nbsp; **Source and issues:**
-[github.com/sudoitir/artemis-studio](https://github.com/sudoitir/artemis-studio)
+[github.com/sudoitir/rahdar](https://github.com/sudoitir/rahdar)
 
 Every image is signed by the project's release workflow and carries SLSA provenance and a
-CycloneDX SBOM: [verify a release](https://sudoitir.github.io/artemis-studio/guide/verify-releases).
+CycloneDX SBOM: [verify a release](https://rahdar.dev/guide/verify-releases).
 
 
 ## Screenshots
 
 | Cluster topology | Cross-node queues |
 |---|---|
-| [![Live/backup topology with replication and shared-NodeID axis](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/topology.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/topology.png) | [![Every queue across every node in one virtualized grid](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/queues.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/queues.png) |
+| [![Live/backup topology with replication and shared-NodeID axis](https://raw.githubusercontent.com/sudoitir/rahdar/main/docs/img/topology.png)](https://raw.githubusercontent.com/sudoitir/rahdar/main/docs/img/topology.png) | [![Every queue across every node in one virtualized grid](https://raw.githubusercontent.com/sudoitir/rahdar/main/docs/img/queues.png)](https://raw.githubusercontent.com/sudoitir/rahdar/main/docs/img/queues.png) |
 | **Client and message flow** | **SQL Console** |
-| [![Applications, addresses, diverts, a bridge and queues in columns, each path carrying its measured rate](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/flow.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/flow.png) | [![A query across every queue in the cluster with its cost classified before it runs](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/sql.png)](https://raw.githubusercontent.com/sudoitir/artemis-studio/main/docs/img/sql.png) |
+| [![Applications, addresses, diverts, a bridge and queues in columns, each path carrying its measured rate](https://raw.githubusercontent.com/sudoitir/rahdar/main/docs/img/flow.png)](https://raw.githubusercontent.com/sudoitir/rahdar/main/docs/img/flow.png) | [![A query across every queue in the cluster with its cost classified before it runs](https://raw.githubusercontent.com/sudoitir/rahdar/main/docs/img/sql.png)](https://raw.githubusercontent.com/sudoitir/rahdar/main/docs/img/sql.png) |
 
 ---
 
 ## Run it
 
-Studio and its Postgres. Your Artemis clusters already exist and are registered
+Rahdar and its Postgres. Your Artemis clusters already exist and are registered
 through the UI — nothing here starts a broker.
 
 ```bash
-base=https://raw.githubusercontent.com/sudoitir/artemis-studio/main/deploy/compose
-mkdir -p studio/compose studio/postgres && cd studio/compose   # the compose file mounts ../postgres
+base=https://raw.githubusercontent.com/sudoitir/rahdar/main/deploy/compose
+mkdir -p rahdar/compose rahdar/postgres && cd rahdar/compose   # the compose file mounts ../postgres
 curl -sO "$base/compose.prod.yaml"
 for f in postgresql.conf 10-pg-stat-statements.sql; do curl -s "${base%/compose}/postgres/$f" -o "../postgres/$f"; done
 curl -s "$base/.env.example" | sed \
@@ -61,26 +61,26 @@ Or a bare container against your own Postgres:
 
 ```bash
 docker run -p 8080:8080 \
-  -e ARTEMIS_STUDIO_DB_URL=jdbc:postgresql://db:5432/artemis_studio \
-  -e ARTEMIS_STUDIO_DB_USER=artemis_studio \
-  -e ARTEMIS_STUDIO_DB_PASSWORD=... \
-  -e ARTEMIS_STUDIO_SECRET_KEY="$(openssl rand -base64 32)" \
-  sudoit1/artemis-studio:dev
+  -e RAHDAR_DB_URL=jdbc:postgresql://db:5432/rahdar \
+  -e RAHDAR_DB_USER=rahdar \
+  -e RAHDAR_DB_PASSWORD=... \
+  -e RAHDAR_SECRET_KEY="$(openssl rand -base64 32)" \
+  sudoit1/rahdar:dev
 ```
 
 | Variable | Required | Notes |
 |---|---|---|
-| `ARTEMIS_STUDIO_DB_URL` | yes | `jdbc:postgresql://host:5432/artemis_studio` |
-| `ARTEMIS_STUDIO_DB_USER` / `_DB_PASSWORD` | yes | — |
-| `ARTEMIS_STUDIO_SECRET_KEY` | with the default `env` key provider | Protects every stored secret. Base64 of **exactly 32 bytes** or the app will not start (`openssl rand -base64 32`), or `1=<b64>,2=<b64>` to hold several versions for key rotation. Other key providers (file, Vault, Kubernetes) and rotation: [configuration guide](https://sudoitir.github.io/artemis-studio/guide/configuration#secrets-and-key-rotation) |
-| `ARTEMIS_STUDIO_CONFIG_ENCRYPT_KEY` | no | Decrypts `{cipher}` values in `studio_config_property`. A **different** key from `ARTEMIS_STUDIO_SECRET_KEY` — do not reuse it |
+| `RAHDAR_DB_URL` | yes | `jdbc:postgresql://host:5432/rahdar` |
+| `RAHDAR_DB_USER` / `_DB_PASSWORD` | yes | — |
+| `RAHDAR_SECRET_KEY` | with the default `env` key provider | Protects every stored secret. Base64 of **exactly 32 bytes** or the app will not start (`openssl rand -base64 32`), or `1=<b64>,2=<b64>` to hold several versions for key rotation. Other key providers (file, Vault, Kubernetes) and rotation: [configuration guide](https://rahdar.dev/guide/configuration#secrets-and-key-rotation) |
+| `RAHDAR_CONFIG_ENCRYPT_KEY` | no | Decrypts `{cipher}` values in `rahdar_config_property`. A **different** key from `RAHDAR_SECRET_KEY` — do not reuse it |
 | `JAVA_OPTS` | no | Defaults to `-XX:MaxRAMPercentage=50` |
 
 **First login.** Username `admin`. The first run against an empty database
 generates the password and prints it **once** to the container log:
 
 ```bash
-docker compose -f compose.prod.yaml logs studio | grep -A4 'Created administrator'
+docker compose -f compose.prod.yaml logs rahdar | grep -A4 'Created administrator'
 ```
 
 You will be forced to set a new password on first login. Lose that first password
@@ -88,7 +88,7 @@ before changing it and the only recovery is resetting the row directly in
 Postgres — there is no password-reset flow yet.
 
 **Reverse proxy.** The live UI stream is SSE at `GET /api/v1/stream`; a proxy in
-front of Studio **must not buffer it** (nginx `proxy_buffering off;`, Apache no
+front of Rahdar **must not buffer it** (nginx `proxy_buffering off;`, Apache no
 output buffering on that path; Traefik works as-is). Without this the topology
 graph and queue grid only update on the 5-second poll.
 
@@ -102,7 +102,7 @@ graph and queue grid only update on the 5-second poll.
 
 `linux/amd64` and `linux/arm64`. Versioning is CalVer and the number carries no
 compatibility promise — a release's breaking changes are listed at the top of its
-[release notes](https://github.com/sudoitir/artemis-studio/releases).
+[release notes](https://github.com/sudoitir/rahdar/releases).
 
 ## Licence
 

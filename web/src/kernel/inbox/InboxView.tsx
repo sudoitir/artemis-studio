@@ -27,7 +27,7 @@ const DISMISS: ActionVerb = { verb: 'Dismiss', past: 'Dismissed', progressive: '
 const MARK_READ: ActionVerb = { verb: 'Mark', past: 'Marked', progressive: 'Marking' };
 
 /**
- * The signed-in user's inbox: every notice Studio and its plugins posted to them that is still kept, newest
+ * The signed-in user's inbox: every notice Rahdar and its plugins posted to them that is still kept, newest
  * first, a page at a time. Unread or all is in the URL (`?filter=unread`), so the view can be shared and
  * restored. Opening a notice marks it read; dismissing one deletes it.
  */
@@ -102,7 +102,7 @@ export function InboxView() {
       <EmptyState
         kind="empty"
         title="Your inbox is empty"
-        description="Studio and its plugins post notices here when something needs you, such as a request waiting for your approval. Read notices are kept for 30 days, others for 90."
+        description="Rahdar and its plugins post notices here when something needs you, such as a request waiting for your approval. Read notices are kept for 30 days, others for 90."
       />
     );
   } else {
@@ -154,7 +154,7 @@ export function InboxView() {
         <Page>
           <PageHeader
             title="Inbox"
-            description="Notices for you from Studio and its plugins, newest first."
+            description="Notices for you from Rahdar and its plugins, newest first."
             actions={
               <Button component={Link} to="/approvals" variant="default" size="xs">
                 Approval requests

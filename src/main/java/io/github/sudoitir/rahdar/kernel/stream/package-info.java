@@ -1,0 +1,17 @@
+/**
+ * The per-cluster server-sent event stream and its topic registry.
+ */
+@ApplicationModule(
+        displayName = "Event stream",
+        allowedDependencies = {
+            "kernel.core",
+            "kernel.jobs",
+            "kernel.plugin",
+            "kernel.plugin :: descriptor",
+            "kernel.replica",
+            "kernel.security",
+            "kernel.settings"
+        })
+package io.github.sudoitir.rahdar.kernel.stream;
+
+import org.springframework.modulith.ApplicationModule;

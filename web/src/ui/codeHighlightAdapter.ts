@@ -17,7 +17,7 @@ import { highlightedMarkup } from './trustedTypes.ts';
  * highlighter themes are fixed hex values that miss the AA floor in both schemes, and the adapter
  * would apply them per scheme unless one theme is forced.
  */
-const CODE_THEME = 'studio';
+const CODE_THEME = 'rahdar';
 
 async function loadShiki() {
   const [{ createHighlighterCore, createCssVariablesTheme }, { createOnigurumaEngine }] = await Promise.all([
@@ -40,7 +40,7 @@ async function loadShiki() {
 const shiki = createShikiAdapter(loadShiki, { forceColorScheme: CODE_THEME });
 
 /**
- * The highlighter's markup is the one HTML Studio renders, so it is cleaned on the way to the page
+ * The highlighter's markup is the one HTML Rahdar renders, so it is cleaned on the way to the page
  * rather than trusted (`highlightedMarkup`, ADR-0168).
  */
 export const shikiAdapter: CodeHighlightAdapter = {

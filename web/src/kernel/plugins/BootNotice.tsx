@@ -9,7 +9,7 @@ const WARNING = { '--notification-color': 'var(--as-warning)' };
 
 /**
  * Says once, after the page starts, when it started without something it tried to load: the
- * manifest (plugins are then missing too), or a plugin's screens. Studio's own screens are there
+ * manifest (plugins are then missing too), or a plugin's screens. Rahdar's own screens are there
  * either way; this is so the gap is stated rather than discovered.
  */
 export function BootNotice() {

@@ -1,19 +1,19 @@
-# Sizing Studio
+# Sizing Rahdar
 
-What one Studio deployment carries, measured. Every figure names the load profile, the machine, the Studio
+What one Rahdar deployment carries, measured. Every figure names the load profile, the machine, the Rahdar
 version and the date it was measured on. The decision behind the test is
 [ADR-0198](adr/0198-a-gatling-load-test-publishes-the-sizing-figures.md); the database is described in
 [external-database.md](external-database.md).
 
 ## Reference machine and method
 
-- **Machine:** 4 vCPU (AMD EPYC Rome) and 7.6 GB of memory, one disk, Linux, Docker. Postgres 18, both Studio
+- **Machine:** 4 vCPU (AMD EPYC Rome) and 7.6 GB of memory, one disk, Linux, Docker. Postgres 18, both Rahdar
   replicas, HAProxy and every Artemis broker run on it together. A real deployment puts these on separate
-  hosts, so the figures are conservative for Studio and Postgres and optimistic for the network.
-- **Studio:** the shipped HA stack (`deploy/compose/compose.ha.yaml`): two replicas, each capped at 2 GB with a
+  hosts, so the figures are conservative for Rahdar and Postgres and optimistic for the network.
+- **Rahdar:** the shipped HA stack (`deploy/compose/compose.ha.yaml`): two replicas, each capped at 2 GB with a
   1 GiB heap, behind HAProxy on one Postgres with the shipped `postgresql.conf`. Version measured:
   `2026.10.47` plus the 58 commits of change 19 (`perf/19-performance-hardening` at `ae41c24a`), 2026-10-14.
-- **Brokers:** Artemis 2.57, one container per node, 256 MB of heap (more where a run says so). Studio refuses
+- **Brokers:** Artemis 2.57, one container per node, 256 MB of heap (more where a run says so). Rahdar refuses
   to register one broker in two clusters, so the brokers are `clusters x nodes per cluster`.
 - **Scrape cadence:** the load stack walks queues every 15 s instead of the default 5 minutes, so that queues
   seeded after start-up are known within a run. Its broker reads are more frequent than a default installation's,
@@ -71,10 +71,10 @@ the group, in milliseconds. "Pool" is the peak of `hikaricp_connections_pending`
 
 | Dimension | Tested ceiling (service levels hold) | Beyond it, what degrades first |
 | --- | --- | --- |
-| **Clusters** | 6 clusters of 1 node. More was not tried: each needs its own broker and the machine's memory is the limit, not Studio's. | Not reached. |
+| **Clusters** | 6 clusters of 1 node. More was not tried: each needs its own broker and the machine's memory is the limit, not Rahdar's. | Not reached. |
 | **Nodes per cluster** | 4 | Latency of every cluster-wide read. At 6 nodes the same load gave anything from 1.1 s to 6.2 s on light reads: the roll-up, the address list and the metric total all grow with nodes x queues, and the result is unstable on four vCPUs. |
 | **Queues per node** | 3,000 (6,000 rows rolled up for a two-node cluster) | The queue and address lists, then the metric total (a skip scan of `uq_metric_sample` makes one index search per queue and node, 20,000 at 10,000 queues). At 10,000 per node light reads take 19 s, job lag reaches 5.8 s and heap 657 MB. |
-| **Messages per node** | 300,000 per node, nothing changed. | Not reached. Studio reads counts, not messages, until a user opens a queue or runs a query. |
+| **Messages per node** | 300,000 per node, nothing changed. | Not reached. Rahdar reads counts, not messages, until a user opens a queue or runs a query. |
 | **Concurrent fast event-stream subscribers** | 100 | Sign-in: 300 browsers opening within 20 s fail 20% of their sign-ins (pool pending 46, job lag 8.5 s). The streams that connected were not affected. |
 | **Concurrent UI users** | 60 signed in over a minute; 30 over 20 s. | Sign-in first (see below), then every read: 100 users arriving within 20 s fail a third of their requests and job lag reaches 27 s. |
 | **Sign-ins in a burst** | About 50 in 20 s (p95 3.1 s). | Password hashing and the session writes queue on four vCPUs; at 126 sign-ins in 20 s the p95 is 13.6 s and 29% fail, then their sessions' requests answer 401. Spread arrivals, or add vCPUs. |
@@ -89,16 +89,16 @@ the 95th percentile, a SQL query across 2,000 queues 5.4 s.
 
 ### Stalled event-stream subscribers
 
-Thirty subscribers that open the stream and stop reading, with HAProxy and Studio's TCP send buffers cut to 4 KB
-and queues changing throughout, were held for 150 to 420 seconds in four runs. Studio's memory stayed flat (heap
+Thirty subscribers that open the stream and stop reading, with HAProxy and Rahdar's TCP send buffers cut to 4 KB
+and queues changing throughout, were held for 150 to 420 seconds in four runs. Rahdar's memory stayed flat (heap
 157 to 159 MB across a 7-minute run; peak 231 to 299 MB) and no thread or subscriber was left behind when the
 test ended.
 
 The server did not drop any of them, because it never had to: at this change rate a stream carries about 9 bytes
 a second (41 KB reached 30 sockets in 150 s), so even a 4 KB buffer does not fill. The drop path of
 [ADR-0197](adr/0197-slow-stream-subscribers-are-coalesced-then-dropped.md) (three overflows, or a write blocked
-for 30 s) is exercised by Studio's own tests, not by this load. Frames that were coalesced in place are counted
-in `studio.sse.dropped{reason="coalesced"}`, never `overflow` or `blocked`, in any run.
+for 30 s) is exercised by Rahdar's own tests, not by this load. Frames that were coalesced in place are counted
+in `rahdar.sse.dropped{reason="coalesced"}`, never `overflow` or `blocked`, in any run.
 
 ### The queue walk
 
@@ -106,12 +106,12 @@ The runs measured here read a node's queue list one page of 200 per tier-C tick,
 25 minutes to be fully known at the default 5-minute interval and 10,000 over four hours. Change 19 fixes that
 after these runs: each tier-C tick now reads every page of every node, one POST of 200 queues at a time through
 the node's rate limiter (25 calls/s), so a node is fully known one tick after it is registered. Queues that are
-busy are still re-read every 15 s by tier B. The interval is `artemis-studio.scrape.tier-c-interval`.
+busy are still re-read every 15 s by tier B. The interval is `rahdar.scrape.tier-c-interval`.
 
 ### Database
 
 - Event flush: one writer at a time holds the `broker_event.write` lock; 200 batches of 500 rows, one commit
-  each, wrote **27,800 to 47,300 rows/s** on the reference disk. Studio's own ceiling is the buffer
+  each, wrote **27,800 to 47,300 rows/s** on the reference disk. Rahdar's own ceiling is the buffer
   (10,000 events) and a flush every second, which this clears 2.7 to 4.7 times over each second.
 - Metric history without a node filter: the planner uses `uq_metric_sample` with one index search per
   `(queue, node)` pair (a skip scan): one queue over an hour 0.13 ms; every queue of a cluster for one metric
@@ -143,7 +143,7 @@ Measured on the reference profile and reported, not tuned.
 The README's minimum and recommended sizes come from these peaks. They were derived, not measured on a smaller
 machine: a minimum is the observed peak with little headroom, a recommendation about twice that.
 
-See the README. In short, from the measurements: one Studio replica used at most 30% of the machine's CPU and
+See the README. In short, from the measurements: one Rahdar replica used at most 30% of the machine's CPU and
 less than 700 MB of heap (1.3 GiB resident in its 2 GiB container) at every size that met the service levels, and
 Postgres stayed under 560 MB resident (512 MB of it `shared_buffers`) and peaked at one core.
 The first resources to run out are CPU (sign-in bursts) and then the cluster-wide reads' latency, not memory
@@ -157,7 +157,7 @@ just load              # the reference profile (about 15 minutes); needs Docker,
 LOAD_QUEUES=3000 LOAD_CLUSTERS=1 LOAD_NODES_PER_CLUSTER=2 LOAD_BROKER_HEAP=512 just load
 ```
 
-`LOAD_JAR=target/artemis-studio-exec.jar` or `LOAD_IMAGE=…` measures a build you have already made; otherwise the
+`LOAD_JAR=target/rahdar-exec.jar` or `LOAD_IMAGE=…` measures a build you have already made; otherwise the
 Dockerfile is built. The report is `load/target/report/summary.md` (and `.json`, `explain.txt`). The same runs
 from the Actions tab: **Load test**. Sizes are in `load/profiles/*.env`; any `LOAD_*` variable overrides one.
 

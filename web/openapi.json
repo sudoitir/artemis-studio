@@ -1,7 +1,7 @@
 {
   "openapi" : "3.1.0",
   "info" : {
-    "title" : "Artemis Studio API",
+    "title" : "Rahdar API",
     "description" : "Cluster-wide management and observability for Apache ActiveMQ Artemis",
     "version" : "0.0.0"
   },
@@ -45,9 +45,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -171,9 +171,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -382,9 +382,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -489,9 +489,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -623,9 +623,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -738,9 +738,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -864,9 +864,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -971,9 +971,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -1096,9 +1096,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -1417,9 +1417,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -1524,9 +1524,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -1642,9 +1642,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -1972,9 +1972,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -2887,9 +2887,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -2993,9 +2993,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -3193,9 +3193,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -3404,9 +3404,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -3523,9 +3523,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -3734,9 +3734,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -4042,9 +4042,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -4168,9 +4168,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -4294,9 +4294,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -4420,9 +4420,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -4520,7 +4520,7 @@
           "202" : {
             "description" : "Accepted; or held for approval: the operation has not run",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -4633,9 +4633,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -4943,9 +4943,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -5251,9 +5251,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -6052,9 +6052,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -6387,9 +6387,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -6828,7 +6828,7 @@
           "202" : {
             "description" : "Started: the run; or held for approval: the operation has not run",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -9051,9 +9051,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -9221,9 +9221,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -10553,7 +10553,7 @@
           "202" : {
             "description" : "Started: the run; or held for approval: the operation has not run",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -12913,9 +12913,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -13028,7 +13028,7 @@
           "202" : {
             "description" : "Accepted; or held for approval: the operation has not run",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -13153,9 +13153,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -13268,7 +13268,7 @@
           "202" : {
             "description" : "Accepted; or held for approval: the operation has not run",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -13482,9 +13482,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -13597,7 +13597,7 @@
           "202" : {
             "description" : "Accepted; or held for approval: the operation has not run",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -13875,9 +13875,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -14079,9 +14079,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -14561,9 +14561,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -14697,9 +14697,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -15062,9 +15062,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -15316,9 +15316,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -16555,15 +16555,15 @@
     },
     "/api/v1/system/health" : {
       "get" : {
-        "tags" : [ "studio-health-controller" ],
-        "operationId" : "studioHealth",
+        "tags" : [ "rahdar-health-controller" ],
+        "operationId" : "rahdarHealth",
         "responses" : {
           "200" : {
             "description" : "OK",
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/StudioHealth"
+                  "$ref" : "#/components/schemas/RahdarHealth"
                 }
               }
             }
@@ -24758,9 +24758,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -24890,9 +24890,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -25097,9 +25097,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -25214,9 +25214,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -25420,9 +25420,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -25663,9 +25663,9 @@
             }
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -26122,9 +26122,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -26230,9 +26230,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -26339,9 +26339,9 @@
             "description" : "No Content"
           },
           "202" : {
-            "description" : "Held for approval: the operation has not run. X-Studio-Held-Operation names the request.",
+            "description" : "Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request.",
             "headers" : {
-              "X-Studio-Held-Operation" : {
+              "X-Rahdar-Held-Operation" : {
                 "description" : "The held operation's id, when the operation was held.",
                 "schema" : {
                   "type" : "string",
@@ -27064,7 +27064,7 @@
       },
       "ConfigBridgeView" : {
         "type" : "object",
-        "description" : "One bridge; a null field is not declared and keeps the broker's default. The credential is a reference into Studio's vault and never a value",
+        "description" : "One bridge; a null field is not declared and keeps the broker's default. The credential is a reference into Rahdar's vault and never a value",
         "properties" : {
           "name" : {
             "type" : "string"
@@ -27153,7 +27153,7 @@
           },
           "credentialRef" : {
             "type" : [ "string", "null" ],
-            "description" : "Names a credential held in Studio's vault; never a password"
+            "description" : "Names a credential held in Rahdar's vault; never a password"
           }
         },
         "required" : [ "forwardingAddress", "name", "queueName", "staticConnectors" ]
@@ -27359,7 +27359,7 @@
           },
           "applyMode" : {
             "type" : "string",
-            "enum" : [ "STUDIO_MANAGED", "CONFIG_MANAGED" ]
+            "enum" : [ "RAHDAR_MANAGED", "CONFIG_MANAGED" ]
           },
           "reportUndeclared" : {
             "type" : "boolean"
@@ -27462,7 +27462,7 @@
           },
           "basis" : {
             "type" : [ "string", "null" ],
-            "description" : "Why an IN_SYNC node agrees: Studio applied and read it back, the declaration was adopted from this cluster, or an evaluation simply found them equal. Null unless the node is IN_SYNC",
+            "description" : "Why an IN_SYNC node agrees: Rahdar applied and read it back, the declaration was adopted from this cluster, or an evaluation simply found them equal. Null unless the node is IN_SYNC",
             "enum" : [ "VERIFIED_APPLY", "ADOPTED", "OBSERVED_MATCH", null ]
           },
           "basisRef" : {
@@ -27475,7 +27475,7 @@
       },
       "BridgeCredentialRequest" : {
         "type" : "object",
-        "description" : "Store or replace a bridge credential. The password is sealed in Studio's vault and is never returned by any read, diff, audit row, tool response or export",
+        "description" : "Store or replace a bridge credential. The password is sealed in Rahdar's vault and is never returned by any read, diff, audit row, tool response or export",
         "properties" : {
           "username" : {
             "type" : [ "string", "null" ],
@@ -27998,7 +27998,7 @@
           },
           "restart" : {
             "type" : "string",
-            "description" : "NONE; AUTOMATIC: Studio restarts itself once confirmed; MANUAL: restart it yourself.",
+            "description" : "NONE; AUTOMATIC: Rahdar restarts itself once confirmed; MANUAL: restart it yourself.",
             "enum" : [ "NONE", "AUTOMATIC", "MANUAL" ]
           },
           "trust" : {
@@ -29716,7 +29716,7 @@
           },
           "scanned" : {
             "type" : "array",
-            "description" : "The predicates Studio evaluates. These cost a scan.",
+            "description" : "The predicates Rahdar evaluates. These cost a scan.",
             "items" : {
               "type" : "string"
             }
@@ -29939,7 +29939,7 @@
         "properties" : {
           "addresses" : {
             "type" : "array",
-            "description" : "The addresses the pattern resolves to. Studio's own capture addresses are never included.",
+            "description" : "The addresses the pattern resolves to. Rahdar's own capture addresses are never included.",
             "items" : {
               "type" : "string"
             }
@@ -30730,7 +30730,7 @@
           },
           "removeUndeclared" : {
             "type" : [ "boolean", "null" ],
-            "description" : "Also remove settings and diverts Studio did not apply"
+            "description" : "Also remove settings and diverts Rahdar did not apply"
           },
           "acknowledgedHazards" : {
             "type" : [ "array", "null" ],
@@ -31508,7 +31508,7 @@
           },
           "providerId" : {
             "type" : "string",
-            "description" : "The provider the account signs in with: local, or the id of another one. Only a local account's password is changed in Studio."
+            "description" : "The provider the account signs in with: local, or the id of another one. Only a local account's password is changed in Rahdar."
           },
           "secondFactorEnrolmentRequired" : {
             "type" : "boolean",
@@ -31990,8 +31990,8 @@
         "properties" : {
           "applyMode" : {
             "type" : "string",
-            "enum" : [ "STUDIO_MANAGED", "CONFIG_MANAGED" ],
-            "pattern" : "STUDIO_MANAGED|CONFIG_MANAGED"
+            "enum" : [ "RAHDAR_MANAGED", "CONFIG_MANAGED" ],
+            "pattern" : "RAHDAR_MANAGED|CONFIG_MANAGED"
           },
           "reportUndeclared" : {
             "type" : "boolean"
@@ -32727,7 +32727,7 @@
           },
           "node" : {
             "type" : [ "string", "null" ],
-            "description" : "The node's host:port; null while Studio has no management address for it."
+            "description" : "The node's host:port; null while Rahdar has no management address for it."
           },
           "lastSuccess" : {
             "type" : [ "string", "null" ],
@@ -32792,6 +32792,48 @@
           }
         }
       },
+      "RahdarHealth" : {
+        "type" : "object",
+        "properties" : {
+          "jobs" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/JobHealth"
+            }
+          },
+          "nodes" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/NodeHealth"
+            }
+          },
+          "replicas" : {
+            "type" : "array",
+            "description" : "Every replica seen in the last ten minutes, including stopped and gone ones.",
+            "items" : {
+              "$ref" : "#/components/schemas/ReplicaHealth"
+            }
+          },
+          "answeringReplica" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "The replica that answered; node figures are its view."
+          },
+          "dbPool" : {
+            "$ref" : "#/components/schemas/PoolHealth"
+          },
+          "streamClients" : {
+            "type" : [ "integer", "null" ],
+            "format" : "int32",
+            "description" : "Event stream clients connected to this instance."
+          },
+          "degraded" : {
+            "type" : "boolean",
+            "description" : "Any job, node or replica is degraded."
+          }
+        },
+        "required" : [ "answeringReplica", "dbPool", "degraded", "jobs", "nodes", "replicas" ]
+      },
       "ReplicaHealth" : {
         "type" : "object",
         "properties" : {
@@ -32835,48 +32877,6 @@
           }
         },
         "required" : [ "degraded", "heartbeatAgeMillis", "host", "id", "ownedClusters", "self", "startedAt", "state", "version" ]
-      },
-      "StudioHealth" : {
-        "type" : "object",
-        "properties" : {
-          "jobs" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/JobHealth"
-            }
-          },
-          "nodes" : {
-            "type" : "array",
-            "items" : {
-              "$ref" : "#/components/schemas/NodeHealth"
-            }
-          },
-          "replicas" : {
-            "type" : "array",
-            "description" : "Every replica seen in the last ten minutes, including stopped and gone ones.",
-            "items" : {
-              "$ref" : "#/components/schemas/ReplicaHealth"
-            }
-          },
-          "answeringReplica" : {
-            "type" : "string",
-            "format" : "uuid",
-            "description" : "The replica that answered; node figures are its view."
-          },
-          "dbPool" : {
-            "$ref" : "#/components/schemas/PoolHealth"
-          },
-          "streamClients" : {
-            "type" : [ "integer", "null" ],
-            "format" : "int32",
-            "description" : "Event stream clients connected to this instance."
-          },
-          "degraded" : {
-            "type" : "boolean",
-            "description" : "Any job, node or replica is degraded."
-          }
-        },
-        "required" : [ "answeringReplica", "dbPool", "degraded", "jobs", "nodes", "replicas" ]
       },
       "SseEmitter" : {
         "type" : "object",
@@ -33340,7 +33340,7 @@
           },
           "source" : {
             "type" : "string",
-            "description" : "Who posted it: a Studio feature or a plugin id."
+            "description" : "Who posted it: a Rahdar feature or a plugin id."
           },
           "kind" : {
             "type" : "string"
@@ -33357,7 +33357,7 @@
           },
           "link" : {
             "type" : [ "string", "null" ],
-            "description" : "A path inside Studio."
+            "description" : "A path inside Rahdar."
           },
           "data" : {
             "type" : [ "object", "null" ],
@@ -33511,7 +33511,7 @@
           },
           "attached" : {
             "type" : "boolean",
-            "description" : "Whether the provider runs on this Studio instance."
+            "description" : "Whether the provider runs on this Rahdar instance."
           },
           "breakGlass" : {
             "type" : "boolean",
@@ -33594,7 +33594,7 @@
       "SummaryView" : {
         "type" : "object",
         "properties" : {
-          "studioVersion" : {
+          "rahdarVersion" : {
             "type" : "string"
           },
           "contractVersion" : {
@@ -33611,7 +33611,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "contractVersion", "database", "java", "os", "studioVersion" ]
+        "required" : [ "contractVersion", "database", "java", "os", "rahdarVersion" ]
       },
       "StoreView" : {
         "type" : "object",
@@ -34566,7 +34566,7 @@
           "requestEnqueuedAt" : {
             "type" : [ "string", "null" ],
             "format" : "date-time",
-            "description" : "When the request says it was produced, on Studio's clock"
+            "description" : "When the request says it was produced, on Rahdar's clock"
           },
           "replyEnqueuedAt" : {
             "type" : [ "string", "null" ],
@@ -34676,7 +34676,7 @@
         "properties" : {
           "verdict" : {
             "type" : "string",
-            "description" : "UNKNOWN, IN_AGREEMENT, BROKER_SKEWED, or STUDIO_SUSPECT — the last meaning every node disagrees the same way, so the common factor is Studio's own host"
+            "description" : "UNKNOWN, IN_AGREEMENT, BROKER_SKEWED, or RAHDAR_SUSPECT — the last meaning every node disagrees the same way, so the common factor is Rahdar's own host"
           },
           "worstOffsetMs" : {
             "type" : [ "integer", "null" ],
@@ -35634,7 +35634,7 @@
             "type" : [ "integer", "null" ],
             "format" : "int32"
           },
-          "studio" : {
+          "rahdar" : {
             "type" : "boolean"
           },
           "faults" : {
@@ -35651,7 +35651,7 @@
             }
           }
         },
-        "required" : [ "bypassed", "stale", "studio" ]
+        "required" : [ "bypassed", "rahdar", "stale" ]
       },
       "FlowFocusView" : {
         "type" : "object",
@@ -36111,7 +36111,7 @@
           },
           "owner" : {
             "type" : [ "string", "null" ],
-            "description" : "What in Studio owns this divert, when Studio's own records say it does: MESSAGE_CAPTURE for a capture tap, OPERATOR for one created through the routing screen. Null means Studio has no record of it, which is not a claim that it came from broker configuration."
+            "description" : "What in Rahdar owns this divert, when Rahdar's own records say it does: MESSAGE_CAPTURE for a capture tap, OPERATOR for one created through the routing screen. Null means Rahdar has no record of it, which is not a claim that it came from broker configuration."
           },
           "captureSubscriptionId" : {
             "type" : [ "string", "null" ],
@@ -36120,7 +36120,7 @@
           },
           "brokerXml" : {
             "type" : [ "string", "null" ],
-            "description" : "The <divert> element that would make broker configuration carry this divert, when owner is OPERATOR: Studio created it, so the deployed broker.xml does not."
+            "description" : "The <divert> element that would make broker configuration carry this divert, when owner is OPERATOR: Rahdar created it, so the deployed broker.xml does not."
           },
           "nodesPresent" : {
             "type" : "integer",
@@ -36517,7 +36517,7 @@
           },
           "appliable" : {
             "type" : "boolean",
-            "description" : "Whether Studio can write this over the management API, or the operator must edit broker.xml and restart"
+            "description" : "Whether Rahdar can write this over the management API, or the operator must edit broker.xml and restart"
           },
           "section" : {
             "type" : [ "string", "null" ],
@@ -36543,7 +36543,7 @@
           },
           "accountRoles" : {
             "type" : "array",
-            "description" : "For a security setting: the roles of the account Studio connects to Core with, as the broker's user management reports them; empty when it could not",
+            "description" : "For a security setting: the roles of the account Rahdar connects to Core with, as the broker's user management reports them; empty when it could not",
             "items" : {
               "type" : "string"
             }
@@ -36602,7 +36602,7 @@
       },
       "ConfigNodeConnectorsView" : {
         "type" : "object",
-        "description" : "One node's connector names, for a bridge to reference. known=false means Studio could not read them, not that there are none",
+        "description" : "One node's connector names, for a bridge to reference. known=false means Rahdar could not read them, not that there are none",
         "properties" : {
           "nodeId" : {
             "type" : "string",
@@ -37880,7 +37880,7 @@
             "$ref" : "#/components/schemas/PluginBudgetView"
           },
           "restart" : {
-            "$ref" : "#/components/schemas/StudioRestartView"
+            "$ref" : "#/components/schemas/RahdarRestartView"
           },
           "plugins" : {
             "type" : "array",
@@ -37891,7 +37891,7 @@
         },
         "required" : [ "budget", "canInstall", "plugins", "restart", "safeMode", "uploadEnabled" ]
       },
-      "StudioRestartView" : {
+      "RahdarRestartView" : {
         "type" : "object",
         "properties" : {
           "supervised" : {

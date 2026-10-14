@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:feature-alerting-0001-baseline splitStatements:true
+--changeset rahdar:feature-alerting-0001-baseline splitStatements:true
 CREATE TABLE alert_delivery (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     next_attempt_at timestamp with time zone DEFAULT now() NOT NULL,

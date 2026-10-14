@@ -50,7 +50,7 @@ export interface SlotProps {
   'queues.selection': { clusterId: string; selection: QueueSelection; count: number; clear: () => void };
   /**
    * Beside the messages screen's selection: what can be done to the selected messages elsewhere.
-   * `node` is the Studio node being browsed, absent for the live node; `total` is how many messages
+   * `node` is the Rahdar node being browsed, absent for the live node; `total` is how many messages
    * the selection holds, null when the screen does not know. `clear` empties the selection.
    */
   'messages.selection': {
@@ -79,7 +79,7 @@ export interface SlotProps {
   /** A section of the signed-in user's Account page, under the contribution's title. */
   'account.sections': object;
   /**
-   * On an approval request's page, above Studio's own Approve and Reject: what an installed approval provider
+   * On an approval request's page, above Rahdar's own Approve and Reject: what an installed approval provider
    * shows an approver, such as its policy's checks or its own decision controls. `heldOperation` is the request
    * as the page shows it; `refresh` fetches it again after the contribution changed it.
    */
@@ -107,7 +107,7 @@ export interface SlotProps {
 
   /*
    * Links (ADR-0107): the owning feature's link to one resource, wrapping its name. Built-in only —
-   * a plugin may not decide where Studio's own resource links lead.
+   * a plugin may not decide where Rahdar's own resource links lead.
    */
   'queue.link': LinkProps<QueueTarget>;
   'address.link': LinkProps<AddressTarget>;
@@ -119,12 +119,12 @@ export type SlotName = keyof SlotProps;
 
 /**
  * The closed, ordered headings a Settings page groups its tabs under, in the order an operator's
- * reach widens: their own preferences, then what is shared across Studio, then this cluster, then
+ * reach widens: their own preferences, then what is shared across Rahdar, then this cluster, then
  * what plugins added. Adding one is a kernel change, like a navigation group (ADR-0070).
  */
 export const SETTINGS_GROUPS = [
   { id: 'personal', label: 'Yours' },
-  { id: 'studio', label: 'Studio' },
+  { id: 'rahdar', label: 'Rahdar' },
   { id: 'cluster', label: 'This cluster' },
   { id: 'plugins', label: 'Plugins' },
 ] as const;

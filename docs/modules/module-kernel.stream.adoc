@@ -1,38 +1,38 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.kernel.stream`
+|`io.github.sudoitir.rahdar.kernel.stream`
 |Spring components
 |_Event listeners_
 
-* `i.g.s.a.k.s.SseHub`
-* `i.g.s.a.k.s.UserStreamHub`
+* `i.g.s.r.k.s.SseHub`
+* `i.g.s.r.k.s.UserStreamHub`
 
 _Configuration properties_
 
-* `i.g.s.a.k.s.SseProperties`
+* `i.g.s.r.k.s.SseProperties`
 
 _Others_
 
-* `i.g.s.a.k.s.StreamAccess` (via `i.g.s.a.k.s.PermissionStreamAccess`)
-* `i.g.s.a.k.s.StreamSettings`
-* `i.g.s.a.k.s.StreamTopicRegistry`
-* `i.g.s.a.k.s.UserSignals`
+* `i.g.s.r.k.s.StreamAccess` (via `i.g.s.r.k.s.PermissionStreamAccess`)
+* `i.g.s.r.k.s.StreamSettings`
+* `i.g.s.r.k.s.StreamTopicRegistry`
+* `i.g.s.r.k.s.UserSignals`
 |Bean references
-|* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.k.r.StudioBus` (in Replicas)
-* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
-* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
+|* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.k.r.RahdarBus` (in Replicas)
+* `i.g.s.r.k.p.FeatureRegistry` (in Plugin contract)
+* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.k.r.ReplicaRegistry` (in Replicas)
 |Events listened to
-|* `i.g.s.a.k.r.BusResumed` 
-* `i.g.s.a.k.r.BusFrame` 
-* `i.g.s.a.k.r.ReplicaSignal` 
-* `i.g.s.a.k.s.SessionIdChanged` 
-* `i.g.s.a.k.r.ReplicaSignal` 
-* `i.g.s.a.k.r.BusResumed` 
-* `i.g.s.a.k.r.ReplicaSignal` 
-* `i.g.s.a.k.s.SessionIdChanged` 
-* `i.g.s.a.k.r.ReplicaSignal` 
-* `i.g.s.a.k.r.ReplicaSignal` 
+|* `i.g.s.r.k.r.BusResumed` 
+* `i.g.s.r.k.r.BusFrame` 
+* `i.g.s.r.k.r.ReplicaSignal` 
+* `i.g.s.r.k.s.SessionIdChanged` 
+* `i.g.s.r.k.r.ReplicaSignal` 
+* `i.g.s.r.k.r.BusResumed` 
+* `i.g.s.r.k.r.ReplicaSignal` 
+* `i.g.s.r.k.s.SessionIdChanged` 
+* `i.g.s.r.k.r.ReplicaSignal` 
+* `i.g.s.r.k.r.ReplicaSignal` 
 |===

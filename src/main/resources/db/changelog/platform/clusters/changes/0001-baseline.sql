@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:platform-clusters-0001-baseline splitStatements:true
+--changeset rahdar:platform-clusters-0001-baseline splitStatements:true
 CREATE TABLE broker_credential (
     kind text NOT NULL,
     username text,
@@ -148,7 +148,7 @@ ALTER TABLE ONLY cluster
 ALTER TABLE ONLY cluster_lease
     ADD CONSTRAINT fk_cluster_lease_cluster FOREIGN KEY (cluster_id) REFERENCES cluster(id) ON DELETE CASCADE;
 
-COMMENT ON COLUMN broker_node.clock_offset_ms IS 'How far ahead of Studio this broker''s clock is, in milliseconds; negative means behind. Measured from the Jolokia response timestamp (ADR-0053). NULL means never measured, not zero.';
+COMMENT ON COLUMN broker_node.clock_offset_ms IS 'How far ahead of Rahdar this broker''s clock is, in milliseconds; negative means behind. Measured from the Jolokia response timestamp (ADR-0053). NULL means never measured, not zero.';
 
 COMMENT ON COLUMN broker_node.clock_uncertainty_ms IS 'Half the best round trip plus Jolokia''s second granularity. An offset inside this band is indistinguishable from agreement and is never reported as skew.';
 

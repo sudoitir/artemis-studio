@@ -1,10 +1,10 @@
 package com.acme.notes;
 
-import io.github.sudoitir.artemisstudio.kernel.plugin.ResourceKind;
-import io.github.sudoitir.artemisstudio.kernel.security.ClusterAccessGuard;
-import io.github.sudoitir.artemisstudio.kernel.security.PermissionResolver;
-import io.github.sudoitir.artemisstudio.kernel.security.ResourceFilter;
-import io.github.sudoitir.artemisstudio.kernel.security.ResourceRef;
+import io.github.sudoitir.rahdar.kernel.plugin.ResourceKind;
+import io.github.sudoitir.rahdar.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.rahdar.kernel.security.PermissionResolver;
+import io.github.sudoitir.rahdar.kernel.security.ResourceFilter;
+import io.github.sudoitir.rahdar.kernel.security.ResourceRef;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -22,13 +22,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The plugin's API. Studio forwards {@code /api/v1/clusters/{clusterId}/p/acme-notes/**} (and
+ * The plugin's API. Rahdar forwards {@code /api/v1/clusters/{clusterId}/p/acme-notes/**} (and
  * {@code /api/v1/p/acme-notes/**} for anything outside a cluster) here, after its own sign-in
  * checks.
  *
  * <p>The permissions are {@code resource} permissions: they act on one queue, so a platform role grants them
  * everywhere it reaches, and a team role grants them on the queues the team owns. {@link ClusterAccessGuard}
- * checks one queue and answers as Studio does (a queue the caller may not read is not found; one they may read
+ * checks one queue and answers as Rahdar does (a queue the caller may not read is not found; one they may read
  * and may not change is refused, naming the permission), and {@link PermissionResolver#filter} decides which
  * rows of a list the caller may see.
  */
@@ -83,7 +83,7 @@ public class NotesController {
         return NoteView.of(notes.add(clusterId, queue, note.body() == null ? "" : note.body()));
     }
 
-    /** A rejected note answers 400 with the reason, as a problem detail like Studio's own. */
+    /** A rejected note answers 400 with the reason, as a problem detail like Rahdar's own. */
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail invalid(IllegalArgumentException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());

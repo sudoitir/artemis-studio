@@ -257,7 +257,7 @@ describe('MessagesView', () => {
     renderWithProviders(<MessagesView />);
 
     const alert = await screen.findByRole('alert');
-    expect(within(alert).getByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(within(alert).getByText('Rahdar failed to complete the request')).toBeInTheDocument();
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     expect(screen.queryByText('This queue has no messages')).not.toBeInTheDocument();
   });
@@ -401,7 +401,7 @@ describe('the purge and the bulk safety cap', () => {
     await holdButton(within(dialog).getByRole('button', { name: 'Purge queue' }));
 
     await vi.waitFor(() => expect(urls).toHaveLength(2));
-    // The server's cap is the only guard left when Studio cannot state a blast radius.
+    // The server's cap is the only guard left when Rahdar cannot state a blast radius.
     expect(urls.at(-1)).not.toContain('override=true');
   });
 

@@ -60,9 +60,9 @@ function OutcomeNote({
         <Stack gap="xs">
           {plan.info.contributions.ui ? (
             <>
-              <Text size="sm">Reload Studio to load its screens.</Text>
+              <Text size="sm">Reload Rahdar to load its screens.</Text>
               <Button className={styles.start} onClick={() => globalThis.location.reload()}>
-                Reload Studio
+                Reload Rahdar
               </Button>
             </>
           ) : (
@@ -87,11 +87,11 @@ function OutcomeNote({
   }
   if (restart?.supervised || serverDown) {
     return (
-      <Notice title="Studio is restarting" tone="info">
+      <Notice title="Rahdar is restarting" tone="info">
         <div className={styles.progressLine}>
-          <LoadingState variant="inline" label="Waiting for Studio to come back" />
+          <LoadingState variant="inline" label="Waiting for Rahdar to come back" />
           <Text size="sm">
-            {title} starts with it. This page reconnects by itself; everyone is disconnected until Studio is back,
+            {title} starts with it. This page reconnects by itself; everyone is disconnected until Rahdar is back,
             usually under a minute.
           </Text>
         </div>
@@ -99,10 +99,10 @@ function OutcomeNote({
     );
   }
   return (
-    <Notice title={`${title} starts when Studio restarts`} tone="warning">
+    <Notice title={`${title} starts when Rahdar restarts`} tone="warning">
       <Stack gap="xs">
-        <Text size="sm">Studio cannot restart itself where it runs. Restart it with:</Text>
-        <Code block>{restart?.command ?? 'docker compose restart studio'}</Code>
+        <Text size="sm">Rahdar cannot restart itself where it runs. Restart it with:</Text>
+        <Code block>{restart?.command ?? 'docker compose restart rahdar'}</Code>
       </Stack>
     </Notice>
   );
@@ -112,7 +112,7 @@ function OutcomeNote({
  * Where an activation has got to, and how it ended (design.md §8), from the plugin's own
  * status — polled every second while it runs. Closing the dialog never stops it; this is only a
  * view. Four outcomes, each with the next action: active; failed, with the cause and what is still
- * running; waiting for a restart Studio makes itself; waiting for one the operator must make.
+ * running; waiting for a restart Rahdar makes itself; waiting for one the operator must make.
  */
 export function ActivationProgress({
   plan,

@@ -1,7 +1,7 @@
 # connection-control Specification
 
 ## Purpose
-Closing a connection, a session or an address's consumers from Studio: what a close does to in-flight messages, how it is bounded by the bulk safety cap, and how it is permission-gated and audited.
+Closing a connection, a session or an address's consumers from Rahdar: what a close does to in-flight messages, how it is bounded by the bulk safety cap, and how it is permission-gated and audited.
 
 ## Requirements
 

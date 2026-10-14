@@ -1,31 +1,31 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.kernel.lifecycle`
+|`io.github.sudoitir.rahdar.kernel.lifecycle`
 |Spring components
 |_Services_
 
-* `i.g.s.a.k.l.LifecycleService`
-* `i.g.s.a.k.l.StorageHealthService`
+* `i.g.s.r.k.l.LifecycleService`
+* `i.g.s.r.k.l.StorageHealthService`
 
 _Others_
 
-* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.AccessChangeLogStore`)
-* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.AuditStore`)
-* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.ExpiredSessionStore`)
-* `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.ExpiringTables`)
-* `i.g.s.a.k.l.Housekeeper`
-* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.IdempotencyStore`)
-* `i.g.s.a.k.l.LifecycleRegistry`
-* `i.g.s.a.k.l.LifecycleSettings`
-* `i.g.s.a.k.l.PurgeStatus`
-* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.ReplicaStore`)
-* `i.g.s.a.k.l.ManagedStore`, `i.g.s.a.k.l.HousekeepingContributor` (via `i.g.s.a.k.l.StorageSampleStore`)
-* `i.g.s.a.k.l.partition.PartitionDrops`
-* `i.g.s.a.k.l.partition.PartitionMaintainer`
-* `i.g.s.a.k.l.partition.PartitionSpec`
+* `i.g.s.r.k.l.ManagedStore`, `i.g.s.r.k.l.HousekeepingContributor` (via `i.g.s.r.k.l.AccessChangeLogStore`)
+* `i.g.s.r.k.l.ManagedStore`, `i.g.s.r.k.l.HousekeepingContributor` (via `i.g.s.r.k.l.AuditStore`)
+* `i.g.s.r.k.l.ManagedStore`, `i.g.s.r.k.l.HousekeepingContributor` (via `i.g.s.r.k.l.ExpiredSessionStore`)
+* `i.g.s.r.k.l.HousekeepingContributor` (via `i.g.s.r.k.l.ExpiringTables`)
+* `i.g.s.r.k.l.Housekeeper`
+* `i.g.s.r.k.l.ManagedStore`, `i.g.s.r.k.l.HousekeepingContributor` (via `i.g.s.r.k.l.IdempotencyStore`)
+* `i.g.s.r.k.l.LifecycleRegistry`
+* `i.g.s.r.k.l.LifecycleSettings`
+* `i.g.s.r.k.l.PurgeStatus`
+* `i.g.s.r.k.l.ManagedStore`, `i.g.s.r.k.l.HousekeepingContributor` (via `i.g.s.r.k.l.ReplicaStore`)
+* `i.g.s.r.k.l.ManagedStore`, `i.g.s.r.k.l.HousekeepingContributor` (via `i.g.s.r.k.l.StorageSampleStore`)
+* `i.g.s.r.k.l.partition.PartitionDrops`
+* `i.g.s.r.k.l.partition.PartitionMaintainer`
+* `i.g.s.r.k.l.partition.PartitionSpec`
 |Bean references
-|* `i.g.s.a.k.a.AuditRetentionGuard` (in Audit delivery)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
+|* `i.g.s.r.k.a.AuditRetentionGuard` (in Audit delivery)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
 |===

@@ -12,11 +12,11 @@ happened, so the running broker and the `broker.xml` it will be deployed from
 next silently disagree.
 
 This page is about the feature that closes that gap. A cluster gets a
-**declaration** — what it should run — and Studio measures every live node
+**declaration** — what it should run — and Rahdar measures every live node
 against it, applies it where you ask, and tells you in words when a node has
 drifted.
 
-![A cluster with live nodes and no declaration, offering to adopt what it runs as revision 1, with the counts per section and the reason Studio will not do it on its own](/img/config-first-run.png)
+![A cluster with live nodes and no declaration, offering to adopt what it runs as revision 1, with the counts per section and the reason Rahdar will not do it on its own](/img/config-first-run.png)
 
 ## What a declaration is
 
@@ -39,16 +39,16 @@ for them and nothing pretends otherwise.
 The mode is set per cluster in the declaration header, and both actions are
 always visible:
 
-- **Managed by Studio.** *Review & apply* writes the declaration to every live
+- **Managed by Rahdar.** *Review & apply* writes the declaration to every live
   node over the management API. The change is durable across restarts, and the
   next drift evaluation shows the nodes in sync.
-- **Managed outside Studio.** *Copy broker.xml fragment* renders the declaration
+- **Managed outside Rahdar.** *Copy broker.xml fragment* renders the declaration
   as the four sections of a `<core>` element for your own configuration
   management. Apply is disabled and says why. Drift is still evaluated, so you
   learn when your deployment matches.
 
-Studio never writes `broker.xml` and never calls `reloadConfigurationFile` — the
-reload re-reads the whole file from the broker's disk, including edits Studio has
+Rahdar never writes `broker.xml` and never calls `reloadConfigurationFile` — the
+reload re-reads the whole file from the broker's disk, including edits Rahdar has
 never seen, which is exactly the kind of action that cannot be previewed.
 
 ## Getting a first declaration
@@ -60,7 +60,7 @@ and any disagreement between nodes named before you open anything. It is a read
 **Review and adopt as revision 1** opens the ordinary adoption preview, where
 the counts appear again beside the confirmation.
 
-Studio adopts only when an operator says so: as a step of registering the cluster (the check offers it,
+Rahdar adopts only when an operator says so: as a step of registering the cluster (the check offers it,
 on by default when the nodes agree), or here, for a cluster registered without it. An adoption declares that whatever the brokers
 happen to be running right now is *intended*, including a setting someone
 changed by hand an hour ago and has not finished thinking about. Only an
@@ -95,7 +95,7 @@ Three ways in, from the Configuration view:
    info control with what it governs and an example value, and the long tail
    behind *Other keys* has a finder.
 
-One thing the broker cannot tell Studio: the `view` and `edit` permission types
+One thing the broker cannot tell Rahdar: the `view` and `edit` permission types
 of a security setting are accepted over management but never reported back
 (measured on 2.44). They are sent, left out of the plan, the verification and
 the drift check, and the editor says so — confirm those two in the broker's own
@@ -113,9 +113,9 @@ management API accepts at runtime. The **Recommended** tab turns those into a
 declaration you can apply, instead of a snippet you have to go and paste
 (ADR-0068).
 
-![The Recommended tab: two settings Studio can apply, each shown as the whole entry the node runs today with the recommended keys in bold above the keys the write also carries](/img/config-recommended.png)
+![The Recommended tab: two settings Rahdar can apply, each shown as the whole entry the node runs today with the recommended keys in bold above the keys the write also carries](/img/config-recommended.png)
 
-Three are appliable today — returning whole message bodies to Studio
+Three are appliable today — returning whole message bodies to Rahdar
 (`management-message-attribute-size-limit`), slow-consumer detection, and the
 `activemq.notifications` permission. Each is shown as the **whole entry** the
 node runs right now with the recommended keys changed on top, because a runtime
@@ -132,7 +132,7 @@ Declaring saves an ordinary revision with source `RECOMMENDED`, so the audit
 trail says where it came from, and lands you on the plan. Nothing reaches a
 broker until you confirm that apply like any other. A recommendation disappears
 once the probe can read its effect back, which is why only the three above are
-offered: a recommendation Studio cannot observe as done would never go away.
+offered: a recommendation Rahdar cannot observe as done would never go away.
 
 Registering a cluster previews the same panel on a passing connection check, and
 takes you to it once the cluster exists.
@@ -196,7 +196,7 @@ acknowledged, by id, on the plan:
 | Management access | a security setting covers the management address, or the match is `#` / `*` |
 | Broad match | a match of `#` or `*` — every address on the broker |
 | Exclusive divert | traffic is taken away, not copied |
-| Remove undeclared | you opted into removing something Studio did not apply |
+| Remove undeclared | you opted into removing something Rahdar did not apply |
 
 Medium and Low hazards (a divert replaced, a DLQ moved, auto-delete enabled,
 an owned item removed) are stated and need no acknowledgement.
@@ -235,12 +235,12 @@ than that unless overridden, and the override is recorded.
 ### What an apply never does
 
 - **Destroy a queue or an address.** Removing one from the declaration stops
-  Studio checking for it. Deleting it is the queue's own flow, with its bulk cap.
-- **Remove something it did not apply.** Studio records what it applied. A
+  Rahdar checking for it. Deleting it is the queue's own flow, with its bulk cap.
+- **Remove something it did not apply.** Rahdar records what it applied. A
   setting or divert on a node that the declaration does not mention is reported
   as *undeclared*; removing it is a per-plan opt-in with its own High hazard,
   because if `broker.xml` also has it the removal reverts on the next restart
-  and Studio cannot tell.
+  and Rahdar cannot tell.
 - **Run on a timer.** Drift evaluation is scheduled; the apply never is. A rule
   can alert on drift (`CONFIG_DRIFT`); nothing can act on it for you.
 

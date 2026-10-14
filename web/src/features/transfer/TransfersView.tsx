@@ -24,7 +24,7 @@ import classes from './TransfersView.module.css';
 import { plural } from './words.ts';
 
 /**
- * Staging left on a broker by a run Studio no longer has: the one way messages could strand.
+ * Staging left on a broker by a run Rahdar no longer has: the one way messages could strand.
  * It is never cleaned up behind the operator's back — each one is listed with its depth and a
  * return action that names the queue the messages go back to.
  */
@@ -53,7 +53,7 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
     return (
       <Section
         title="Staging queues with no run"
-        description="Studio could not check for them. If a transfer was interrupted, its messages may still be held on a broker."
+        description="Rahdar could not check for them. If a transfer was interrupted, its messages may still be held on a broker."
       >
         <ErrorState variant="inline" error={query.error} onRetry={() => void query.refetch()} />
       </Section>
@@ -65,7 +65,7 @@ function Orphans({ clusterId }: Readonly<{ clusterId: string }>) {
   return (
     <Section
       title="Staging queues with no run"
-      description="These hold messages a transfer took off a queue before Studio lost the run. Nothing is lost: return each one to the queue the messages came from, and Studio removes the staging queue afterwards."
+      description="These hold messages a transfer took off a queue before Rahdar lost the run. Nothing is lost: return each one to the queue the messages came from, and Rahdar removes the staging queue afterwards."
     >
       {query.data.map((orphan) => (
         <Group key={`${orphan.nodeId}:${orphan.stagingQueue}`} gap="sm">

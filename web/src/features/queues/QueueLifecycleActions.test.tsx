@@ -548,7 +548,7 @@ describe('a pause the broker refused', () => {
     await user.click(pause);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(alert).toHaveTextContent('node-a did not answer.');
     expect(alert).toHaveTextContent('Retry.');
     expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled();

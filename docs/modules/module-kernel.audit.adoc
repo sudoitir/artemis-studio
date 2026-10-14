@@ -1,30 +1,30 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.kernel.audit`
+|`io.github.sudoitir.rahdar.kernel.audit`
 |Spring components
 |_Controllers_
 
-* `i.g.s.a.k.a.web.AuditController`
+* `i.g.s.r.k.a.web.AuditController`
 
 _Services_
 
-* `i.g.s.a.k.a.AuditFeed`
-* `i.g.s.a.k.a.AuditQueryService`
-* `i.g.s.a.k.a.AuditService`
+* `i.g.s.r.k.a.AuditFeed`
+* `i.g.s.r.k.a.AuditQueryService`
+* `i.g.s.r.k.a.AuditService`
 
 _Others_
 
-* `i.g.s.a.k.a.AuditParamsFilter` (via `i.g.s.a.k.a.CredentialAuditParamsFilter`)
+* `i.g.s.r.k.a.AuditParamsFilter` (via `i.g.s.r.k.a.CredentialAuditParamsFilter`)
 |Bean references
-|* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
-* `i.g.s.a.k.s.ScopeHierarchy` (in Security)
-* `i.g.s.a.k.c.HeavyRequests` (in Core)
-* `i.g.s.a.k.c.ReadRouting` (in Core)
-* `i.g.s.a.k.c.PartitionProvisioner` (in Core)
+|* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
+* `i.g.s.r.k.s.ScopeHierarchy` (in Security)
+* `i.g.s.r.k.c.HeavyRequests` (in Core)
+* `i.g.s.r.k.c.ReadRouting` (in Core)
+* `i.g.s.r.k.c.PartitionProvisioner` (in Core)
 |Events listened to
 |* `org.springframework.security.authorization.event.AuthorizationDeniedEvent` 
-* `i.g.s.a.k.s.AccessRefused` 
+* `i.g.s.r.k.s.AccessRefused` 
 |===

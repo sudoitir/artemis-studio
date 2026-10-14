@@ -359,7 +359,7 @@ describe('ChannelEditor: sending a test', () => {
     await user.type(d.getByLabelText(/^Workflow webhook URL/), 'https://example.logic.azure.com/x');
     await user.click(d.getByRole('button', { name: 'Send a test' }));
     expect(await d.findByText('Test delivered in 12 ms')).toBeInTheDocument();
-    expect(d.getByText(/Test notification from Artemis Studio/)).toBeInTheDocument();
+    expect(d.getByText(/Test notification from Rahdar/)).toBeInTheDocument();
     expect(seen.body).toMatchObject({
       channelId: null,
       kind: 'TEAMS',

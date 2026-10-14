@@ -151,7 +151,7 @@ describe('ResourceView', () => {
     renderWithProviders(<ResourceView kind="consumers" />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });

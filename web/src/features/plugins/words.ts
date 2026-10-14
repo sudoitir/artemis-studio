@@ -1,6 +1,6 @@
 import type { PluginInfoView, PluginLicenseView, PluginPlanView, PluginView } from './api.ts';
 
-export const GUIDE_URL = 'https://sudoitir.github.io/artemis-studio/guide/plugins';
+export const GUIDE_URL = 'https://rahdar.dev/guide/plugins';
 
 /** A plugin's state in words: the column shows this, never a colour alone. */
 export const STATUS: Record<string, string> = {
@@ -19,7 +19,7 @@ export const STEPS = [
   { key: 'draining', label: 'Stopped the running version' },
   { key: 'migrating', label: 'Changed its database' },
   { key: 'starting', label: 'Started it' },
-  { key: 'registering', label: 'Connected it to Studio' },
+  { key: 'registering', label: 'Connected it to Rahdar' },
 ] as const;
 
 /** States that need someone to act; they sort first and carry their fix in the row. */
@@ -68,15 +68,15 @@ export function downtime(plan: PluginPlanView): string {
     case 'INSTANT':
       return plan.fromVersion
         ? `No downtime. ${plan.fromVersion} keeps serving until ${plan.toVersion} is ready, then requests switch over.`
-        : 'No downtime. Nothing else in Studio is touched.';
+        : 'No downtime. Nothing else in Rahdar is touched.';
     case 'BRIEF_MAINTENANCE':
       return plan.fromVersion
-        ? `${plan.info.title} alone pauses for a few seconds while its database changes; its API answers "updating" meanwhile. The rest of Studio keeps working.`
-        : `Its database schema is created, then it starts. Nothing else in Studio is touched.`;
+        ? `${plan.info.title} alone pauses for a few seconds while its database changes; its API answers "updating" meanwhile. The rest of Rahdar keeps working.`
+        : `Its database schema is created, then it starts. Nothing else in Rahdar is touched.`;
     default:
       return plan.restart === 'AUTOMATIC'
-        ? 'Studio restarts itself to start it: everyone is disconnected until Studio is back, usually under a minute.'
-        : 'It starts the next time Studio restarts. Studio cannot restart itself here; you will be shown the command.';
+        ? 'Rahdar restarts itself to start it: everyone is disconnected until Rahdar is back, usually under a minute.'
+        : 'It starts the next time Rahdar restarts. Rahdar cannot restart itself here; you will be shown the command.';
   }
 }
 

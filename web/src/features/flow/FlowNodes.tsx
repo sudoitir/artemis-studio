@@ -155,13 +155,13 @@ const ADDRESS_ROLE: Record<string, string> = {
   ANONYMOUS: 'no address named — chosen per message',
   DEAD_LETTER: 'dead-letter address',
   EXPIRY: 'expiry address',
-  CAPTURE: "Studio's message capture",
+  CAPTURE: "Rahdar's message capture",
 };
 
 const QUEUE_ROLE: Record<string, string> = {
   STORE_AND_FORWARD: 'cluster redistribution',
   TEMPORARY: 'short-lived reply queues',
-  CAPTURE: "Studio's message capture",
+  CAPTURE: "Rahdar's message capture",
 };
 
 const DELIVERY: Record<string, string> = {

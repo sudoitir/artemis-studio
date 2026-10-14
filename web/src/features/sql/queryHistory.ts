@@ -14,7 +14,7 @@ import type { SqlRowView } from './api.ts';
  * console must render exactly the same without it.
  */
 
-const KEY = 'artemis-studio.sql.history';
+const KEY = 'rahdar.sql.history';
 
 /** Enough to cover an incident, small enough to stay inside a storage quota. */
 const MAX_ENTRIES = 40;

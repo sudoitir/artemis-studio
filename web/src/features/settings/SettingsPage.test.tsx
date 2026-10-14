@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { createRoute } from '@tanstack/react-router';
 
 import { paged } from '../../kernel/api/paging.ts';
-import { CONTRACT, defineFeature, type StudioFeature } from '../../kernel/feature.ts';
+import { CONTRACT, defineFeature, type RahdarFeature } from '../../kernel/feature.ts';
 import { FeatureProvider } from '../../kernel/FeatureProvider.tsx';
 import { rootRoute } from '../../kernel/routing/roots.ts';
 import { manifestView, pluginEntry } from '../../test/manifest.ts';
@@ -42,7 +42,7 @@ const elsewhere = createRoute({
 
 const section = (text: string) => () => <p>{text}</p>;
 
-const features: StudioFeature[] = [
+const features: RahdarFeature[] = [
   defineFeature({
     contract: CONTRACT,
     id: 'settings',
@@ -57,7 +57,7 @@ const features: StudioFeature[] = [
           Component: section('Rotate them'),
         },
         { id: 'display', order: 10, group: 'personal', title: 'Display', Component: section('Yours alone') },
-        { id: 'health', order: 30, group: 'studio', title: 'Studio health', Component: section('Watching itself') },
+        { id: 'health', order: 30, group: 'rahdar', title: 'Rahdar health', Component: section('Watching itself') },
         { id: 'from-a-plugin', order: 5, title: 'Plugin notes', Component: section('A plugin section') },
       ],
     },
@@ -193,14 +193,14 @@ describe('the Settings page', () => {
 
   afterEach(() => act(() => notifications.clean()));
 
-  it('lists a tab per settings category under Studio, and a plugin’s category under Plugins', async () => {
+  it('lists a tab per settings category under Rahdar, and a plugin’s category under Plugins', async () => {
     serve();
     renderAppAt('/settings-under-test', features);
 
     const list = await screen.findByRole('navigation', { name: 'Settings sections' });
     await waitFor(() =>
       expect(list.textContent).toBe(
-        'YoursDisplayStudioAuditMCP serverScrapeStudio healthThis clusterBroker credentialsPluginsAcme notesPlugin notes',
+        'YoursDisplayRahdarAuditMCP serverScrapeRahdar healthThis clusterBroker credentialsPluginsAcme notesPlugin notes',
       ),
     );
     expect(screen.getByText('Yours alone')).toBeInTheDocument();
@@ -428,7 +428,7 @@ describe('the Settings page', () => {
         held = true;
         return HttpResponse.json(
           { heldOperation: { summary: 'Change 2 settings', expiresAt: '', link: '' } },
-          { status: 202, headers: { 'X-Studio-Held-Operation': 'h-1' } },
+          { status: 202, headers: { 'X-Rahdar-Held-Operation': 'h-1' } },
         );
       },
     });

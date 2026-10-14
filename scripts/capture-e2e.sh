@@ -10,13 +10,13 @@
 #
 #   ADMIN_PASSWORD=... ADMIN_TOTP_SECRET=... ./scripts/capture-e2e.sh
 #
-# Everything goes through the product's own surfaces — Studio's REST API and the
+# Everything goes through the product's own surfaces — Rahdar's REST API and the
 # Artemis CLI inside the broker image — except the final assertions, which read
 # `message_index` directly. That table is what the console reads, and asserting on
 # it is asserting on what an operator would see.
 set -euo pipefail
 
-STUDIO=${STUDIO:-http://localhost:8080}
+RAHDAR=${RAHDAR:-http://localhost:8080}
 ADMIN_USER=${ADMIN_USER:-admin}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the password just dev-up printed}
 # Once the admin has two-step verification (config-e2e.sh or the demo seed enrols it), the secret that run printed.
@@ -39,21 +39,21 @@ say() { printf '\n\033[1m→ %s\033[0m\n' "$*"; }
 fail() { printf '\n\033[31mFAIL: %s\033[0m\n' "$*" >&2; exit 1; }
 pass() { printf '\033[32m  ✓ %s\033[0m\n' "$*"; }
 
-psql_() { $COMPOSE exec -T postgres psql -qtAX -U artemis_studio -d artemis_studio -c "$1"; }
+psql_() { $COMPOSE exec -T postgres psql -qtAX -U rahdar -d rahdar -c "$1"; }
 
 jolokia() { # node-service operation-json
   curl -sS -u artemis:artemis -H 'Content-Type: application/json' \
     -d "$2" "http://$($COMPOSE port "$1" 8161)/console/jolokia/"
 }
 
-say "waiting for Studio"
+say "waiting for Rahdar"
 for _ in $(seq 1 60); do
-  curl -fsS "$STUDIO/actuator/health" >/dev/null 2>&1 && break
+  curl -fsS "$RAHDAR/actuator/health" >/dev/null 2>&1 && break
   sleep 3
 done
 
 say "signing in"
-studio_sign_in "$NEW_PASSWORD" || fail "could not sign in to Studio"
+rahdar_sign_in "$NEW_PASSWORD" || fail "could not sign in to Rahdar"
 
 say "registering the dev cluster"
 existing=$(api GET "/clusters?size=500" | python3 -c 'import json,sys; print(next((c["id"] for c in json.load(sys.stdin)["data"] if c["name"]=="dev"), ""))')
@@ -126,7 +126,7 @@ if [ "${SKIP_FAILOVER:-0}" != "1" ]; then
   primary_rows=$captured
   $COMPOSE stop artemis-primary >/dev/null
 
-  say "waiting for Studio to see the backup go live"
+  say "waiting for Rahdar to see the backup go live"
   for _ in $(seq 1 40); do
     live=$(psql_ "SELECT count(*) FROM broker_node WHERE active = true AND name LIKE '%backup%'")
     [ "$live" != "0" ] && break
@@ -185,14 +185,14 @@ fi
 
 # ---- 5.12: convergence without duplication ----------------------------------
 
-say "killing Studio mid-capture and restarting it"
+say "killing Rahdar mid-capture and restarting it"
 before=$captured
-$COMPOSE restart studio >/dev/null
+$COMPOSE restart rahdar >/dev/null
 for _ in $(seq 1 60); do
-  curl -fsS "$STUDIO/actuator/health" >/dev/null 2>&1 && break
+  curl -fsS "$RAHDAR/actuator/health" >/dev/null 2>&1 && break
   sleep 3
 done
-studio_sign_in "$NEW_PASSWORD" || fail "could not sign in again after the restart"
+rahdar_sign_in "$NEW_PASSWORD" || fail "could not sign in again after the restart"
 
 say "waiting for the reconciler to converge again"
 for _ in $(seq 1 40); do
@@ -205,7 +205,7 @@ after=$(psql_ "SELECT count(*) FROM message_index WHERE queue_name = '$QUEUE' AN
 pass "converged with no duplicate rows ($after)"
 
 diverts=$(jolokia artemis-primary '{"type":"read","mbean":"org.apache.activemq.artemis:broker=\"primary\"","attribute":"DivertNames"}')
-echo "$diverts" | grep -q 'artemis-studio.capture' || fail "the tap was not re-asserted after the restart"
+echo "$diverts" | grep -q 'rahdar.capture' || fail "the tap was not re-asserted after the restart"
 pass "one tap, still installed, not a second one"
 
 # ---- 5.12: deletion removes everything --------------------------------------
@@ -216,18 +216,18 @@ api DELETE "/clusters/$CLUSTER/sql/index/$SUB" >/dev/null
 say "waiting for the reconciler to remove the tap"
 for _ in $(seq 1 40); do
   diverts=$(jolokia artemis-primary '{"type":"read","mbean":"org.apache.activemq.artemis:broker=\"primary\"","attribute":"DivertNames"}')
-  echo "$diverts" | grep -q 'artemis-studio.capture' || break
+  echo "$diverts" | grep -q 'rahdar.capture' || break
   sleep 3
 done
-echo "$diverts" | grep -q 'artemis-studio.capture' && fail "the divert is still there: $diverts"
+echo "$diverts" | grep -q 'rahdar.capture' && fail "the divert is still there: $diverts"
 pass "divert gone"
 
 queues=$(jolokia artemis-primary '{"type":"exec","mbean":"org.apache.activemq.artemis:broker=\"primary\"","operation":"getQueueNames()"}')
-echo "$queues" | grep -q 'artemis-studio.capture' && fail "the capture queue is still there"
+echo "$queues" | grep -q 'rahdar.capture' && fail "the capture queue is still there"
 pass "capture queue gone"
 
-roles=$(jolokia artemis-primary '{"type":"exec","mbean":"org.apache.activemq.artemis:broker=\"primary\"","operation":"getRolesAsJSON(java.lang.String)","arguments":["artemis-studio.capture.x"]}')
-settings=$(jolokia artemis-primary '{"type":"exec","mbean":"org.apache.activemq.artemis:broker=\"primary\"","operation":"getAddressSettingsAsJSON(java.lang.String)","arguments":["artemis-studio.capture.x"]}')
+roles=$(jolokia artemis-primary '{"type":"exec","mbean":"org.apache.activemq.artemis:broker=\"primary\"","operation":"getRolesAsJSON(java.lang.String)","arguments":["rahdar.capture.x"]}')
+settings=$(jolokia artemis-primary '{"type":"exec","mbean":"org.apache.activemq.artemis:broker=\"primary\"","operation":"getAddressSettingsAsJSON(java.lang.String)","arguments":["rahdar.capture.x"]}')
 echo "$settings" | grep -q '"addressFullMessagePolicy":"DROP"' && fail "the address setting is still there: $settings"
 pass "address setting gone (falls back to the broker's default policy)"
 echo "  roles now resolve to the broker default: $roles"

@@ -9,7 +9,7 @@ describe('gateFor', () => {
     expect(verdict.kind === 'blocked' && verdict.reason).toContain('"Purge queues" permission on this cluster.');
   });
 
-  it('names the installation when the caller says the permission is held on Studio itself', () => {
+  it('names the installation when the caller says the permission is held on Rahdar itself', () => {
     const verdict = gateFor(false, 'Manage plugins', undefined, false, 'installation');
     expect(verdict.kind === 'blocked' && verdict.reason).toContain('"Manage plugins" permission on this installation.');
     expect(verdict.kind === 'blocked' && verdict.reason).not.toContain('cluster');

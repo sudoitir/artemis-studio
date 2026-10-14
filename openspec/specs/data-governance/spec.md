@@ -1,7 +1,7 @@
 # data-governance Specification
 
 ## Purpose
-Controls what broker message content Studio shows and stores. A Studio-wide content policy masks sensitive headers, properties and body values on every path out of Studio and in Studio's own database. Personal data it detects is masked automatically, and only a holder of the clear-content permission sees originals, with every clear view audited.
+Controls what broker message content Rahdar shows and stores. A Rahdar-wide content policy masks sensitive headers, properties and body values on every path out of Rahdar and in Rahdar's own database. Personal data it detects is masked automatically, and only a holder of the clear-content permission sees originals, with every clear view audited.
 
 ## Requirements
 
@@ -37,7 +37,7 @@ A masked value SHALL never be presented as if it were the real value.
 
 ### Requirement: Masking rules match headers, properties and JSON body paths, optionally by address
 
-The system SHALL maintain one Studio-wide set of masking rules. A rule SHALL name:
+The system SHALL maintain one Rahdar-wide set of masking rules. A rule SHALL name:
 
 - a target: a message header, an application property name pattern, or a JSON body path;
 - a data class;
@@ -181,7 +181,7 @@ When a response contains at least one sensitive value served in clear, the syste
 
 ### Requirement: Stored message content is masked, with originals sealed
 
-Wherever Studio persists message content, the stored columns SHALL hold the governed, masked form. This covers the message index, captured messages and request-reply payloads.
+Wherever Rahdar persists message content, the stored columns SHALL hold the governed, masked form. This covers the message index, captured messages and request-reply payloads.
 
 Sealed originals:
 
@@ -217,9 +217,9 @@ The governance screen SHALL show how many stored rows are still held under an ea
 - **WHEN** the policy changes while the index holds rows under the earlier version
 - **THEN** the governance screen reports a decreasing count of rows under earlier versions until it reaches zero
 
-### Requirement: The scan limit is a studio setting
+### Requirement: The scan limit is a rahdar setting
 
-The number of body bytes scanned per message SHALL be a studio setting with a default of 256 KiB. Changing it SHALL follow the studio settings rules. It SHALL apply to messages governed after the change.
+The number of body bytes scanned per message SHALL be a rahdar setting with a default of 256 KiB. Changing it SHALL follow the rahdar settings rules. It SHALL apply to messages governed after the change.
 
 #### Scenario: Raising the scan limit reveals more of a large body
 

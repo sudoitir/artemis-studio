@@ -1,6 +1,6 @@
 import { createRoute } from '@tanstack/react-router';
 import { IconNotes } from '@tabler/icons-react';
-import { CONTRACT, clusterRoute, definePlugin, pluginPath, pluginView } from '@artemis-studio/plugin-sdk';
+import { CONTRACT, clusterRoute, definePlugin, pluginPath, pluginView } from '@rahdar/plugin-sdk';
 
 import { ID, notesKey } from './api.ts';
 import { NotesList } from './NotesList.tsx';
@@ -14,7 +14,7 @@ const notesRoute = createRoute({
 });
 
 /**
- * Everything the plugin adds to Studio's UI. Studio accepts it only when it stays in its own
+ * Everything the plugin adds to Rahdar's UI. Rahdar accepts it only when it stays in its own
  * namespace: routes under p/acme-notes, slot entries named acme-notes.…, the stream topics its
  * plugin.json declares.
  */

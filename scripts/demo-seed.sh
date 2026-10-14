@@ -3,7 +3,7 @@
 # Fill the demo stack with traffic that looks like a working estate.
 #
 # Everything here goes through the product's own surfaces: the cluster is
-# registered over Studio's REST API, and the messages are produced and consumed
+# registered over Rahdar's REST API, and the messages are produced and consumed
 # by the Artemis CLI that already ships inside the broker image. Nothing writes to
 # `metric_sample`, `queue_snapshot` or any other table directly — a chart of
 # invented samples tells you nothing about whether the product works, and it is
@@ -21,7 +21,7 @@
 # chart needs about that long. TRAFFIC_MINUTES controls it.
 set -euo pipefail
 
-STUDIO=${STUDIO:-http://localhost:8080}
+RAHDAR=${RAHDAR:-http://localhost:8080}
 ADMIN_USER=${ADMIN_USER:-admin}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the password just dev-up printed}
 # Once the admin has two-step verification (the first run enrols it), the secret the seed printed.
@@ -41,20 +41,20 @@ trap 'rm -f "$COOKIES"' EXIT
 
 say() { printf '\n\033[1m→ %s\033[0m\n' "$*"; }
 
-say "waiting for Studio to answer"
+say "waiting for Rahdar to answer"
 # `just demo` may have just recreated the container; the compose healthcheck gates
-# the brokers, not Studio, so without this the first login races the startup and
+# the brokers, not Rahdar, so without this the first login races the startup and
 # fails with a connection reset.
 for _ in $(seq 1 60); do
-  curl -fsS "$STUDIO/actuator/health" >/dev/null 2>&1 && break
+  curl -fsS "$RAHDAR/actuator/health" >/dev/null 2>&1 && break
   sleep 3
 done
 
-say "signing in to Studio"
+say "signing in to Rahdar"
 # A fresh stack's admin password is one-time and its ADMIN role requires two-step verification: the sign-in
 # changes the password to one the operator chose (never one invented here), enrols an authenticator app and
 # prints its secret. Later runs need ADMIN_PASSWORD and ADMIN_TOTP_SECRET.
-studio_sign_in "${NEW_ADMIN_PASSWORD:-}" NEW_ADMIN_PASSWORD || exit 1
+rahdar_sign_in "${NEW_ADMIN_PASSWORD:-}" NEW_ADMIN_PASSWORD || exit 1
 
 say "registering the demo cluster"
 # Re-registered rather than reused, so a second run cannot inherit a half-built
@@ -108,9 +108,9 @@ done
 
 say "building production routing: fan-out, wildcard, filters, diverts, capture, bridge"
 # The shape of a real estate, so Flow has something to explain. Everything but the bridge goes
-# through Studio's own audited API; creating something that already exists (a second run) is
-# reported by Studio and is not a failure here. The bridge uses the broker's own management
-# operations, because Studio shows bridges and never changes them.
+# through Rahdar's own audited API; creating something that already exists (a second run) is
+# reported by Rahdar and is not a failure here. The bridge uses the broker's own management
+# operations, because Rahdar shows bridges and never changes them.
 routing() { # label path body
   local code
   code=$(api POST "/clusters/$cluster$2" -d "$3" -o /dev/null -w '%{http_code}') || true
@@ -199,7 +199,7 @@ produce artemis-secondary DLQ 90 0
 
 say "sending a few JSON orders, so the SQL Console has a body to search"
 # The CLI's --message-size produces filler, and a body predicate over filler
-# demonstrates nothing. These go through Studio's own send-message endpoint —
+# demonstrates nothing. These go through Rahdar's own send-message endpoint —
 # the same audited path an operator uses — so the console's headline query,
 # `body->>'orderId' = ...`, has something real to find.
 for id in 4471 4472 4473 4474 4475 4476 4477 4478; do
@@ -255,7 +255,7 @@ api POST "/users/$analyst/grants" -d "{\"roleId\": \"$reader\", \"scopeType\": \
 say "stopping one node, so the topology carries a real warning"
 $COMPOSE stop artemis-secondary-backup
 
-say "seeded. Studio: $STUDIO — cluster $cluster"
+say "seeded. Rahdar: $RAHDAR — cluster $cluster"
 
 # Last, so the screens above are complete while the traffic runs: a long demo
 # (TRAFFIC_MINUTES in the hours) must not hold the users, the DLQ and the stopped

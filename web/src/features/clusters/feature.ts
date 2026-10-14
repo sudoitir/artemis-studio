@@ -53,7 +53,7 @@ export const clustersFeature = defineFeature({
     ],
     'cluster.header': [{ id: 'clusters-header', order: 10, Component: ClusterHeader }],
     'settings.sections': [
-      { id: 'clusters-register', order: 30, group: 'studio', title: 'Clusters', Component: RegisterSection },
+      { id: 'clusters-register', order: 30, group: 'rahdar', title: 'Clusters', Component: RegisterSection },
       {
         id: 'clusters-connection',
         order: 40,

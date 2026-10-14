@@ -3,9 +3,9 @@
 
 usage: load-queues.py JOLOKIA_URL COUNT
 
-Queue i is `load.q.<i>` on address `load.a.<i>`, anycast and durable. Studio's own API creates one queue per
+Queue i is `load.q.<i>` on address `load.a.<i>`, anycast and durable. Rahdar's own API creates one queue per
 call, each with an audit record and a broker read; thousands of queues for a load test go in through the
-broker's management operations instead, which is what a real estate that grew over years looks like to Studio.
+broker's management operations instead, which is what a real estate that grew over years looks like to Rahdar.
 Re-running skips the queues that exist.
 """
 import base64

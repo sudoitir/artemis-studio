@@ -241,7 +241,7 @@ describe.each(SCHEMES)('SQL Console in the %s scheme at 1280 px', (scheme) => {
     it('states the cost of a query the brokers filter, with nothing wrong', async () => {
       const { container } = mount(scheme, seeded(ADMIN));
       await settled(container);
-      expect(await screen.findByText(/The brokers filter; Studio examines at most 100 messages/)).toBeVisible();
+      expect(await screen.findByText(/The brokers filter; Rahdar examines at most 100 messages/)).toBeVisible();
       await check(container);
     });
 
@@ -249,7 +249,7 @@ describe.each(SCHEMES)('SQL Console in the %s scheme at 1280 px', (scheme) => {
       const { container } = mount(scheme, seeded(ADMIN), SCAN);
       await settled(container);
       expect(
-        await screen.findByText('Studio reads and examines about 2,400,000 messages on 1 queue across 2 nodes.'),
+        await screen.findByText('Rahdar reads and examines about 2,400,000 messages on 1 queue across 2 nodes.'),
       ).toBeVisible();
       await check(container);
     });

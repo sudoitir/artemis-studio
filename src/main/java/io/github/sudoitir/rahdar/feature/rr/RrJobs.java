@@ -1,0 +1,36 @@
+package io.github.sudoitir.rahdar.feature.rr;
+
+import io.github.sudoitir.rahdar.kernel.jobs.ScheduledJob;
+import io.github.sudoitir.rahdar.kernel.lifecycle.partition.PartitionSpec;
+import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration(proxyBeanMethods = false)
+class RrJobs {
+
+    @Bean
+    ScheduledJob rrDeadlineSweepJob(RrDeadlineSweep sweep, SettingsService settings) {
+        return ScheduledJob.fixedDelay(
+                "rr-deadline-sweep",
+                "rr",
+                ScheduledJob.Scope.INSTALLATION,
+                () -> settings.duration(RrSettings.SWEEP_INTERVAL),
+                sweep::sweep);
+    }
+
+    @Bean
+    PartitionSpec rrEventPartitions() {
+        return RrFlowStore.EVENT_PARTITIONS;
+    }
+
+    @Bean
+    ScheduledJob rrSamplerJob(RrSampler sampler, SettingsService settings) {
+        return ScheduledJob.fixedDelay(
+                "rr-sampler",
+                "rr",
+                ScheduledJob.Scope.INSTANCE,
+                () -> settings.duration(RrSettings.SAMPLE_INTERVAL),
+                sampler::tick);
+    }
+}

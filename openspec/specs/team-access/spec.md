@@ -8,7 +8,7 @@ see and operate only what those patterns cover, and access across teams is an ex
 
 ### Requirement: A team owns queue and address name patterns per cluster
 
-Studio SHALL let a holder of `user:admin` create, rename and delete teams, and add or remove a team's
+Rahdar SHALL let a holder of `user:admin` create, rename and delete teams, and add or remove a team's
 owned patterns. A pattern SHALL name a cluster, a resource kind (queue, address, or both) and a
 name pattern in the broker's wildcard syntax: words separated by `.`, `*` matching exactly one word,
 `#` matching zero or more words. A pattern SHALL be rejected when some queue or address name on the
@@ -36,11 +36,11 @@ shares, and SHALL end the access they gave on the next request.
 
 A team member SHALL be a user or a directory group, and SHALL hold exactly one team-assignable role
 in that team. A team-assignable role SHALL hold only permissions that act on a resource, plus
-`team:admin`. Studio SHALL ship Team Viewer, Team Operator and Team Admin as built-in team roles.
+`team:admin`. Rahdar SHALL ship Team Viewer, Team Operator and Team Admin as built-in team roles.
 A holder of `team:admin` in a team SHALL be able to add, change and remove that team's user members, but
 SHALL NOT be able to change the team's patterns or shares, to grant a role that holds a permission they do
 not hold themselves in that team, or to change or remove a member whose role holds one. Adding, changing or
-removing a directory group as a member SHALL need `user:admin`, because a group can admit users to Studio. A
+removing a directory group as a member SHALL need `user:admin`, because a group can admit users to Rahdar. A
 team role that requires a second factor SHALL apply to its members, directly or through a group, as any role
 does, and sessions opened before the member held it SHALL end.
 
@@ -74,7 +74,7 @@ does, and sessions opened before the member held it SHALL end.
 
 ### Requirement: A team can share part of what it owns with another team
 
-Studio SHALL let a holder of `user:admin` share a pattern that lies wholly within a team's owned
+Rahdar SHALL let a holder of `user:admin` share a pattern that lies wholly within a team's owned
 patterns with another team at a chosen team role. Members of the receiving team SHALL hold that role
 on resources the shared pattern matches, in addition to their own team's rights. A share whose
 pattern no longer lies within the owner's patterns SHALL grant nothing until it does again.

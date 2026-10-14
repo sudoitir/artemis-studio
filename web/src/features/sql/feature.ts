@@ -51,7 +51,7 @@ export const sqlFeature = defineFeature({
   ],
   slots: {
     'settings.sections': [
-      { id: 'sql-index', order: 60, group: 'studio', title: 'Message index', Component: IndexSection },
+      { id: 'sql-index', order: 60, group: 'rahdar', title: 'Message index', Component: IndexSection },
     ],
   },
 });

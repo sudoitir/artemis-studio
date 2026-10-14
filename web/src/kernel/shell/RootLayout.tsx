@@ -72,7 +72,7 @@ export function RootLayout() {
     }
   }, [isPublicRoute, me.isError, me.error, me.data, location.pathname, navigate]);
 
-  // Every tab says what it holds (ADR-0109): an operator with six Studio tabs open finds the one
+  // Every tab says what it holds (ADR-0109): an operator with six Rahdar tabs open finds the one
   // on prod's Queues without opening each.
   const view = useCurrentView();
   const titleParts = useTitleParts();
@@ -129,7 +129,7 @@ export function RootLayout() {
   }
 
   if (me.isLoading || gate.isLoading) {
-    return <LoadingState label="Loading Studio" blockSize="100dvh" />;
+    return <LoadingState label="Loading Rahdar" blockSize="100dvh" />;
   }
 
   if (me.isError || me.data?.mustChangePassword || me.data?.secondFactorEnrolmentRequired) {

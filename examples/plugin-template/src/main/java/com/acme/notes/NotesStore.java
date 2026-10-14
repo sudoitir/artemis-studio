@@ -1,11 +1,11 @@
 package com.acme.notes;
 
-import io.github.sudoitir.artemisstudio.kernel.lifecycle.HousekeepingContributor;
-import io.github.sudoitir.artemisstudio.kernel.lifecycle.LifecycleSql;
-import io.github.sudoitir.artemisstudio.kernel.lifecycle.ManagedStore;
-import io.github.sudoitir.artemisstudio.kernel.lifecycle.PurgeEstimate;
-import io.github.sudoitir.artemisstudio.kernel.lifecycle.StoreDef;
-import io.github.sudoitir.artemisstudio.kernel.lifecycle.StoreUsage;
+import io.github.sudoitir.rahdar.kernel.lifecycle.HousekeepingContributor;
+import io.github.sudoitir.rahdar.kernel.lifecycle.LifecycleSql;
+import io.github.sudoitir.rahdar.kernel.lifecycle.ManagedStore;
+import io.github.sudoitir.rahdar.kernel.lifecycle.PurgeEstimate;
+import io.github.sudoitir.rahdar.kernel.lifecycle.StoreDef;
+import io.github.sudoitir.rahdar.kernel.lifecycle.StoreUsage;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -14,8 +14,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Puts the notes under Studio's data lifecycle: they appear on Administration → Data, where an
- * operator sets how long they are kept, previews a purge and sets a quota. Studio runs the purge on
+ * Puts the notes under Rahdar's data lifecycle: they appear on Administration → Data, where an
+ * operator sets how long they are kept, previews a purge and sets a quota. Rahdar runs the purge on
  * one instance, in small batches, and audits it. Never write your own pruning job for a table that
  * grows with use; contribute a store like this one.
  */

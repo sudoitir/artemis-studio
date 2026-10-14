@@ -23,9 +23,9 @@ export function McpConnectionPanel() {
   const config = JSON.stringify(
     {
       mcpServers: {
-        'artemis-studio': {
+        rahdar: {
           // Clients reject an entry that gives a url without saying how to speak
-          // to it. Studio's endpoint is streamable HTTP.
+          // to it. Rahdar's endpoint is streamable HTTP.
           type: 'http',
           url: endpoint,
           headers: { Authorization: 'Bearer <your-api-key>' },

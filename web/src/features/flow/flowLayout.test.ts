@@ -15,7 +15,7 @@ const edge = (source: string, target: string, kind: string, rate?: number) => ({
   stale: false,
   faults: [],
   bypassed: false,
-  studio: false,
+  rahdar: false,
 });
 
 function graph(rate = 10): FlowGraphView {

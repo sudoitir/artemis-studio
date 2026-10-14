@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:feature-transfer-0001-baseline splitStatements:true
+--changeset rahdar:feature-transfer-0001-baseline splitStatements:true
 CREATE TABLE transfer_copied (
     message_id bigint NOT NULL,
     run_id uuid NOT NULL

@@ -1,0 +1,33 @@
+package io.github.sudoitir.rahdar.platform.governance;
+
+import io.github.sudoitir.rahdar.kernel.jobs.ScheduledJob;
+import java.time.Duration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/** The content policy's background work (ADR-0075 D4). */
+@Configuration(proxyBeanMethods = false)
+class GovernanceJobs {
+
+    private static final String FEATURE = "governance";
+
+    @Bean
+    ScheduledJob governanceFindingsFlushJob(FindingsRecorder findings) {
+        return ScheduledJob.fixedDelay(
+                "governance-findings-flush",
+                FEATURE,
+                ScheduledJob.Scope.INSTANCE,
+                () -> Duration.ofSeconds(30),
+                findings::flush);
+    }
+
+    @Bean
+    ScheduledJob governanceRemaskJob(GovernanceRemasking remasking) {
+        return ScheduledJob.fixedDelay(
+                "governance-remask",
+                FEATURE,
+                ScheduledJob.Scope.INSTALLATION,
+                () -> Duration.ofMinutes(1),
+                remasking::run);
+    }
+}

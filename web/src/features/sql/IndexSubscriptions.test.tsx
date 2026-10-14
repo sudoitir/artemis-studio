@@ -57,7 +57,7 @@ describe('IndexSubscriptions', () => {
     await user.type(await screen.findByLabelText('Queue or pattern'), 'ORDER.IN');
 
     // The disclosure is on the form, not behind a link: this is the last screen
-    // before Studio starts keeping a copy of application payload.
+    // before Rahdar starts keeping a copy of application payload.
     expect(screen.getByText(/This stores message bodies/i)).toBeInTheDocument();
     expect(screen.getByText(/headers, application properties and the body/i)).toBeInTheDocument();
     expect(screen.getByText(/for 7 days/i)).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe('IndexSubscriptions', () => {
     await user.type(await screen.findByLabelText('Queue or pattern'), 'ORDER.IN');
     await user.click(screen.getByRole('radio', { name: /capture everything/i }));
 
-    // Every object Studio will create on the broker, named, before the button that
+    // Every object Rahdar will create on the broker, named, before the button that
     // creates them can be pressed.
     expect(screen.getByText(/changes routing on every live node/i)).toBeInTheDocument();
     expect(screen.getByText(/non-exclusive divert/i)).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe('IndexSubscriptions', () => {
     expect(screen.getByText(/None of those objects disappears when the broker restarts/i)).toBeInTheDocument();
     expect(screen.queryByText(/lost when the broker restarts/i)).not.toBeInTheDocument();
     // The configuration equivalent, for an estate that deploys from broker.xml.
-    expect(screen.getByText('artemis-studio.capture.<instance>.#')).toBeInTheDocument();
+    expect(screen.getByText('rahdar.capture.<instance>.#')).toBeInTheDocument();
   });
 
   it('reports capture state per node, never as one rolled-up answer', async () => {
@@ -227,7 +227,7 @@ describe('IndexSubscriptions', () => {
             nodes: ['primary'],
             ringMessages: 10000,
             ringBytes: 67_108_864,
-            brokerObjects: ['divert artemis-studio.capture.abc.ORDER.IN.s1'],
+            brokerObjects: ['divert rahdar.capture.abc.ORDER.IN.s1'],
             brokerXml: '<diverts/>',
             refusal: null,
           });
@@ -669,7 +669,7 @@ describe('IndexSubscriptions capture form', () => {
     nodes: ['primary', 'backup'],
     ringMessages: 10000,
     ringBytes: 500,
-    brokerObjects: ['divert artemis-studio.capture.abc.ORDER.IN.s1'],
+    brokerObjects: ['divert rahdar.capture.abc.ORDER.IN.s1'],
     brokerXml: '<diverts/>',
     refusal: null,
   };
@@ -718,7 +718,7 @@ describe('IndexSubscriptions capture form', () => {
     expect(await screen.findByText('Covers 2 addresses: ORDER.IN, ORDER.OUT')).toBeInTheDocument();
     expect(screen.getByText('Installed on 2 live nodes: primary, backup')).toBeInTheDocument();
     expect(screen.getByText(/at most 10,000 messages or 500 B, whichever is reached first/)).toBeInTheDocument();
-    expect(screen.getByText('divert artemis-studio.capture.abc.ORDER.IN.s1')).toBeInTheDocument();
+    expect(screen.getByText('divert rahdar.capture.abc.ORDER.IN.s1')).toBeInTheDocument();
     expect(screen.getByText('<diverts/>')).toBeInTheDocument();
     // The form is frozen on what was previewed until the operator asks to edit it.
     expect(screen.getByLabelText(/Capture filter/)).toHaveAttribute('readonly');
@@ -787,7 +787,7 @@ describe('IndexSubscriptions capture form', () => {
     renderWithProviders(<IndexSubscriptions />);
 
     await user.click(await screen.findByRole('radio', { name: /capture everything/i }));
-    expect(screen.getByText(/On each live node Studio will create a/)).toHaveTextContent('from these queues');
+    expect(screen.getByText(/On each live node Rahdar will create a/)).toHaveTextContent('from these queues');
     expect(screen.getByText(/Capture records everything the address routed, up to its bounds/)).toBeInTheDocument();
     expect(screen.getByText(/for 7 days or until the size bound is reached/)).toBeInTheDocument();
 

@@ -24,18 +24,18 @@ const BROKER: Readonly<Record<string, Omit<Reading, 'requestId' | 'detail'>>> = 
   UNREACHABLE: {
     title: 'The broker is unreachable',
     cause: 'Nothing answered at the broker address.',
-    next: 'Check that the broker is running and that Studio can reach its address, then retry.',
+    next: 'Check that the broker is running and that Rahdar can reach its address, then retry.',
     retry: true,
   },
   THROTTLED: {
-    title: 'Studio is throttling calls to this broker',
-    cause: 'Studio is already calling this broker as fast as its configured rate allows, so it held this call back.',
+    title: 'Rahdar is throttling calls to this broker',
+    cause: 'Rahdar is already calling this broker as fast as its configured rate allows, so it held this call back.',
     next: 'Retry in a moment. The broker itself was not asked.',
     retry: true,
   },
   CREDENTIALS_REJECTED: {
     title: 'The broker rejected the credentials',
-    cause: 'The broker refused the user name and password Studio holds for it.',
+    cause: 'The broker refused the user name and password Rahdar holds for it.',
     next: "Update the account under the cluster's Connection settings, then retry.",
     retry: false,
   },
@@ -53,19 +53,19 @@ const BROKER: Readonly<Record<string, Omit<Reading, 'requestId' | 'detail'>>> = 
   },
   TLS_FAILED: {
     title: 'The TLS handshake with the broker failed',
-    cause: 'Studio could not establish a secure connection to the broker.',
+    cause: 'Rahdar could not establish a secure connection to the broker.',
     next: "Check the broker's certificate and the cluster's TLS settings, then retry.",
     retry: false,
   },
   BAD_RESPONSE: {
     title: 'The broker sent an unexpected response',
-    cause: 'The broker answered in a way Studio does not understand.',
+    cause: 'The broker answered in a way Rahdar does not understand.',
     next: "Retry. If it keeps happening, check the broker's logs.",
     retry: true,
   },
   UNSUPPORTED_VERSION: {
     title: 'This Artemis version is not supported',
-    cause: 'Studio does not support the version this broker runs.',
+    cause: 'Rahdar does not support the version this broker runs.',
     next: 'Connect a broker on a supported Artemis version.',
     retry: false,
   },
@@ -99,8 +99,8 @@ interface Problem {
 }
 
 const NETWORK_DOWN: Reading = {
-  title: 'Studio could not be reached',
-  cause: 'The request got no answer. The network may be down, or Studio may be restarting.',
+  title: 'Rahdar could not be reached',
+  cause: 'The request got no answer. The network may be down, or Rahdar may be restarting.',
   next: 'Check your connection, then retry.',
   retry: true,
 };
@@ -131,14 +131,14 @@ function invalid({ title, detail, fields }: Problem): Reading {
   if (!fields?.length) {
     return {
       title: title ?? 'The request was refused',
-      cause: detail ?? 'Studio could not accept the request as sent.',
+      cause: detail ?? 'Rahdar could not accept the request as sent.',
       next: 'Correct the request, then try again.',
       retry: false,
     };
   }
   return {
     title: 'Some values are not valid',
-    cause: detail ?? 'Studio could not accept the request as sent.',
+    cause: detail ?? 'Rahdar could not accept the request as sent.',
     next: 'Correct the fields listed here, then submit again.',
     retry: false,
     fields,
@@ -148,7 +148,7 @@ function invalid({ title, detail, fields }: Problem): Reading {
 function rateLimited({ detail, retryAfter }: Problem): Reading {
   return {
     title: 'Too many requests',
-    cause: detail ?? 'Studio is limiting how fast requests can be made.',
+    cause: detail ?? 'Rahdar is limiting how fast requests can be made.',
     next: retryAfter ? `Wait ${seconds(retryAfter)}, then retry.` : 'Wait a moment, then retry.',
     retry: true,
   };
@@ -156,7 +156,7 @@ function rateLimited({ detail, retryAfter }: Problem): Reading {
 
 function serverFailure({ detail, requestId }: Problem): Reading {
   return {
-    title: 'Studio failed to complete the request',
+    title: 'Rahdar failed to complete the request',
     cause: detail ?? 'An error occurred on the server.',
     next: 'Retry. If it keeps happening, report it with the request id.',
     retry: true,
@@ -167,7 +167,7 @@ function serverFailure({ detail, requestId }: Problem): Reading {
 function refused({ title, detail, status }: Problem): Reading {
   return {
     title: title ?? 'The request failed',
-    cause: detail ?? `Studio refused the request (status ${status}).`,
+    cause: detail ?? `Rahdar refused the request (status ${status}).`,
     next: 'Check the request, then try again.',
     retry: false,
   };
@@ -215,7 +215,7 @@ const BY_TYPE: Readonly<Record<string, (problem: Problem) => Reading>> = {
   }),
   'approval-unavailable': ({ detail }) => ({
     title: 'Approvals are unavailable',
-    cause: detail ?? 'The approval provider did not answer, so Studio did not run the operation.',
+    cause: detail ?? 'The approval provider did not answer, so Rahdar did not run the operation.',
     next: 'Nothing was changed. Try again in a moment, or ask an administrator to check the approval provider.',
     retry: true,
   }),
@@ -234,8 +234,8 @@ const BY_TYPE: Readonly<Record<string, (problem: Problem) => Reading>> = {
   'session-required': ({ detail }) => ({
     title: 'Decide from a signed-in session',
     cause:
-      detail ?? 'A request is decided only by a person signed in to Studio, not with an API token or an assistant.',
-    next: 'Nothing was decided. Sign in to Studio in a browser and decide it there.',
+      detail ?? 'A request is decided only by a person signed in to Rahdar, not with an API token or an assistant.',
+    next: 'Nothing was decided. Sign in to Rahdar in a browser and decide it there.',
     retry: false,
   }),
 };
@@ -277,7 +277,7 @@ function brokerReading(kind: string, broker: (typeof BROKER)[string], e: Record<
   const account = problem.account === 'CORE' ? 'Core' : 'management';
   const cause =
     kind === 'CREDENTIALS_REJECTED' && text(problem.account)
-      ? `The broker refused the ${account} account Studio holds for it.`
+      ? `The broker refused the ${account} account Rahdar holds for it.`
       : broker.cause;
   return { ...broker, cause, detail: text(problem.detail) };
 }

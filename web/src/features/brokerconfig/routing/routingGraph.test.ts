@@ -195,7 +195,7 @@ describe('buildRoutingGraph: bridges', () => {
       kind: 'target',
       name: 'remote.orders',
       state: 'REFERENCED',
-      connects: 'on another broker, reached over dc2, dc3; Studio does not read it from here',
+      connects: 'on another broker, reached over dc2, dc3; Rahdar does not read it from here',
     });
     expect(g.edges.find((e) => e.id === 'bridge-out:br')!.label).toBe(
       'bridge br forwards to remote.orders over dc2, dc3',
@@ -210,7 +210,7 @@ describe('buildRoutingGraph: bridges', () => {
     );
     expect(byId(g, 'bridge:a').connects).toMatch(/ over grp$/);
     expect(byId(g, 'bridge:b').connects).toBe('forwards queue q2 to address remote.orders');
-    expect(byId(g, 'target:remote.orders').connects).toBe('on another broker; Studio does not read it from here');
+    expect(byId(g, 'target:remote.orders').connects).toBe('on another broker; Rahdar does not read it from here');
     expect(g.nodes.filter((n) => n.kind === 'target').map((n) => n.id)).toEqual([
       'target:remote.orders over grp',
       'target:remote.orders',

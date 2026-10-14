@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Anchor } from '@mantine/core';
 import { Link, useParams } from '@tanstack/react-router';
-import { DataTable, EmptyState, ErrorState, Page, PageHeader, type Column } from '@artemis-studio/plugin-sdk';
+import { DataTable, EmptyState, ErrorState, Page, PageHeader, type Column } from '@rahdar/plugin-sdk';
 
 import { useRecentNotes, type Note } from './api.ts';
 

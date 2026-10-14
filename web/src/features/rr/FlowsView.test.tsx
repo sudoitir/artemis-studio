@@ -122,7 +122,7 @@ describe('FlowsView', () => {
     );
     renderWithProviders(<FlowsView />);
 
-    expect(await screen.findByText(/here is what Studio did/)).toBeInTheDocument();
+    expect(await screen.findByText(/here is what Rahdar did/)).toBeInTheDocument();
   });
 
   it('is one page with a single h1, and sections under it', async () => {
@@ -173,9 +173,9 @@ describe('FlowsView', () => {
     renderWithProviders(<FlowsView />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
-    expect(screen.queryByText(/here is what Studio did/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/here is what Rahdar did/)).not.toBeInTheDocument();
   });
 
   it('labels both filters, and says a filter excluded every flow, offering to clear it', async () => {

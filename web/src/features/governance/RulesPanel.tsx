@@ -208,7 +208,7 @@ export function RulesPanel() {
       title="Masking rules"
       description={
         <>
-          A rule masks a header, a property or a JSON body value wherever message content leaves Studio or is stored.
+          A rule masks a header, a property or a JSON body value wherever message content leaves Rahdar or is stored.
           Values the detectors recognise are masked even without a rule. Credentials are never shown, and users with{' '}
           <code>message:clear</code> see every other value in clear.
         </>
@@ -242,7 +242,7 @@ export function RulesPanel() {
           <EmptyState
             kind="empty"
             title="No masking rules"
-            description="A rule names a header, property or JSON body path whose value is masked wherever message content leaves Studio. Add one with New rule."
+            description="A rule names a header, property or JSON body path whose value is masked wherever message content leaves Rahdar. Add one with New rule."
           />
         }
       />

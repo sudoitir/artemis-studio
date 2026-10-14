@@ -46,8 +46,8 @@ describe('ActivationProgress', () => {
     renderWithProviders(<ActivationProgress plan={plan()} startedAt={Date.now()} onOutcome={onOutcome} />);
 
     expect(await screen.findByText('Notes 1.0.0 is active')).toBeInTheDocument();
-    expect(screen.getByText('Reload Studio to load its screens.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reload Studio' })).toBeEnabled();
+    expect(screen.getByText('Reload Rahdar to load its screens.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reload Rahdar' })).toBeEnabled();
     expect(onOutcome).toHaveBeenLastCalledWith('succeeded');
   });
 
@@ -57,7 +57,7 @@ describe('ActivationProgress', () => {
     vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, reload });
     renderWithProviders(<ActivationProgress plan={plan()} startedAt={Date.now()} />);
 
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Reload Studio' }));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Reload Rahdar' }));
     expect(reload).toHaveBeenCalledTimes(1);
     vi.restoreAllMocks();
   });
@@ -85,7 +85,7 @@ describe('ActivationProgress', () => {
     );
 
     expect(await screen.findByText('It is running; it has no screens of its own.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Reload Studio' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reload Rahdar' })).not.toBeInTheDocument();
   });
 
   it('does not call an old activation a success: active since before this confirmation is still pending', async () => {
@@ -140,35 +140,35 @@ describe('ActivationProgress', () => {
     expect(screen.queryByText(/is still running/)).not.toBeInTheDocument();
   });
 
-  it('says Studio is restarting itself when the restart is supervised', async () => {
+  it('says Rahdar is restarting itself when the restart is supervised', async () => {
     serve({ status: 'needs_restart', activatedAt: null }, { supervised: true });
     const onOutcome = vi.fn();
     renderWithProviders(<ActivationProgress plan={plan()} startedAt={Date.now()} onOutcome={onOutcome} />);
 
-    expect(await screen.findByText('Studio is restarting')).toBeInTheDocument();
+    expect(await screen.findByText('Rahdar is restarting')).toBeInTheDocument();
     expect(screen.getByText(/This page reconnects by itself/)).toBeInTheDocument();
     expect(onOutcome).toHaveBeenLastCalledWith('restart');
   });
 
-  it('gives the command to run when Studio cannot restart itself', async () => {
-    serve({ status: 'needs_restart', activatedAt: null }, { supervised: false, command: 'systemctl restart studio' });
+  it('gives the command to run when Rahdar cannot restart itself', async () => {
+    serve({ status: 'needs_restart', activatedAt: null }, { supervised: false, command: 'systemctl restart rahdar' });
     renderWithProviders(<ActivationProgress plan={plan()} startedAt={Date.now()} />);
 
-    expect(await screen.findByText('Notes starts when Studio restarts')).toBeInTheDocument();
-    expect(screen.getByText('systemctl restart studio')).toBeInTheDocument();
+    expect(await screen.findByText('Notes starts when Rahdar restarts')).toBeInTheDocument();
+    expect(screen.getByText('systemctl restart rahdar')).toBeInTheDocument();
   });
 
   it('treats a restart in progress as a restart even while the plugin still reads as activating', async () => {
     serve({ status: 'activating', activatedAt: null }, { supervised: false, restarting: true });
     renderWithProviders(<ActivationProgress plan={plan()} startedAt={Date.now()} />);
 
-    expect(await screen.findByText('Notes starts when Studio restarts')).toBeInTheDocument();
+    expect(await screen.findByText('Notes starts when Rahdar restarts')).toBeInTheDocument();
   });
 
   it('reads an unreachable server as a restart, not as a failure', async () => {
     server.use(http.get('*/api/v1/admin/plugins', () => HttpResponse.json({ title: 'Forbidden' }, { status: 403 })));
     renderWithProviders(<ActivationProgress plan={plan()} startedAt={Date.now()} />);
 
-    await waitFor(() => expect(screen.getByText('Studio is restarting')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Rahdar is restarting')).toBeInTheDocument());
   });
 });

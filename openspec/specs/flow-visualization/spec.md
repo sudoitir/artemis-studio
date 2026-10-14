@@ -110,10 +110,10 @@ chosen per message, with the producer's rate, rather than being omitted.
 ### Requirement: Optional layers are off or on by a stated default and internal objects are hidden unless asked for
 
 The view SHALL offer layers for diverts, bridges, cluster redistribution, dead-letter and
-expiry routes, temporary queues, and Studio capture taps. Diverts, bridges and cluster
+expiry routes, temporary queues, and Rahdar capture taps. Diverts, bridges and cluster
 redistribution SHALL be on by default; the others SHALL be off. Broker-internal addresses
 and queues SHALL NOT be drawn as ordinary resources. Capture taps SHALL be drawn only
-when their layer is on and SHALL be marked as Studio's. Temporary queues SHALL be collapsed
+when their layer is on and SHALL be marked as Rahdar's. Temporary queues SHALL be collapsed
 into one node per client stating how many there are. The active layers SHALL be part of the
 view's address.
 
@@ -211,7 +211,7 @@ SHALL be displayed or sorted as zero.
 ### Requirement: Client activity is sampled only while a cluster's flow is observed
 
 The system SHALL sample producers and consumers of a cluster only while at least one
-operator is observing that cluster's flow, on any Studio instance, and SHALL stop sampling
+operator is observing that cluster's flow, on any Rahdar instance, and SHALL stop sampling
 within one observation lease after the last observer leaves. Each sampling sweep SHALL issue
 one batched management request per serving node, SHALL be counted against that node's
 management-call ceiling, and SHALL NOT start while the previous sweep for that cluster is
@@ -221,7 +221,7 @@ node SHALL be capped by an operational setting.
 
 #### Scenario: Nobody is looking
 
-- **WHEN** no Studio instance has an operator observing a cluster's flow for longer than
+- **WHEN** no Rahdar instance has an operator observing a cluster's flow for longer than
   the observation lease
 - **THEN** no producer or consumer listing is sent to that cluster's nodes
 
@@ -236,16 +236,16 @@ node SHALL be capped by an operational setting.
 - **THEN** the view states, for that node, how many consumers were sampled out of how many
   exist
 
-### Requirement: Every Studio instance serves the same flow state
+### Requirement: Every Rahdar instance serves the same flow state
 
-When several Studio instances share one database, exactly one of them SHALL sample a
+When several Rahdar instances share one database, exactly one of them SHALL sample a
 cluster at a time, and every instance SHALL serve the flow view from the same latest
 sample. A change of the sampling instance SHALL cause rates to read "measuring…" for at most
 one sweep rather than showing wrong values.
 
 #### Scenario: Two instances
 
-- **WHEN** two Studio instances share a database and operators on both open the same
+- **WHEN** two Rahdar instances share a database and operators on both open the same
   cluster's flow
 - **THEN** only one instance sends sampling requests, and both views show the same rates
 

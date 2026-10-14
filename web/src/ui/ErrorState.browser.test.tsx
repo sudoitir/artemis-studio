@@ -78,7 +78,7 @@ describe('ErrorState', () => {
     );
     const alert = screen.getByRole('alert');
     expect(getComputedStyle(alert).flexDirection).toBe('row');
-    const title = screen.getByText('Studio failed to complete the request').getBoundingClientRect();
+    const title = screen.getByText('Rahdar failed to complete the request').getBoundingClientRect();
     const cause = screen.getByText('The broker timed out.').getBoundingClientRect();
     expect(Math.abs(title.top - cause.top)).toBeLessThan(title.height);
   });

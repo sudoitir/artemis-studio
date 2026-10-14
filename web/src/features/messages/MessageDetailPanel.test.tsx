@@ -248,7 +248,7 @@ describe('MessageDetailPanel', () => {
     renderWithProviders(<MessageDetailPanel {...base} messageId="146" />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     await user.click(within(alert).getByRole('button', { name: 'Retry' }));
 
     expect(await screen.findByRole('heading', { level: 3, name: 'Headers' })).toBeInTheDocument();

@@ -245,9 +245,9 @@ The system SHALL define a permission for creating, modifying and deleting messag
 subscriptions, resolvable at global, environment, or cluster scope through the existing
 scope walk, and listed in the permission catalogue with a human label.
 
-This permission SHALL be distinct from the permission that governs Studio's own settings.
+This permission SHALL be distinct from the permission that governs Rahdar's own settings.
 Capture mutates broker routing configuration and creates a stored copy of application
-payload; a grant that lets an operator change Studio's configuration SHALL NOT thereby let
+payload; a grant that lets an operator change Rahdar's configuration SHALL NOT thereby let
 them tap a production address.
 
 Querying captured messages SHALL require the same message read permission, scoped the same
@@ -357,7 +357,7 @@ Every catalogue entry SHALL state its owning module or plugin, a human descripti
 
 ### Requirement: Effective permissions can be previewed for a user
 
-Studio SHALL compute and return the effective permissions of a chosen user: for each of the user's role grants, team memberships and shares, every permission it gives, at its scope, and its source. A wildcard SHALL be expanded to the catalogue entries it matches, naming the wildcard it came through. Studio SHALL also answer an access check for a user, a cluster and an optional queue or address name: for each permission, whether it is allowed there and every source that allows it. A queue or address detail SHALL show its owning team and which teams and roles may act on it. These reads SHALL require the permission to administer users.
+Rahdar SHALL compute and return the effective permissions of a chosen user: for each of the user's role grants, team memberships and shares, every permission it gives, at its scope, and its source. A wildcard SHALL be expanded to the catalogue entries it matches, naming the wildcard it came through. Rahdar SHALL also answer an access check for a user, a cluster and an optional queue or address name: for each permission, whether it is allowed there and every source that allows it. A queue or address detail SHALL show its owning team and which teams and roles may act on it. These reads SHALL require the permission to administer users.
 
 #### Scenario: Preview for a user
 
@@ -381,7 +381,7 @@ Studio SHALL compute and return the effective permissions of a chosen user: for 
 
 ### Requirement: Two roles can be compared
 
-Studio SHALL show the permissions that differ between two roles, marking which role holds each.
+Rahdar SHALL show the permissions that differ between two roles, marking which role holds each.
 
 #### Scenario: Diff of two roles
 

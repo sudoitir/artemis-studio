@@ -30,7 +30,7 @@ const me = (over: object = {}) =>
   );
 
 const problem = (slug: string, status: number) =>
-  HttpResponse.json({ type: `https://artemis-studio.dev/problems/${slug}`, title: slug }, { status });
+  HttpResponse.json({ type: `https://rahdar.dev/problems/${slug}`, title: slug }, { status });
 
 const needsFactor = (methods: string[]) =>
   http.post('*/api/v1/auth/reauthenticate', () =>
@@ -141,7 +141,7 @@ describe('StepUp', () => {
 
 describe('StepUpPrompt', () => {
   const refusal = new ApiError(403, {
-    type: 'https://artemis-studio.dev/problems/reauthentication-required',
+    type: 'https://rahdar.dev/problems/reauthentication-required',
     title: 'Confirm it is you',
   });
 

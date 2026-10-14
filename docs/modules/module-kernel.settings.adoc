@@ -1,35 +1,35 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.kernel.settings`
+|`io.github.sudoitir.rahdar.kernel.settings`
 |Spring components
 |_Controllers_
 
-* `i.g.s.a.k.s.web.SecretsController`
-* `i.g.s.a.k.s.web.SettingsController`
+* `i.g.s.r.k.s.web.SecretsController`
+* `i.g.s.r.k.s.web.SettingsController`
 
 _Services_
 
-* `i.g.s.a.k.s.SecretRotationService`
-* `i.g.s.a.k.s.SettingsService`
+* `i.g.s.r.k.s.SecretRotationService`
+* `i.g.s.r.k.s.SettingsService`
 
 _Others_
 
-* `i.g.s.a.k.s.SettingsContribution` (via `i.g.s.a.k.s.SessionSettings`)
-* `i.g.s.a.k.s.SettingsReader`
-* `i.g.s.a.k.s.StudioInstance`
+* `i.g.s.r.k.s.RahdarInstance`
+* `i.g.s.r.k.s.SettingsContribution` (via `i.g.s.r.k.s.SessionSettings`)
+* `i.g.s.r.k.s.SettingsReader`
 |Bean references
-|* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
-* `i.g.s.a.k.g.ApprovalProviderRegistry` (in Approval gate contract)
-* `i.g.s.a.k.s.SecretVault` (in Security)
-* `i.g.s.a.k.s.SecretRotations` (in Security)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.k.s.SessionAuthentication` (in Security)
-* `i.g.s.a.k.r.StudioBus` (in Replicas)
+|* `i.g.s.r.k.p.FeatureRegistry` (in Plugin contract)
+* `i.g.s.r.k.g.ApprovalProviderRegistry` (in Approval gate contract)
+* `i.g.s.r.k.s.SecretVault` (in Security)
+* `i.g.s.r.k.s.SecretRotations` (in Security)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
+* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.k.s.SessionAuthentication` (in Security)
+* `i.g.s.r.k.r.RahdarBus` (in Replicas)
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 
-* `i.g.s.a.k.r.BusResumed` 
-* `i.g.s.a.k.r.ReplicaSignal` 
+* `i.g.s.r.k.r.BusResumed` 
+* `i.g.s.r.k.r.ReplicaSignal` 
 |===

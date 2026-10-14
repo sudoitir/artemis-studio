@@ -23,7 +23,7 @@ import { subscriptionColumns } from './subscriptionColumns.ts';
 
 /**
  * What a capture tap creates on every live node, in the words the operator needs
- * before agreeing to it. Not documentation: this is the last screen before Studio
+ * before agreeing to it. Not documentation: this is the last screen before Rahdar
  * starts mutating broker routing on a schedule, so the whole blast radius is here.
  */
 function CaptureBlastRadius({ pattern, retentionDays }: Readonly<{ pattern: string; retentionDays: number }>) {
@@ -32,10 +32,10 @@ function CaptureBlastRadius({ pattern, retentionDays }: Readonly<{ pattern: stri
     <Notice tone="warning" title="This changes routing on every live node">
       <Stack gap={6}>
         <Text size="sm">
-          On each live node Studio will create a <strong>non-exclusive divert</strong> from {target}, a{' '}
+          On each live node Rahdar will create a <strong>non-exclusive divert</strong> from {target}, a{' '}
           <strong>ring-bounded, non-durable queue</strong> to hold the copies, an <strong>address setting</strong> that
-          stops the broker paging or blocking on Studio&apos;s account, and a <strong>security setting</strong>{' '}
-          restricting that queue to Studio&apos;s own role. Production routing is untouched — the divert copies, it does
+          stops the broker paging or blocking on Rahdar&apos;s account, and a <strong>security setting</strong>{' '}
+          restricting that queue to Rahdar&apos;s own role. Production routing is untouched — the divert copies, it does
           not take.
         </Text>
         <Text size="sm">
@@ -49,9 +49,9 @@ function CaptureBlastRadius({ pattern, retentionDays }: Readonly<{ pattern: stri
         </Text>
         <Text size="sm">
           The equivalent, for an estate that deploys from <Code>broker.xml</Code>, is a <Code>divert</Code> onto{' '}
-          <Code>artemis-studio.capture.…</Code> with <Code>&lt;exclusive&gt;false&lt;/exclusive&gt;</Code>, plus an{' '}
-          <Code>address-setting</Code> for <Code>artemis-studio.capture.&lt;instance&gt;.#</Code> with <Code>DROP</Code>
-          , a <Code>ring-size</Code>, a <Code>max-size-bytes</Code> and an <Code>expiry-delay</Code>. The preview below
+          <Code>rahdar.capture.…</Code> with <Code>&lt;exclusive&gt;false&lt;/exclusive&gt;</Code>, plus an{' '}
+          <Code>address-setting</Code> for <Code>rahdar.capture.&lt;instance&gt;.#</Code> with <Code>DROP</Code>, a{' '}
+          <Code>ring-size</Code>, a <Code>max-size-bytes</Code> and an <Code>expiry-delay</Code>. The preview below
           shows the exact configuration.
         </Text>
       </Stack>
@@ -76,7 +76,7 @@ const LIMITS = {
   },
   maxMegabytes: {
     label: 'Stored payload limit (MB)',
-    description: "Payload this subscription may keep in Studio's database before it reports itself degraded.",
+    description: "Payload this subscription may keep in Rahdar's database before it reports itself degraded.",
     min: 1,
     max: 1_000_000,
   },
@@ -172,7 +172,7 @@ function CapturePreview({ preview }: Readonly<{ preview: SqlCapturePreviewView }
       <Text size="sm">
         Each capture queue holds at most {(preview.ringMessages ?? 0).toLocaleString()} messages or{' '}
         {bytes(preview.ringBytes ?? 0)}, whichever is reached first. Past that the broker drops the oldest copy and
-        Studio reports it as missed.
+        Rahdar reports it as missed.
       </Text>
       <Text size="xs" fw={600}>
         Created on every listed node
@@ -247,7 +247,7 @@ function StoresBodiesNotice({
   return (
     <Notice tone="warning" title="This stores message bodies">
       <Text size="sm">
-        Studio will keep a copy of every message it observes on {pattern.trim() || 'these queues'} — headers,
+        Rahdar will keep a copy of every message it observes on {pattern.trim() || 'these queues'} — headers,
         application properties and the body — in its own database for {retention} day
         {retention === 1 ? '' : 's'}, and then delete it. That copy is searchable by anyone who can read messages on
         this cluster.{' '}
@@ -407,13 +407,13 @@ function CreateSubscription({
       />
       <Text size="xs" c="dimmed">
         {mode === 'SAMPLE'
-          ? 'Just sampling: Studio polls these queues and records what it saw. A message that arrives and is consumed between two polls is never recorded.'
-          : "Studio installs a divert-fed tap on every live node and records everything the address routed, whether or not anything consumed it. It changes the broker's routing configuration."}
+          ? 'Just sampling: Rahdar polls these queues and records what it saw. A message that arrives and is consumed between two polls is never recorded.'
+          : "Rahdar installs a divert-fed tap on every live node and records everything the address routed, whether or not anything consumed it. It changes the broker's routing configuration."}
       </Text>
       {capture ? (
         <TextInput
           label="Capture filter (optional)"
-          description="An Artemis filter expression. Narrows both what the broker copies and what Studio stores."
+          description="An Artemis filter expression. Narrows both what the broker copies and what Rahdar stores."
           placeholder="tenant = 'acme'"
           value={filterString}
           readOnly={frozen}
@@ -498,7 +498,7 @@ export function IndexSubscriptions() {
   // answer has arrived is a claim that was never checked.
   const canWrite = loading || can('settings:write', clusterId);
   // Capture mutates broker routing, so it is a different authority from changing how
-  // often Studio polls. Offered while grants are still loading, like everything else.
+  // often Rahdar polls. Offered while grants are still loading, like everything else.
   const canCapture = loading || can('capture:write', clusterId);
   const columns = useMemo(
     () => subscriptionColumns({ clusterId, canWrite, canCapture }),

@@ -1,30 +1,30 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.platform.mcp`
+|`io.github.sudoitir.rahdar.platform.mcp`
 |Spring components
 |_Controllers_
 
-* `i.g.s.a.p.m.McpToolsController`
+* `i.g.s.r.p.m.McpToolsController`
 
 _Configuration properties_
 
-* `i.g.s.a.p.m.McpProperties`
+* `i.g.s.r.p.m.McpProperties`
 
 _Others_
 
-* `i.g.s.a.p.m.McpCatalogResources`
-* `i.g.s.a.p.m.McpHelpTool`
-* `i.g.s.a.p.m.McpRunbookPrompts`
-* `i.g.s.a.p.m.McpSettings`
-* `i.g.s.a.p.m.SettingsMcpTools`
+* `i.g.s.r.p.m.McpCatalogResources`
+* `i.g.s.r.p.m.McpHelpTool`
+* `i.g.s.r.p.m.McpRunbookPrompts`
+* `i.g.s.r.p.m.McpSettings`
+* `i.g.s.r.p.m.SettingsMcpTools`
 |Bean references
-|* `i.g.s.a.p.c.ClusterService` (in Clusters)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
-* `i.g.s.a.k.p.PluginRuntimeStatus` (in Plugin contract)
-* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.k.p.FeatureRegistry` (in Plugin contract)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
+|* `i.g.s.r.p.c.ClusterService` (in Clusters)
+* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
+* `i.g.s.r.k.p.PluginRuntimeStatus` (in Plugin contract)
+* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.k.p.FeatureRegistry` (in Plugin contract)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
 |===

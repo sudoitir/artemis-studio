@@ -1883,7 +1883,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["studioHealth"];
+        get: operations["rahdarHealth"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3681,7 +3681,7 @@ export interface components {
             routingTypes: ("ANYCAST" | "MULTICAST")[];
             queues: components["schemas"]["ConfigQueueView"][];
         };
-        /** @description One bridge; a null field is not declared and keeps the broker's default. The credential is a reference into Studio's vault and never a value */
+        /** @description One bridge; a null field is not declared and keeps the broker's default. The credential is a reference into Rahdar's vault and never a value */
         ConfigBridgeView: {
             name: string;
             queueName: string;
@@ -3717,7 +3717,7 @@ export interface components {
             /** Format: int32 */
             concurrency?: number | null;
             clientId?: string | null;
-            /** @description Names a credential held in Studio's vault; never a password */
+            /** @description Names a credential held in Rahdar's vault; never a password */
             credentialRef?: string | null;
         };
         /** @description One divert */
@@ -3804,7 +3804,7 @@ export interface components {
             revision: number;
             document: components["schemas"]["ConfigDocumentView"];
             /** @enum {string} */
-            applyMode: "STUDIO_MANAGED" | "CONFIG_MANAGED";
+            applyMode: "RAHDAR_MANAGED" | "CONFIG_MANAGED";
             reportUndeclared: boolean;
             undeclaredExclusions: string[];
             /** Format: date-time */
@@ -3848,7 +3848,7 @@ export interface components {
             evaluatedAt?: string | null;
             findings: components["schemas"]["ConfigDriftFindingView"][];
             /**
-             * @description Why an IN_SYNC node agrees: Studio applied and read it back, the declaration was adopted from this cluster, or an evaluation simply found them equal. Null unless the node is IN_SYNC
+             * @description Why an IN_SYNC node agrees: Rahdar applied and read it back, the declaration was adopted from this cluster, or an evaluation simply found them equal. Null unless the node is IN_SYNC
              * @enum {string|null}
              */
             basis?: "VERIFIED_APPLY" | "ADOPTED" | "OBSERVED_MATCH" | null;
@@ -3858,7 +3858,7 @@ export interface components {
              */
             basisRef?: number | null;
         };
-        /** @description Store or replace a bridge credential. The password is sealed in Studio's vault and is never returned by any read, diff, audit row, tool response or export */
+        /** @description Store or replace a bridge credential. The password is sealed in Rahdar's vault and is never returned by any read, diff, audit row, tool response or export */
         BridgeCredentialRequest: {
             /** @description The user the bridge authenticates as */
             username?: string | null;
@@ -4026,7 +4026,7 @@ export interface components {
             compatible: boolean;
             missingRequires: string[];
             /**
-             * @description NONE; AUTOMATIC: Studio restarts itself once confirmed; MANUAL: restart it yourself.
+             * @description NONE; AUTOMATIC: Rahdar restarts itself once confirmed; MANUAL: restart it yourself.
              * @enum {string}
              */
             restart: "NONE" | "AUTOMATIC" | "MANUAL";
@@ -4683,7 +4683,7 @@ export interface components {
             requiresScan: boolean;
             /** @description The predicates the broker evaluates. These cost nothing. */
             pushedDown?: string[];
-            /** @description The predicates Studio evaluates. These cost a scan. */
+            /** @description The predicates Rahdar evaluates. These cost a scan. */
             scanned?: string[];
             /**
              * Format: int64
@@ -4804,7 +4804,7 @@ export interface components {
         };
         /** @description What creating a capture subscription would do, without doing it: what it covers, where, how much it may hold, and the broker objects and configuration it amounts to. */
         CapturePreviewView: {
-            /** @description The addresses the pattern resolves to. Studio's own capture addresses are never included. */
+            /** @description The addresses the pattern resolves to. Rahdar's own capture addresses are never included. */
             addresses?: string[];
             /** @description The live nodes the tap would be installed on. */
             nodes?: string[];
@@ -5142,7 +5142,7 @@ export interface components {
              * @description The node to apply first
              */
             canaryNodeId?: string | null;
-            /** @description Also remove settings and diverts Studio did not apply */
+            /** @description Also remove settings and diverts Rahdar did not apply */
             removeUndeclared?: boolean | null;
             /** @description High hazard identifiers the operator acknowledged */
             acknowledgedHazards?: string[] | null;
@@ -5445,7 +5445,7 @@ export interface components {
             id: string;
             username: string;
             mustChangePassword: boolean;
-            /** @description The provider the account signs in with: local, or the id of another one. Only a local account's password is changed in Studio. */
+            /** @description The provider the account signs in with: local, or the id of another one. Only a local account's password is changed in Rahdar. */
             providerId: string;
             /** @description The user's role requires two-step verification and they have none: the session may only enrol one until they do. */
             secondFactorEnrolmentRequired: boolean;
@@ -5618,7 +5618,7 @@ export interface components {
         /** @description How the cluster's configuration is applied and what drift reports */
         ConfigureRequest: {
             /** @enum {string} */
-            applyMode: "STUDIO_MANAGED" | "CONFIG_MANAGED";
+            applyMode: "RAHDAR_MANAGED" | "CONFIG_MANAGED";
             reportUndeclared: boolean;
             undeclaredExclusions: string[];
         };
@@ -5959,7 +5959,7 @@ export interface components {
             name: string;
             /** Format: uuid */
             clusterId: string;
-            /** @description The node's host:port; null while Studio has no management address for it. */
+            /** @description The node's host:port; null while Rahdar has no management address for it. */
             node?: string | null;
             /** Format: date-time */
             lastSuccess?: string | null;
@@ -5995,6 +5995,25 @@ export interface components {
             /** Format: int32 */
             pending?: number | null;
         };
+        RahdarHealth: {
+            jobs: components["schemas"]["JobHealth"][];
+            nodes: components["schemas"]["NodeHealth"][];
+            /** @description Every replica seen in the last ten minutes, including stopped and gone ones. */
+            replicas: components["schemas"]["ReplicaHealth"][];
+            /**
+             * Format: uuid
+             * @description The replica that answered; node figures are its view.
+             */
+            answeringReplica: string;
+            dbPool: components["schemas"]["PoolHealth"];
+            /**
+             * Format: int32
+             * @description Event stream clients connected to this instance.
+             */
+            streamClients?: number | null;
+            /** @description Any job, node or replica is degraded. */
+            degraded: boolean;
+        };
         ReplicaHealth: {
             /** Format: uuid */
             id: string;
@@ -6014,25 +6033,6 @@ export interface components {
             /** @description The replica answering this request. */
             self: boolean;
             /** @description The replica is gone or draining. */
-            degraded: boolean;
-        };
-        StudioHealth: {
-            jobs: components["schemas"]["JobHealth"][];
-            nodes: components["schemas"]["NodeHealth"][];
-            /** @description Every replica seen in the last ten minutes, including stopped and gone ones. */
-            replicas: components["schemas"]["ReplicaHealth"][];
-            /**
-             * Format: uuid
-             * @description The replica that answered; node figures are its view.
-             */
-            answeringReplica: string;
-            dbPool: components["schemas"]["PoolHealth"];
-            /**
-             * Format: int32
-             * @description Event stream clients connected to this instance.
-             */
-            streamClients?: number | null;
-            /** @description Any job, node or replica is degraded. */
             degraded: boolean;
         };
         SseEmitter: {
@@ -6198,14 +6198,14 @@ export interface components {
         ItemView: {
             /** Format: int64 */
             id: number;
-            /** @description Who posted it: a Studio feature or a plugin id. */
+            /** @description Who posted it: a Rahdar feature or a plugin id. */
             source: string;
             kind: string;
             /** @enum {string} */
             severity: "info" | "success" | "warning" | "danger";
             title: string;
             body?: string | null;
-            /** @description A path inside Studio. */
+            /** @description A path inside Rahdar. */
             link?: string | null;
             data?: {
                 [key: string]: string;
@@ -6278,7 +6278,7 @@ export interface components {
             /** @description Whether an approval provider is installed and meant to run. */
             armed: boolean;
             providerId?: string | null;
-            /** @description Whether the provider runs on this Studio instance. */
+            /** @description Whether the provider runs on this Rahdar instance. */
             attached: boolean;
             /** @description Whether break-glass lets operations bypass approval. */
             breakGlass: boolean;
@@ -6317,7 +6317,7 @@ export interface components {
             hasNext: boolean;
         };
         SummaryView: {
-            studioVersion: string;
+            rahdarVersion: string;
             /** Format: int32 */
             contractVersion: number;
             java: string;
@@ -6732,7 +6732,7 @@ export interface components {
             latencyBoundMs?: number | null;
             /**
              * Format: date-time
-             * @description When the request says it was produced, on Studio's clock
+             * @description When the request says it was produced, on Rahdar's clock
              */
             requestEnqueuedAt?: string | null;
             /** Format: date-time */
@@ -6785,7 +6785,7 @@ export interface components {
             hasNext: boolean;
         };
         ClockDiagnosticsView: {
-            /** @description UNKNOWN, IN_AGREEMENT, BROKER_SKEWED, or STUDIO_SUSPECT — the last meaning every node disagrees the same way, so the common factor is Studio's own host */
+            /** @description UNKNOWN, IN_AGREEMENT, BROKER_SKEWED, or RAHDAR_SUSPECT — the last meaning every node disagrees the same way, so the common factor is Rahdar's own host */
             verdict: string;
             /** Format: int64 */
             worstOffsetMs?: number | null;
@@ -7169,7 +7169,7 @@ export interface components {
             presentOn?: number | null;
             /** Format: int32 */
             presentOf?: number | null;
-            studio: boolean;
+            rahdar: boolean;
             faults?: ("NO_CONSUMER" | "STALLED" | "BRIDGE_DOWN" | "PARTIAL_PRESENCE")[];
             byNode?: components["schemas"]["FlowNodeRate"][] | null;
         };
@@ -7340,14 +7340,14 @@ export interface components {
             /** @description Exclusive diverts take the message rather than copying it, and Artemis evaluates them before non-exclusive ones. The difference between traffic being duplicated and traffic being taken away. */
             exclusive: boolean;
             retroactiveResource: boolean;
-            /** @description What in Studio owns this divert, when Studio's own records say it does: MESSAGE_CAPTURE for a capture tap, OPERATOR for one created through the routing screen. Null means Studio has no record of it, which is not a claim that it came from broker configuration. */
+            /** @description What in Rahdar owns this divert, when Rahdar's own records say it does: MESSAGE_CAPTURE for a capture tap, OPERATOR for one created through the routing screen. Null means Rahdar has no record of it, which is not a claim that it came from broker configuration. */
             owner?: string | null;
             /**
              * Format: uuid
              * @description The capture subscription this divert serves, when owner is MESSAGE_CAPTURE. Such a divert is not deletable from the routing view: reconciliation would reinstate it, so the deletion would appear to succeed and then undo itself.
              */
             captureSubscriptionId?: string | null;
-            /** @description The <divert> element that would make broker configuration carry this divert, when owner is OPERATOR: Studio created it, so the deployed broker.xml does not. */
+            /** @description The <divert> element that would make broker configuration carry this divert, when owner is OPERATOR: Rahdar created it, so the deployed broker.xml does not. */
             brokerXml?: string | null;
             /** Format: int32 */
             nodesPresent: number;
@@ -7530,7 +7530,7 @@ export interface components {
             capability: string;
             title: string;
             rationale: string;
-            /** @description Whether Studio can write this over the management API, or the operator must edit broker.xml and restart */
+            /** @description Whether Rahdar can write this over the management API, or the operator must edit broker.xml and restart */
             appliable: boolean;
             /** @enum {string|null} */
             section?: "ADDRESS_SETTING" | "SECURITY_SETTING" | null;
@@ -7543,7 +7543,7 @@ export interface components {
             roles: {
                 [key: string]: string[];
             };
-            /** @description For a security setting: the roles of the account Studio connects to Core with, as the broker's user management reports them; empty when it could not */
+            /** @description For a security setting: the roles of the account Rahdar connects to Core with, as the broker's user management reports them; empty when it could not */
             accountRoles: string[];
             accountRolesSource?: components["schemas"]["ConfigRolesSource"] | null;
             /** @description The keys this recommendation itself sets */
@@ -7563,7 +7563,7 @@ export interface components {
             /** @description Why the account's roles were not used; null when they were */
             reason?: string | null;
         };
-        /** @description One node's connector names, for a bridge to reference. known=false means Studio could not read them, not that there are none */
+        /** @description One node's connector names, for a bridge to reference. known=false means Rahdar could not read them, not that there are none */
         ConfigNodeConnectorsView: {
             /** Format: uuid */
             nodeId: string;
@@ -8080,10 +8080,10 @@ export interface components {
             safeMode: boolean;
             safeModeReason?: string | null;
             budget: components["schemas"]["PluginBudgetView"];
-            restart: components["schemas"]["StudioRestartView"];
+            restart: components["schemas"]["RahdarRestartView"];
             plugins: components["schemas"]["PluginView"][];
         };
-        StudioRestartView: {
+        RahdarRestartView: {
             supervised: boolean;
             needed: boolean;
             restarting: boolean;
@@ -8174,11 +8174,11 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -8249,11 +8249,11 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -8381,11 +8381,11 @@ export interface operations {
                     "*/*": components["schemas"]["TeamView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -8443,11 +8443,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -8526,11 +8526,11 @@ export interface operations {
                     "*/*": components["schemas"]["MemberView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -8589,11 +8589,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -8671,11 +8671,11 @@ export interface operations {
                     "*/*": components["schemas"]["RoleView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -8733,11 +8733,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -8815,11 +8815,11 @@ export interface operations {
                     "*/*": components["schemas"]["GroupMappingsView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -9012,11 +9012,11 @@ export interface operations {
                     "*/*": components["schemas"]["EnvironmentView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -9074,11 +9074,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -9147,11 +9147,11 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -9344,11 +9344,11 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -9911,11 +9911,11 @@ export interface operations {
                     "*/*": components["schemas"]["PluginLicenseView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -9973,11 +9973,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10102,11 +10102,11 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10240,11 +10240,11 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10306,11 +10306,11 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10444,11 +10444,11 @@ export interface operations {
                     "*/*": components["schemas"]["CreatedTokenView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10635,11 +10635,11 @@ export interface operations {
                     "*/*": components["schemas"]["TeamView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10710,11 +10710,11 @@ export interface operations {
                     "*/*": components["schemas"]["ShareView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10785,11 +10785,11 @@ export interface operations {
                     "*/*": components["schemas"]["PatternView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10860,11 +10860,11 @@ export interface operations {
                     "*/*": components["schemas"]["MemberView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10924,7 +10924,7 @@ export interface operations {
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10984,11 +10984,11 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -11184,11 +11184,11 @@ export interface operations {
                     "*/*": components["schemas"]["RoleView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -11378,11 +11378,11 @@ export interface operations {
                     "*/*": components["schemas"]["GroupMappingView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -11873,11 +11873,11 @@ export interface operations {
                     "*/*": components["schemas"]["EnvironmentView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -12079,11 +12079,11 @@ export interface operations {
                     "*/*": components["schemas"]["ClusterDetail"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -12333,7 +12333,7 @@ export interface operations {
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -13605,11 +13605,11 @@ export interface operations {
                     "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -13686,11 +13686,11 @@ export interface operations {
                     "*/*": components["schemas"]["AffectedView"] | components["schemas"]["DryRunView"] | components["schemas"]["PartialView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -14451,7 +14451,7 @@ export interface operations {
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15909,11 +15909,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -15984,7 +15984,7 @@ export interface operations {
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16053,11 +16053,11 @@ export interface operations {
                     "*/*": components["schemas"]["PluginPurgePlanView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16121,7 +16121,7 @@ export interface operations {
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16241,11 +16241,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16316,7 +16316,7 @@ export interface operations {
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16496,11 +16496,11 @@ export interface operations {
                     "*/*": components["schemas"]["TrustedKeyView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16618,11 +16618,11 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -16924,11 +16924,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17008,11 +17008,11 @@ export interface operations {
                     "*/*": components["schemas"]["ConnectionCheck"] | components["schemas"]["ClusterConnectionView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17210,11 +17210,11 @@ export interface operations {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -17353,11 +17353,11 @@ export interface operations {
                     "*/*": components["schemas"]["NodeEndpointView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -18108,7 +18108,7 @@ export interface operations {
             };
         };
     };
-    studioHealth: {
+    rahdarHealth: {
         parameters: {
             query?: never;
             header?: never;
@@ -18123,7 +18123,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["StudioHealth"];
+                    "*/*": components["schemas"]["RahdarHealth"];
                 };
             };
             /** @description Too many requests. Wait for Retry-After seconds. */
@@ -23053,11 +23053,11 @@ export interface operations {
                     "*/*": components["schemas"]["UserView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23119,11 +23119,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23247,11 +23247,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23317,11 +23317,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23445,11 +23445,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23589,11 +23589,11 @@ export interface operations {
                     "*/*": components["schemas"]["LifecycleOutcomeView"];
                 };
             };
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23881,11 +23881,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -23950,11 +23950,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -24019,11 +24019,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Held for approval: the operation has not run. X-Studio-Held-Operation names the request. */
+            /** @description Held for approval: the operation has not run. X-Rahdar-Held-Operation names the request. */
             202: {
                 headers: {
                     /** @description The held operation's id, when the operation was held. */
-                    "X-Studio-Held-Operation"?: string;
+                    "X-Rahdar-Held-Operation"?: string;
                     [name: string]: unknown;
                 };
                 content: {

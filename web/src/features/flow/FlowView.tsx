@@ -43,7 +43,7 @@ const LAYER_LABELS: Record<string, string> = {
   CLUSTER: 'Cluster hops',
   DEAD_LETTER: 'Dead letter & expiry',
   TEMPORARY: 'Temporary queues',
-  CAPTURE: 'Studio capture',
+  CAPTURE: 'Rahdar capture',
 };
 
 const FIND_GROUPS: Array<{ group: string; kinds: string[] }> = [
@@ -393,7 +393,7 @@ function EmptyFlow({ unreachable }: Readonly<{ unreachable: string[] }>) {
       description={
         <>
           Flow draws the clients producing to each address, the queues those addresses route into, and the clients
-          consuming them. This cluster has no queues Studio has seen and no connected producers or consumers. Clients
+          consuming them. This cluster has no queues Rahdar has seen and no connected producers or consumers. Clients
           appear here within one sampling interval of attaching, and new queues appear once the queue sweep has read
           them.
         </>

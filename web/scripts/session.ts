@@ -1,5 +1,5 @@
 /**
- * Sign in to a running Studio the way an operator does, and find the demo cluster.
+ * Sign in to a running Rahdar the way an operator does, and find the demo cluster.
  *
  * Shared by `shots.ts` and `demo.ts` so the two cannot drift: a change to the
  * login screen should break both captures at once, in one place.
@@ -8,7 +8,7 @@ import type { Browser, BrowserContext, Page } from '@playwright/test';
 
 import { nextTotp } from './totp.ts';
 
-export const BASE = process.env.STUDIO ?? 'http://localhost:8080';
+export const BASE = process.env.RAHDAR ?? 'http://localhost:8080';
 export const USER = process.env.ADMIN_USER ?? 'admin';
 
 export function password(): string {
@@ -45,10 +45,10 @@ async function secondStep(page: Page, secret: string) {
     await page.getByRole('button', { name: 'Verify' }).click();
     if (await leftLogin(page, 10_000)) return;
   }
-  throw new Error('Studio refused three second-step codes in a row');
+  throw new Error('Rahdar refused three second-step codes in a row');
 }
 
-/** Signs one account in through the login screen, through the second step (with `secret`, else ADMIN_TOTP_SECRET) when Studio asks for it. */
+/** Signs one account in through the login screen, through the second step (with `secret`, else ADMIN_TOTP_SECRET) when Rahdar asks for it. */
 export async function login(page: Page, user: string, passphrase: string, secret?: string) {
   await page.goto(`${BASE}/login`);
   await page.getByRole('textbox', { name: 'Username' }).fill(user);

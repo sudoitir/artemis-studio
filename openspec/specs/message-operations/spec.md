@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines what an operator can do to the messages on a queue from Artemis Studio
+Defines what an operator can do to the messages on a queue from Rahdar
 over the Jolokia management channel — browse them with full headers and
 properties, send one, and move / retry / delete / expire / purge them by ids or
 by filter — and the safety contract around every mutation: a dry run that

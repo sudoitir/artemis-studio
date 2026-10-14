@@ -1,5 +1,5 @@
 ## 1. Reactor
-- [ ] 1.1 Move the app into `studio/` (with `web/`), add the `pom` root and empty SDK modules; fix the Dockerfile, justfile, CI, `frontend-maven-plugin`, osv-scanner, Dependabot, Sonar and JaCoCo `report-aggregate`
+- [ ] 1.1 Move the app into `rahdar/` (with `web/`), add the `pom` root and empty SDK modules; fix the Dockerfile, justfile, CI, `frontend-maven-plugin`, osv-scanner, Dependabot, Sonar and JaCoCo `report-aggregate`
 - [ ] 1.2 Proof: green CI, `docker build`, `just demo`
 
 ## 2. Characterization harness
@@ -16,7 +16,7 @@
 - [ ] 4.3 The TCK runs in the driver's integration tests
 
 ## 5. Gateway
-- [ ] 5.1 `platform/broker` becomes the gateway: the driver registry, one `ClusterConnection` per cluster, Studio's `CallInterceptor`, credentials from secrets, reconnect on topology or TLS change
+- [ ] 5.1 `platform/broker` becomes the gateway: the driver registry, one `ClusterConnection` per cluster, Rahdar's `CallInterceptor`, credentials from secrets, reconnect on topology or TLS change
 
 ## 6. Features onto facets (rising risk; each ends with its tests and the TCK cases for its capability)
 - [ ] 6.1 Resources and scrape, then metrics

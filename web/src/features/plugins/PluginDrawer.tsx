@@ -99,7 +99,7 @@ function OverviewTab({ plugin, info }: Readonly<{ plugin: PluginView; info: Plug
         </Stack>
       ),
     },
-    { term: 'Supports Studio', value: `${info.since}${supportedUntil}` },
+    { term: 'Supports Rahdar', value: `${info.since}${supportedUntil}` },
     {
       term: 'Installed',
       value: `${absoluteLabel(plugin.installedAt)}${installedBy}`,
@@ -145,11 +145,11 @@ function OverviewTab({ plugin, info }: Readonly<{ plugin: PluginView; info: Plug
   );
 }
 
-/** Everything the plugin adds to Studio. */
+/** Everything the plugin adds to Rahdar. */
 function ContributionsTab({ plugin, info }: Readonly<{ plugin: PluginView; info: PluginInfo }>) {
   return (
     <List size="sm" spacing={4}>
-      <List.Item>{info.contributions.ui ? 'Screens in Studio' : 'No screens of its own'}</List.Item>
+      <List.Item>{info.contributions.ui ? 'Screens in Rahdar' : 'No screens of its own'}</List.Item>
       {info.contributions.permissions.map((p) => (
         <List.Item key={p.action}>
           Permission <Code>{p.action}</Code>

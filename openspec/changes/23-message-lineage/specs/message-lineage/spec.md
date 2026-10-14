@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: A message's path can be followed across observed hops
-The system SHALL assemble the known path of a message across queues, diverts, bridges, cross-broker transfers, dead-letter queues and captured payloads from what Studio observes, ordered by time.
+The system SHALL assemble the known path of a message across queues, diverts, bridges, cross-broker transfers, dead-letter queues and captured payloads from what Rahdar observes, ordered by time.
 
 #### Scenario: A diverted message
 - **WHEN** a message is diverted and later dead-lettered
@@ -27,7 +27,7 @@ The system SHALL correlate hops by message ID and correlation ID and by addition
 - **THEN** the path shows the ambiguity and does not merge them silently
 
 ### Requirement: A path never claims more than was observed
-Where Studio saw no evidence between two known hops, the path SHALL show an unknown segment. It SHALL NOT infer a hop it did not observe.
+Where Rahdar saw no evidence between two known hops, the path SHALL show an unknown segment. It SHALL NOT infer a hop it did not observe.
 
 #### Scenario: A gap exists
 - **WHEN** a message appears on a queue with no observed predecessor

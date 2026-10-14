@@ -222,8 +222,8 @@ function EmptyCanvas({ height }: Readonly<{ height?: string }>) {
       <div className={styles.empty}>
         <Text fw={600}>No nodes yet</Text>
         <Text size="sm" c="dimmed">
-          Studio learns the topology from the first broker it reaches. Nothing has answered on this cluster's seed
-          address yet; Studio keeps looking and shows the nodes here as they answer.
+          Rahdar learns the topology from the first broker it reaches. Nothing has answered on this cluster's seed
+          address yet; Rahdar keeps looking and shows the nodes here as they answer.
         </Text>
       </div>
     </div>

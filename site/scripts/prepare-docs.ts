@@ -21,7 +21,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '../..');
 const SRC = resolve(HERE, '../src');
 const REFERENCE = join(SRC, 'reference');
-const BLOB = 'https://github.com/sudoitir/artemis-studio/blob/main';
+const BLOB = 'https://github.com/sudoitir/rahdar/blob/main';
 
 /** Applied to every copied file, in order. */
 const REWRITES: Array<[RegExp, string]> = [
@@ -74,7 +74,7 @@ async function copyMarkdown(
 }
 
 const CALVER = /^(\d{4})\.(\d{2})\.(\d+)$/;
-const RELEASES = 'https://api.github.com/repos/sudoitir/artemis-studio/releases?per_page=100';
+const RELEASES = 'https://api.github.com/repos/sudoitir/rahdar/releases?per_page=100';
 
 type Release = { tag_name: string; body: string | null; published_at: string | null; draft: boolean };
 

@@ -1043,7 +1043,7 @@ describe('DataTable: frame and semantics', () => {
         data={[]}
         rowKey={(r) => r.name}
         empty={<p>Nothing here yet</p>}
-        error={<p role="alert">Studio could not load the queues</p>}
+        error={<p role="alert">Rahdar could not load the queues</p>}
       />,
     );
     expect(screen.getByRole('alert')).toHaveTextContent('could not load');

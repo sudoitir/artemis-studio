@@ -1,10 +1,10 @@
 /**
  * Sign in once per account and save the browser session, so the sweep never signs in again.
  *
- *   STUDIO=… ADMIN_PASSWORD=… ADMIN_TOTP_SECRET=… QA_USER_PASSWORD=… \
+ *   RAHDAR=… ADMIN_PASSWORD=… ADMIN_TOTP_SECRET=… QA_USER_PASSWORD=… \
  *     node --experimental-strip-types web/scripts/sweep/auth.ts        (`just qa-up` runs it)
  *
- * One sign-in per account, not one per capture: a second factor Studio has seen is refused as a replay
+ * One sign-in per account, not one per capture: a second factor Rahdar has seen is refused as a replay
  * (ADR-0143), and repeated sign-ins would come close to the lockout (ADR-0144). The state goes to
  * `web/.sweep/auth/<account>.json`: `admin` for everything, `reader` (the read-only `qa-reader` that
  * `scripts/qa-seed.sh` creates) for the permission-denied captures, and `requester` (`qa-requester`, which

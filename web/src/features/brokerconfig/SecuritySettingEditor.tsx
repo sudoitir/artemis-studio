@@ -149,7 +149,7 @@ export function SecuritySettingEditor({
         label="Match pattern"
         description={
           broad
-            ? `${MATCH_HINT} This match covers every address, including the management address — applying it is a High hazard because it can revoke Studio's own access.`
+            ? `${MATCH_HINT} This match covers every address, including the management address — applying it is a High hazard because it can revoke Rahdar's own access.`
             : MATCH_HINT
         }
         {...form.getInputProps('match')}

@@ -1,4 +1,4 @@
-/** What Studio says about where a node's management URL came from, why it has none, and how each account fared. */
+/** What Rahdar says about where a node's management URL came from, why it has none, and how each account fared. */
 
 export type UrlSource = 'SEED' | 'DERIVED' | 'MANUAL';
 export type UrlProblem =

@@ -82,7 +82,7 @@ function inventory(plugins: PluginView[], overrides: Partial<PluginsView> = {}):
       needed: false,
       restarting: false,
       allowedAt: null,
-      command: 'docker compose restart studio',
+      command: 'docker compose restart rahdar',
       unreleased: [],
     },
     plugins,
@@ -276,7 +276,7 @@ describe('Administration → Plugins', () => {
       http.put('*/api/v1/admin/plugins/upload', () =>
         HttpResponse.json(
           {
-            type: 'https://artemis-studio.dev/problems/plugin-refused',
+            type: 'https://rahdar.dev/problems/plugin-refused',
             title: 'Refused',
             status: 422,
             detail: 'refused',
@@ -356,7 +356,7 @@ describe('Administration → Plugins', () => {
     expect(await screen.findByText(/You can close this; it carries on/)).toBeInTheDocument();
     status = 'active';
     expect(await screen.findByText('Notes 1.0.0 is active')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reload Studio' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reload Rahdar' })).toBeInTheDocument();
   });
 
   it('asks a session that signed in long ago to confirm it is them before it can install', async () => {
@@ -491,7 +491,7 @@ describe('Administration → Plugins', () => {
         if (!calls.at(-1)) {
           return HttpResponse.json(
             {
-              type: 'https://artemis-studio.dev/problems/plugin-refused',
+              type: 'https://rahdar.dev/problems/plugin-refused',
               title: 'Conflict',
               status: 409,
               detail: 'refused',
@@ -527,8 +527,8 @@ describe('Administration → Plugins', () => {
     await waitFor(() => expect(calls).toEqual(['', '?acknowledge=true']));
   });
 
-  it('offers a restart when Studio can make one, and the command when it cannot', async () => {
-    const waiting = plugin({ status: 'needs_restart', failure: 'Restart Studio to start acme-notes 1.1.0.' });
+  it('offers a restart when Rahdar can make one, and the command when it cannot', async () => {
+    const waiting = plugin({ status: 'needs_restart', failure: 'Restart Rahdar to start acme-notes 1.1.0.' });
     server.use(
       me(),
       http.get('*/api/v1/admin/plugins', () =>
@@ -536,7 +536,7 @@ describe('Administration → Plugins', () => {
       ),
     );
     const first = renderPanel();
-    expect(await screen.findByRole('button', { name: 'Restart Studio…' })).toBeEnabled();
+    expect(await screen.findByRole('button', { name: 'Restart Rahdar…' })).toBeEnabled();
     expect(screen.getByText('Notes starts after a restart.')).toBeInTheDocument();
     first.unmount();
 
@@ -548,8 +548,8 @@ describe('Administration → Plugins', () => {
       ),
     );
     renderPanel();
-    expect(await screen.findByText('docker compose restart studio')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Restart Studio…' })).toBeNull();
+    expect(await screen.findByText('docker compose restart rahdar')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Restart Rahdar…' })).toBeNull();
   });
 
   it('shows what a drop will do before anything is installed', async () => {
@@ -704,7 +704,7 @@ describe('Administration → Plugins inventory', () => {
 
     listing([], { safeMode: true, safeModeReason: null });
     renderPanel();
-    expect(await screen.findByText(/Studio started without plugins\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Rahdar started without plugins\./)).toBeInTheDocument();
   });
 
   it('lists who can install for an installer', async () => {

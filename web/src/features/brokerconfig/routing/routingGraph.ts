@@ -9,7 +9,7 @@ import type { Section, WireSection } from '../words.ts';
  * <p>Every element carries one of the states below **in words**. None of them is
  * a claim about where an element came from: Artemis records nothing that would
  * support one, and ADR-0065 D2 withdrew that vocabulary. "Observed and not
- * declared" is a statement about Studio's declaration, not about the broker's
+ * declared" is a statement about Rahdar's declaration, not about the broker's
  * history.
  */
 
@@ -31,7 +31,7 @@ export type ElementState =
  * The sentence each state reads as. The first three are the three the routing
  * spec requires; the last two exist because claiming one of the three when
  * nothing has been evaluated, or for an address only named in passing, would be
- * a claim Studio has not checked.
+ * a claim Rahdar has not checked.
  */
 export const STATE_WORDS: Record<ElementState, string> = {
   BOTH: 'declared and observed on the brokers',
@@ -84,7 +84,7 @@ export interface RoutingNodeView {
   connects: string;
   /** Observed runtime state that is a fault rather than drift, in words; null when there is none. */
   fault: string | null;
-  /** The declaration editor this element opens, when it is one Studio declares. */
+  /** The declaration editor this element opens, when it is one Rahdar declares. */
   edit: { section: Section; item: string } | null;
 }
 
@@ -294,7 +294,7 @@ function addBridges({ nodes, edges }: Builder, declaration: ConfigDeclarationVie
         kind: 'target',
         name: b.forwardingAddress,
         state: 'REFERENCED',
-        connects: `on another broker${reached}; Studio does not read it from here`,
+        connects: `on another broker${reached}; Rahdar does not read it from here`,
         fault: null,
         edit: null,
       });
@@ -379,7 +379,7 @@ function addObservedBridge({ nodes, edges }: Builder, f: ConfigDriftFindingView,
         kind: 'target',
         name: to,
         state: 'REFERENCED',
-        connects: 'on another broker; Studio does not read it from here',
+        connects: 'on another broker; Rahdar does not read it from here',
         fault: null,
         edit: null,
       });

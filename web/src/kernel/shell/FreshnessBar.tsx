@@ -70,7 +70,7 @@ export function FreshnessBar() {
   const state = freshnessState(paused, hasError, stream);
 
   const label = LABELS[state];
-  // `dataUpdatedAt` is TanStack's own `Date.now()`. Normalised onto Studio's
+  // `dataUpdatedAt` is TanStack's own `Date.now()`. Normalised onto Rahdar's
   // timeline here, at the one boundary it enters, so the subtraction below is
   // not a comparison between two different clocks (`time.ts`).
   const updated = lastUpdatedAt === null ? null : new Date(toServerMs(lastUpdatedAt));

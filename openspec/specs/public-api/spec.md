@@ -1,12 +1,12 @@
 # public-api Specification
 
 ## Purpose
-The HTTP API under `/api/v1` as a published, versioned contract that clients other than Studio's own UI can rely on: a versioning and deprecation policy, breaks caught in CI, one convention for lists, errors and limits, idempotent retries, generated clients, and tests that keep the document and the implementation in step.
+The HTTP API under `/api/v1` as a published, versioned contract that clients other than Rahdar's own UI can rely on: a versioning and deprecation policy, breaks caught in CI, one convention for lists, errors and limits, idempotent retries, generated clients, and tests that keep the document and the implementation in step.
 
 ## Requirements
 
 ### Requirement: The OpenAPI document is a versioned release artifact
-Each release SHALL publish, among its GitHub release assets, the OpenAPI document of that version, named `artemis-studio-<version>.openapi.json`, with a SHA-256 checksum and build provenance. Its `info.version` SHALL be the release version. The running server SHALL serve the same document at `/v3/api-docs`, with `info.version` set to its own version.
+Each release SHALL publish, among its GitHub release assets, the OpenAPI document of that version, named `rahdar-<version>.openapi.json`, with a SHA-256 checksum and build provenance. Its `info.version` SHALL be the release version. The running server SHALL serve the same document at `/v3/api-docs`, with `info.version` set to its own version.
 
 #### Scenario: Release
 - **WHEN** a version is released
@@ -14,7 +14,7 @@ Each release SHALL publish, among its GitHub release assets, the OpenAPI documen
 
 #### Scenario: Version discovery
 - **WHEN** a client reads `/v3/api-docs`
-- **THEN** `info.version` names the Studio version that serves it
+- **THEN** `info.version` names the Rahdar version that serves it
 
 ### Requirement: Versioning and deprecation follow a documented policy
 The API version SHALL be the path segment after `/api/` and SHALL be resolved by the server, which refuses unsupported versions. The documentation SHALL state how the API is versioned, how breaking changes are flagged and how endpoints are deprecated. A deprecated operation SHALL be marked `deprecated` in the document, and every response from it SHALL carry a `Deprecation` header (RFC 9745), a `Sunset` header (RFC 8594) and a `Link` header with `rel="deprecation"` pointing at its documentation.
@@ -59,7 +59,7 @@ Every endpoint that returns a collection SHALL return the envelope `{data, page,
 - **THEN** the request is refused with a problem of type `invalid-value`
 
 ### Requirement: Every error is problem+json with a stable type
-Every error response from `/api/v1` SHALL be `application/problem+json` with a stable `type` under `https://artemis-studio.dev/problems/`. This SHALL hold for authentication and authorization failures, framework-level request errors, unknown routes and unexpected server errors. An unexpected server error SHALL NOT expose internal detail. The document SHALL describe the problem schema for every operation.
+Every error response from `/api/v1` SHALL be `application/problem+json` with a stable `type` under `https://rahdar.dev/problems/`. This SHALL hold for authentication and authorization failures, framework-level request errors, unknown routes and unexpected server errors. An unexpected server error SHALL NOT expose internal detail. The document SHALL describe the problem schema for every operation.
 
 #### Scenario: Error shape
 - **WHEN** any endpoint fails
@@ -108,7 +108,7 @@ Every `POST`, `PUT`, `PATCH` and `DELETE` under `/api/v1`, except plugin-gateway
 - **THEN** the key is refused as reused, never answered with the preview's result
 
 ### Requirement: TypeScript and Java clients are generated and published
-Each release SHALL publish a TypeScript client (`@artemis-studio/client` on npm) and a Java client (`io.github.sudoitir:artemis-studio-client` on Maven Central), both generated from that release's API document, versioned with the release, and published with provenance.
+Each release SHALL publish a TypeScript client (`@rahdar/client` on npm) and a Java client (`io.github.sudoitir:rahdar-client` on Maven Central), both generated from that release's API document, versioned with the release, and published with provenance.
 
 #### Scenario: Client release
 - **WHEN** a release is published

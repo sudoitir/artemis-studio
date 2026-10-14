@@ -1,7 +1,7 @@
 # feature-modules Specification
 
 ## Purpose
-Defines how an installation of Studio is composed from modules. It covers what a feature declares, which modules are required, how an operator enables or disables a feature at startup, the manifest that tells clients what this installation offers, and how a disabled feature behaves everywhere it would otherwise appear.
+Defines how an installation of Rahdar is composed from modules. It covers what a feature declares, which modules are required, how an operator enables or disables a feature at startup, the manifest that tells clients what this installation offers, and how a disabled feature behaves everywhere it would otherwise appear.
 
 ## Requirements
 
@@ -30,7 +30,7 @@ The system SHALL define one contract version. A feature declaring a different ve
 
 ### Requirement: Optional features can be disabled at startup
 
-The system SHALL enable each feature unless the startup property `artemis-studio.features.<id>.enabled` is `false`. The system SHALL identify a set of required modules: the kernel, broker connectivity, cluster registration and scraping. A required module SHALL NOT be disableable. Enablement SHALL be fixed for the life of the process.
+The system SHALL enable each feature unless the startup property `rahdar.features.<id>.enabled` is `false`. The system SHALL identify a set of required modules: the kernel, broker connectivity, cluster registration and scraping. A required module SHALL NOT be disableable. Enablement SHALL be fixed for the life of the process.
 
 #### Scenario: A feature is enabled by default
 
@@ -56,7 +56,7 @@ A request to an endpoint belonging to a disabled feature SHALL receive a `404` p
 #### Scenario: A disabled feature's endpoint explains itself
 
 - **WHEN** a client calls an endpoint of a disabled feature
-- **THEN** the response is `404` with a problem detail stating that the feature is disabled on this installation and naming `artemis-studio.features.<id>.enabled`
+- **THEN** the response is `404` with a problem detail stating that the feature is disabled on this installation and naming `rahdar.features.<id>.enabled`
 
 #### Scenario: A disabled feature runs nothing in the background
 

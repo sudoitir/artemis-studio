@@ -6,11 +6,11 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one), replace the stub `tasks.md`.
 5. `/opsx:apply` with the harness under **Execution**. New decisions get an ADR.
-6. Verify: `just verify`; for UI, run Studio and check screenshots (light and dark, empty and error states).
+6. Verify: `just verify`; for UI, run Rahdar and check screenshots (light and dark, empty and error states).
 7. PR, merge on green CI, `/opsx:archive`.
 
 ## Why
-Messages carry JSON, XML, Avro or Protobuf, and nothing in Artemis says what shape a queue's messages take. Operators and developers find out by looking at samples. When a producer changes its format, consumers break and nobody sees it coming. Studio already samples payloads under data-governance rules, so it can infer structure and notice change.
+Messages carry JSON, XML, Avro or Protobuf, and nothing in Artemis says what shape a queue's messages take. Operators and developers find out by looking at samples. When a producer changes its format, consumers break and nobody sees it coming. Rahdar already samples payloads under data-governance rules, so it can infer structure and notice change.
 
 ## What Changes
 - Infer message schemas for JSON, XML, Avro and Protobuf per address from samples

@@ -63,7 +63,7 @@ export function LatencyPanel({ clusterId }: Readonly<{ clusterId: string }>) {
         variant="card"
         headingLevel={3}
         title="Sampled, not exhaustive"
-        description="Latency is measured only on requests Studio happened to observe — a request that completes faster than the sample interval is never seen, which biases these numbers toward slower flows."
+        description="Latency is measured only on requests Rahdar happened to observe — a request that completes faster than the sample interval is never seen, which biases these numbers toward slower flows."
       >
         <List size="xs" spacing={2} aria-label="Coverage per address">
           {listed.map((a) => (

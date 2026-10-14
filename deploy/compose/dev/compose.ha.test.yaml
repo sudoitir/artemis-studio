@@ -1,13 +1,13 @@
-# Failover test overlay for compose.ha.yaml: one Artemis broker for Studio to register, and the load
+# Failover test overlay for compose.ha.yaml: one Artemis broker for Rahdar to register, and the load
 # balancer on a port the dev stack does not use. `just ha-failover` runs it with
 # web/scripts/ha-failover.ts, and CI runs the same against the image it builds.
 #
-#   DB_PASSWORD=… SECRET_KEY=… docker compose -p artemis-studio-ha-test --env-file deploy/compose/dev/ha/test.env \
+#   DB_PASSWORD=… SECRET_KEY=… docker compose -p rahdar-ha-test --env-file deploy/compose/dev/ha/test.env \
 #     -f deploy/compose/compose.ha.yaml -f deploy/compose/dev/compose.ha.test.yaml up -d --wait
 
 services:
   # Named and configured as the dev stack's primary: its broker.xml advertises tcp://artemis-primary:61616
-  # to Studio, so the service must keep that name. The backup it names is not started.
+  # to Rahdar, so the service must keep that name. The backup it names is not started.
   artemis-primary:
     image: apache/artemis:2.57.0
     environment:
@@ -25,10 +25,10 @@ services:
       retries: 24
 
   # The replicas list names each one by its host; a name beats a container id.
-  studio-1:
-    hostname: studio-1
-  studio-2:
-    hostname: studio-2
+  rahdar-1:
+    hostname: rahdar-1
+  rahdar-2:
+    hostname: rahdar-2
 
   lb:
     ports: !override

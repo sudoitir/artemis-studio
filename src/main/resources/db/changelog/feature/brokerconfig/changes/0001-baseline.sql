@@ -4,7 +4,7 @@
 -- Column order (non-negotiable #7), storage parameters, keys and indexes are as they are meant to be.
 -- Until the first stable release a change edits this file, and operators recreate the database.
 
---changeset artemis-studio:feature-brokerconfig-0001-baseline splitStatements:true
+--changeset rahdar:feature-brokerconfig-0001-baseline splitStatements:true
 CREATE TABLE broker_config_apply (
     started_at timestamp with time zone DEFAULT now() NOT NULL,
     finished_at timestamp with time zone,
@@ -25,11 +25,11 @@ CREATE TABLE broker_config_apply (
 CREATE TABLE broker_config_declaration (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     current_revision_id bigint NOT NULL,
-    apply_mode text DEFAULT 'STUDIO_MANAGED'::text NOT NULL,
+    apply_mode text DEFAULT 'RAHDAR_MANAGED'::text NOT NULL,
     undeclared_exclusions jsonb DEFAULT '[]'::jsonb NOT NULL,
     cluster_id uuid NOT NULL,
     report_undeclared boolean DEFAULT false NOT NULL,
-    CONSTRAINT ck_broker_config_declaration_mode CHECK ((apply_mode = ANY (ARRAY['STUDIO_MANAGED'::text, 'CONFIG_MANAGED'::text])))
+    CONSTRAINT ck_broker_config_declaration_mode CHECK ((apply_mode = ANY (ARRAY['RAHDAR_MANAGED'::text, 'CONFIG_MANAGED'::text])))
 );
 
 CREATE TABLE broker_config_node_state (

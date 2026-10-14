@@ -187,7 +187,7 @@ export function SetupReviewView() {
         <EmptyState
           kind="empty"
           title="Not reviewed yet"
-          description={`Studio reviews every cluster shortly after it starts and then every 15 minutes, checking ${v.rulesInCatalogue} rules — among them a single replication pair that cannot win a quorum vote, redistribution left disabled, a connector advertising localhost, and a missing dead-letter address. Run it now to see this cluster’s result.`}
+          description={`Rahdar reviews every cluster shortly after it starts and then every 15 minutes, checking ${v.rulesInCatalogue} rules — among them a single replication pair that cannot win a quorum vote, redistribution left disabled, a connector advertising localhost, and a missing dead-letter address. Run it now to see this cluster’s result.`}
         />
       </Page>
     );

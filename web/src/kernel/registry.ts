@@ -1,4 +1,4 @@
-import type { NavContribution, StudioFeature } from './feature.ts';
+import type { NavContribution, RahdarFeature } from './feature.ts';
 import { NAV_GROUPS, type NavGroupId } from './nav/groups.ts';
 
 export interface NavGroup {
@@ -11,7 +11,7 @@ export interface NavGroup {
  * The features' views under the kernel's groups (ADR-0070): groups in their fixed order, views in
  * their declared order, and a group none of the features contributes to left out.
  */
-export function navGroups(features: StudioFeature[]): NavGroup[] {
+export function navGroups(features: RahdarFeature[]): NavGroup[] {
   const items = features.flatMap((feature) => feature.nav ?? []);
   return NAV_GROUPS.map((group) => ({
     id: group.id,

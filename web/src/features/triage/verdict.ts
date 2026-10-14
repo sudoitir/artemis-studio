@@ -33,7 +33,7 @@ const UNKNOWN: VerdictCopy = {
   // A verdict this build does not know is reported as unrecognised rather than
   // dropped: a newer server adding a rung must not render as a blank cell.
   label: 'Unrecognised',
-  headline: 'This Studio build does not recognise the verdict the server reported',
+  headline: 'This Rahdar build does not recognise the verdict the server reported',
   tone: null,
 };
 

@@ -5,9 +5,9 @@ Gate destructive, bulk, settings and access-control operations behind an optiona
 
 ## Requirements
 
-### Requirement: Studio SHALL let an installed provider hold an operation for approval
+### Requirement: Rahdar SHALL let an installed provider hold an operation for approval
 
-For a defined set of destructive and bulk operations, Studio SHALL ask an installed approval provider whether the operation may run now, whatever the entry point: the UI, the API, the CLI or an MCP tool. The provider MAY answer allow, hold or deny. On hold, Studio SHALL NOT run the operation, and SHALL tell the requester it is waiting. Studio SHALL tell the provider how the requester authenticated (interactive session, API token or agent).
+For a defined set of destructive and bulk operations, Rahdar SHALL ask an installed approval provider whether the operation may run now, whatever the entry point: the UI, the API, the CLI or an MCP tool. The provider MAY answer allow, hold or deny. On hold, Rahdar SHALL NOT run the operation, and SHALL tell the requester it is waiting. Rahdar SHALL tell the provider how the requester authenticated (interactive session, API token or agent).
 
 #### Scenario: Held operation
 
@@ -24,7 +24,7 @@ For a defined set of destructive and bulk operations, Studio SHALL ask an instal
 - **WHEN** an operation that is held in the UI is started through the API or an MCP tool
 - **THEN** it is held in the same way
 
-### Requirement: Studio SHALL behave unchanged when no provider is installed
+### Requirement: Rahdar SHALL behave unchanged when no provider is installed
 
 With no approval provider, all operations SHALL run as they do today, with no extra step, message or delay.
 
@@ -35,7 +35,7 @@ With no approval provider, all operations SHALL run as they do today, with no ex
 
 ### Requirement: A held operation SHALL run only as originally requested, and only once
 
-When the provider approves, Studio SHALL run exactly the request that was held. The parameters SHALL NOT change between request and approval, and the operation SHALL run at most once. The approver's and requester's identities SHALL be available to the audit. Studio SHALL give the provider the operation's expected effect (such as the number of messages) when it is held and again just before it runs, and SHALL NOT run it if the provider refuses at that point.
+When the provider approves, Rahdar SHALL run exactly the request that was held. The parameters SHALL NOT change between request and approval, and the operation SHALL run at most once. The approver's and requester's identities SHALL be available to the audit. Rahdar SHALL give the provider the operation's expected effect (such as the number of messages) when it is held and again just before it runs, and SHALL NOT run it if the provider refuses at that point.
 
 #### Scenario: Approved
 
@@ -68,7 +68,7 @@ The approved operation SHALL run only if the requester still holds the permissio
 
 ### Requirement: A held operation SHALL be able to be cancelled or expire
 
-The requester SHALL be able to cancel a held operation. A provider or Studio SHALL be able to expire it. A cancelled or expired operation SHALL NOT run.
+The requester SHALL be able to cancel a held operation. A provider or Rahdar SHALL be able to expire it. A cancelled or expired operation SHALL NOT run.
 
 #### Scenario: Cancelled
 
@@ -86,7 +86,7 @@ Deactivating or removing the approval provider SHALL be audited and SHALL cancel
 
 ### Requirement: The gate SHALL fail closed for held operation types
 
-If a provider is installed but does not answer within a bound, Studio SHALL NOT run the operation and SHALL report why.
+If a provider is installed but does not answer within a bound, Rahdar SHALL NOT run the operation and SHALL report why.
 
 #### Scenario: Provider unreachable
 
@@ -100,11 +100,11 @@ The contract and UI states SHALL NOT refer to a specific product.
 #### Scenario: Third-party provider
 
 - **WHEN** a third-party plugin implements the provider
-- **THEN** it works with no Studio change
+- **THEN** it works with no Rahdar change
 
 ### Requirement: The gate SHALL cover destructive, settings and access-control operations
 
-Studio SHALL pass every one of these operations through the gate, whatever the entry point:
+Rahdar SHALL pass every one of these operations through the gate, whatever the entry point:
 
 - purges;
 - message delete, move, retry and expire;
@@ -141,7 +141,7 @@ Dry runs SHALL NOT be gated. A test SHALL fail when a gated operation is reachab
 
 ### Requirement: Only a different person in a fresh interactive session SHALL decide
 
-Studio SHALL accept an approval or rejection only under all of these conditions:
+Rahdar SHALL accept an approval or rejection only under all of these conditions:
 
 - it comes from an interactive session whose authentication is fresher than the re-authentication window;
 - it echoes the exact request it was shown;
@@ -179,7 +179,7 @@ An approval SHALL be refused if the requester changed anyone else's access after
 
 ### Requirement: A held request SHALL be bound to its exact parameters and survive tampering checks
 
-Studio SHALL bind a held request's parameters, requester and policy with a keyed seal held outside the database. It SHALL refuse to run a request whose stored parameters, decision or seal do not match. A request that held a secret SHALL NOT keep it once the request is finished.
+Rahdar SHALL bind a held request's parameters, requester and policy with a keyed seal held outside the database. It SHALL refuse to run a request whose stored parameters, decision or seal do not match. A request that held a secret SHALL NOT keep it once the request is finished.
 
 #### Scenario: Stored parameters edited in the database
 
@@ -188,7 +188,7 @@ Studio SHALL bind a held request's parameters, requester and policy with a keyed
 
 ### Requirement: An approved operation whose outcome is unknown SHALL NOT run again
 
-If Studio stops while running an approved operation, it SHALL mark the request's outcome as unknown and SHALL NOT run it again.
+If Rahdar stops while running an approved operation, it SHALL mark the request's outcome as unknown and SHALL NOT run it again.
 
 #### Scenario: Replica stops mid-run
 
@@ -206,12 +206,12 @@ For an operation whose result only its requester may see, such as a new API toke
 
 ### Requirement: Break-glass SHALL be a loud, deployment-level switch
 
-Studio SHALL let gated operations bypass the provider only when a break-glass reason is set in the process environment or system properties, never from the database or the UI. While it is set, every bypassed operation SHALL be audited, every user SHALL see a banner, approvers SHALL be notified, and held requests SHALL stay held.
+Rahdar SHALL let gated operations bypass the provider only when a break-glass reason is set in the process environment or system properties, never from the database or the UI. While it is set, every bypassed operation SHALL be audited, every user SHALL see a banner, approvers SHALL be notified, and held requests SHALL stay held.
 
 #### Scenario: Break-glass from the database
 
 - **WHEN** the break-glass property is supplied through database-backed configuration
-- **THEN** Studio refuses to start and says why
+- **THEN** Rahdar refuses to start and says why
 
 #### Scenario: Break-glass on
 
@@ -220,7 +220,7 @@ Studio SHALL let gated operations bypass the provider only when a break-glass re
 
 ### Requirement: Requesters SHALL be told the outcome
 
-The requester SHALL be notified in Studio when their request is approved, rejected, expired, cancelled, refused at run time, succeeded or failed. The requester SHALL see the request with its timeline.
+The requester SHALL be notified in Rahdar when their request is approved, rejected, expired, cancelled, refused at run time, succeeded or failed. The requester SHALL see the request with its timeline.
 
 #### Scenario: Rejected
 
@@ -230,7 +230,7 @@ The requester SHALL be notified in Studio when their request is approved, reject
 ### Requirement: The gate needs two approvers while it holds anything
 
 While the armed provider holds requests, at least two enabled users SHALL hold its approver permission for the
-whole installation. Studio SHALL refuse, before it commits, an access change that would leave fewer than two
+whole installation. Rahdar SHALL refuse, before it commits, an access change that would leave fewer than two
 and fewer than before, with `approver-quorum`; a change that does not lower the count SHALL NOT be refused. The
 gate status SHALL report whether the provider is enforcing, how many approvers there are and whether that is
 enough, and Administration and Approvals SHALL say when it is not. A request SHALL NOT carry a reason from the

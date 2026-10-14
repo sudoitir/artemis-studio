@@ -1,43 +1,43 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.feature.transfer`
+|`io.github.sudoitir.rahdar.feature.transfer`
 |Spring components
 |_Services_
 
-* `i.g.s.a.f.t.TransferService`
+* `i.g.s.r.f.t.TransferService`
 
 _Configuration properties_
 
-* `i.g.s.a.f.t.TransferProperties`
+* `i.g.s.r.f.t.TransferProperties`
 
 _Others_
 
-* `i.g.s.a.f.t.TransferFaults`
-* `i.g.s.a.f.t.TransferFeature`
-* `i.g.s.a.f.t.TransferRunMapper` (via `i.g.s.a.f.t.TransferRunMapperImpl`)
-* `i.g.s.a.f.t.TransferSettings`
+* `i.g.s.r.f.t.TransferFaults`
+* `i.g.s.r.f.t.TransferFeature`
+* `i.g.s.r.f.t.TransferRunMapper` (via `i.g.s.r.f.t.TransferRunMapperImpl`)
+* `i.g.s.r.f.t.TransferSettings`
 |Bean references
-|* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
-* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
-* `i.g.s.a.k.a.AuditService` (in Audit log)
-* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
-* `i.g.s.a.p.b.CoreRelay` (in Broker connectivity)
-* `i.g.s.a.p.b.MessageOperations` (in Broker connectivity)
-* `i.g.s.a.p.b.StagingQueues` (in Broker connectivity)
-* `i.g.s.a.p.b.AcceptanceProbe` (in Broker connectivity)
-* `i.g.s.a.p.b.NodeCallLimiter` (in Broker connectivity)
-* `i.g.s.a.k.s.OperatorHandoff` (in Security)
-* `i.g.s.a.k.s.SseHub` (in Event stream)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.k.j.BackgroundRuns` (in Scheduled jobs)
-* `i.g.s.a.p.c.CapabilityLedger` (in Clusters)
-* `i.g.s.a.p.s.QueueLocator` (in Scraping)
-* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.k.g.OperationGate` (in Approval gate contract)
-* `i.g.s.a.k.c.HeavyRequests` (in Core)
-* `i.g.s.a.k.s.ActorResolver` (in Security)
+|* `i.g.s.r.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.r.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.r.k.a.AuditService` (in Audit log)
+* `i.g.s.r.k.r.ReplicaRegistry` (in Replicas)
+* `i.g.s.r.p.b.CoreRelay` (in Broker connectivity)
+* `i.g.s.r.p.b.MessageOperations` (in Broker connectivity)
+* `i.g.s.r.p.b.StagingQueues` (in Broker connectivity)
+* `i.g.s.r.p.b.AcceptanceProbe` (in Broker connectivity)
+* `i.g.s.r.p.b.NodeCallLimiter` (in Broker connectivity)
+* `i.g.s.r.k.s.OperatorHandoff` (in Security)
+* `i.g.s.r.k.s.SseHub` (in Event stream)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.k.j.BackgroundRuns` (in Scheduled jobs)
+* `i.g.s.r.p.c.CapabilityLedger` (in Clusters)
+* `i.g.s.r.p.s.QueueLocator` (in Scraping)
+* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.k.g.OperationGate` (in Approval gate contract)
+* `i.g.s.r.k.c.HeavyRequests` (in Core)
+* `i.g.s.r.k.s.ActorResolver` (in Security)
 |Events listened to
 |* `org.springframework.boot.context.event.ApplicationReadyEvent` 
 |===

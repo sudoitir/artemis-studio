@@ -1,11 +1,11 @@
 ---
 title: High availability
-description: Run two or more Artemis Studio replicas behind a load balancer on one Postgres, with probes, graceful drain and failover.
+description: Run two or more Rahdar replicas behind a load balancer on one Postgres, with probes, graceful drain and failover.
 ---
 
 # High availability
 
-Studio replicas are stateless: several of them behave as one when they share a Postgres database and
+Rahdar replicas are stateless: several of them behave as one when they share a Postgres database and
 sit behind a load balancer. Sessions, settings, cluster ownership and in-flight operations live in the
 database, and stream events reach every replica through it, so the load balancer needs no sticky
 sessions.
@@ -20,15 +20,15 @@ cp deploy/compose/.env.example .env      # set DB_*, SECRET_KEY
 docker compose -f deploy/compose/compose.ha.yaml --env-file .env up -d
 ```
 
-`just up` runs this stack from a clone, with generated secrets. Studio is on `http://127.0.0.1:8080` (set `STUDIO_BIND` to change it); Postgres is not published to the host. `just ha-failover` builds the image and runs the same failover test CI runs:
+`just up` runs this stack from a clone, with generated secrets. Rahdar is on `http://127.0.0.1:8080` (set `RAHDAR_BIND` to change it); Postgres is not published to the host. `just ha-failover` builds the image and runs the same failover test CI runs:
 it kills the replica that owns a cluster, then stops the other gracefully, and checks that no
 request fails during the graceful stop and no stream event is lost. The second replica starts after
 the first is ready, so schema migrations run once. Postgres itself is a single container here: its
 availability is yours to provide (a managed service, Patroni, …): see
-[Running Studio on an external PostgreSQL](/reference/external-database) for the failover URL, the privileges
+[Running Rahdar on an external PostgreSQL](/reference/external-database) for the failover URL, the privileges
 and the connection budget.
 
-Every replica must use the same `ARTEMIS_STUDIO_SECRET_KEY` and the same database.
+Every replica must use the same `RAHDAR_SECRET_KEY` and the same database.
 
 ## What each replica does
 
@@ -41,7 +41,7 @@ Every replica must use the same `ARTEMIS_STUDIO_SECRET_KEY` and the same databas
 - **Installation-wide jobs** (housekeeping, partition maintenance, sweeps) run once per tick on whichever
   replica takes them.
 
-Settings → **Studio health** lists the replicas, their state, when each last checked in, and the
+Settings → **Rahdar health** lists the replicas, their state, when each last checked in, and the
 clusters each one owns. Broker-node figures on that screen are as seen from the replica answering.
 
 ## Timings
@@ -55,8 +55,8 @@ clusters each one owns. Broker-node figures on that screen are as seen from the 
 | A new replica takes its share of clusters | within 10 s of being ready |
 | A setting changed on one replica is used by all | within 2 s |
 
-The heartbeat, lease lifetime, drain delay and run grace are `artemis-studio.ha.heartbeat` (5 s),
-`artemis-studio.ha.ttl` (15 s), `artemis-studio.ha.drain-delay` (5 s) and `artemis-studio.ha.run-grace` (20 s).
+The heartbeat, lease lifetime, drain delay and run grace are `rahdar.ha.heartbeat` (5 s),
+`rahdar.ha.ttl` (15 s), `rahdar.ha.drain-delay` (5 s) and `rahdar.ha.run-grace` (20 s).
 
 ## Probes
 
@@ -65,7 +65,7 @@ The heartbeat, lease lifetime, drain delay and run grace are `artemis-studio.ha.
 | `/livez` | the process is running | liveness, and the startup probe |
 | `/readyz` | the replica is ready, reaches the other replicas, and is not draining | readiness, and the load balancer's health check |
 
-Neither depends on a broker: a broker outage never restarts or unroutes Studio. Until migrations have
+Neither depends on a broker: a broker outage never restarts or unroutes Rahdar. Until migrations have
 run, neither probe answers. Give the startup probe enough time for the first boot's migrations.
 
 ## Shutting down and rolling restarts
@@ -114,7 +114,7 @@ Any HTTP load balancer works if it:
 
 ## Broker pairs in Topology
 
-Everything above is about Studio's own replicas. For the brokers Studio manages, **Topology** shows the
+Everything above is about Rahdar's own replicas. For the brokers Rahdar manages, **Topology** shows the
 high availability of each pair, with every state in words and colour only as emphasis. A pair shares one
 NodeID: its serving node sits above the axis and its backup below it.
 
@@ -126,10 +126,10 @@ NodeID: its serving node sits above the axis and its backup below it.
 | Standby | Passive, with no replication state reported |
 | Split brain | Two nodes in one pair are serving. This is critical: both draw a square mark and the pair's axis turns red |
 | Stopped | The broker is not started |
-| Unreachable | Studio could not reach it; the error is shown beside the word |
+| Unreachable | Rahdar could not reach it; the error is shown beside the word |
 | Not polled | The node was found but has no management URL. Choose it and use **Add a management URL** |
 
-Choose a node to see its role, its pair, its version (with a note when the release is outside what Studio
-supports or has tested), its NodeID, its URLs, when it last answered and how Studio found it. **Show as**
+Choose a node to see its role, its pair, its version (with a note when the release is outside what Rahdar
+supports or has tested), its NodeID, its URLs, when it last answered and how Rahdar found it. **Show as**
 switches the graph for a table with the same facts. Above 24 pairs the graph draws one box per pair, in a
 grid eight wide, and says so; the table always lists every node.

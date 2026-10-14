@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Install an approval provider into the isolated QA stack, so the sweep can photograph held requests.
 #
-#   STUDIO=http://127.0.0.1:18480 web/scripts/sweep/approval-provider/install.sh     (after `just qa-up`)
+#   RAHDAR=http://127.0.0.1:18480 web/scripts/sweep/approval-provider/install.sh     (after `just qa-up`)
 #
 # Builds the `qa-approvals` plugin from this directory against `target/classes` (run `./mvnw package` first),
 # allows unverified plugins and installs it: it holds every gated operation of anyone but `admin`, who decides
 # them. Then it creates `qa-requester`, a newer account than `admin` (an approver's account must be older than
-# the requester's) that operates the `qa-orders` team's queues and may change Studio's settings, and saves its
+# the requester's) that operates the `qa-orders` team's queues and may change Rahdar's settings, and saves its
 # browser session to `web/.sweep/auth/requester.json` for the sweep's requester captures. Last, it leaves the
 # requester with a request in each state the sweep photographs: held (a settings change and a purge), succeeded,
 # rejected, cancelled, refused (its queue is gone when it is approved) and, a minute later, expired.
@@ -16,11 +16,11 @@ set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO=$(cd "$HERE/../../../.." && pwd)
-STUDIO=${STUDIO:?set STUDIO to the isolated stack, e.g. http://127.0.0.1:18480}
+RAHDAR=${RAHDAR:?set RAHDAR to the isolated stack, e.g. http://127.0.0.1:18480}
 AUTH=$REPO/web/.sweep/auth
 # shellcheck source=/dev/null
 . "$AUTH/credentials.env"
-export STUDIO ADMIN_USER=admin ADMIN_PASSWORD ADMIN_TOTP_SECRET
+export RAHDAR ADMIN_USER=admin ADMIN_PASSWORD ADMIN_TOTP_SECRET
 REQUESTER_PASSWORD=${REQUESTER_PASSWORD:-$QA_USER_PASSWORD}
 
 BUILD=$(mktemp -d)
@@ -34,17 +34,17 @@ say() { printf '\n\033[1m→ %s\033[0m\n' "$*"; }
 say "building the plugin"
 [ -d "$REPO/target/classes" ] || { echo "no target/classes: run ./mvnw package first" >&2; exit 1; }
 (cd "$REPO" && ./mvnw -o -q dependency:build-classpath -Dmdep.outputFile="$BUILD/classpath" >/dev/null)
-mkdir -p "$BUILD/classes/META-INF/artemis-studio"
+mkdir -p "$BUILD/classes/META-INF/rahdar"
 javac --release 25 -d "$BUILD/classes" -cp "$REPO/target/classes:$(cat "$BUILD/classpath")" \
   $(find "$HERE/src" -name '*.java')
-cp "$HERE/plugin.json" "$BUILD/classes/META-INF/artemis-studio/plugin.json"
+cp "$HERE/plugin.json" "$BUILD/classes/META-INF/rahdar/plugin.json"
 jar --create --file "$BUILD/qa-approvals.jar" -C "$BUILD/classes" .
 
 say "installing it"
 # A fresh sign-in is the step-up the trust policy and the activation ask for.
-studio_sign_in "" || exit 1
+rahdar_sign_in "" || exit 1
 api PUT /admin/plugins/trust-policy -f -o /dev/null -d '{"allowUnverified":true}'
-sha=$(curl -sS -f -b "$COOKIES" -c "$COOKIES" -X PUT "$STUDIO/api/v1/admin/plugins/upload" \
+sha=$(curl -sS -f -b "$COOKIES" -c "$COOKIES" -X PUT "$RAHDAR/api/v1/admin/plugins/upload" \
   -H 'Content-Type: application/octet-stream' -H "X-XSRF-TOKEN: $(csrf)" --data-binary @"$BUILD/qa-approvals.jar" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha256"])')
 api POST "/admin/plugins/uploads/$sha/activate?acknowledge=true" -f -o /dev/null
@@ -68,7 +68,7 @@ if [ -z "$(find_id /users username qa-requester)" ]; then
     COOKIES=$(mktemp)
     trap 'rm -f "$COOKIES"' EXIT
     ADMIN_USER=qa-requester ADMIN_PASSWORD=$initial
-    studio_sign_in "$REQUESTER_PASSWORD" REQUESTER_PASSWORD
+    rahdar_sign_in "$REQUESTER_PASSWORD" REQUESTER_PASSWORD
   )
 fi
 requester=$(find_id /users username qa-requester)
@@ -88,7 +88,7 @@ for queue in held-1 held-2 held-3 held-4 held-5 held-6 held-toast; do
 done
 ADMIN_COOKIES=$COOKIES
 COOKIES=$BUILD/requester.cookies
-(ADMIN_USER=qa-requester ADMIN_PASSWORD=$REQUESTER_PASSWORD ADMIN_TOTP_SECRET= studio_sign_in "") || exit 1
+(ADMIN_USER=qa-requester ADMIN_PASSWORD=$REQUESTER_PASSWORD ADMIN_TOTP_SECRET= rahdar_sign_in "") || exit 1
 # purge QUEUE → the held request's id
 purge() {
   api DELETE "/clusters/$cluster/queues/qa.reconciliation.$1/messages" \

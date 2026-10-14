@@ -14,7 +14,7 @@ describe('the plugins inventory poll', () => {
     expect(pollInterval({ data: quiet, error: null, fetchFailureCount: 0 })).toBe(30_000);
   });
 
-  it('asks every second while a plugin is activating or Studio restarts, even when polls fail', () => {
+  it('asks every second while a plugin is activating or Rahdar restarts, even when polls fail', () => {
     expect(pollInterval({ data: activating, error: null, fetchFailureCount: 0 })).toBe(1_000);
     expect(pollInterval({ data: restarting, error: failed(503), fetchFailureCount: 6 })).toBe(1_000);
   });

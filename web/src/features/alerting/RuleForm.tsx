@@ -20,7 +20,7 @@ import {
 } from './severity.ts';
 import classes from './Alerting.module.css';
 
-const STUDIO_METRIC_OPTIONS = [...GAUGE_METRICS, ...RATE_METRICS, ...DERIVED_METRICS].map((m) => ({
+const RAHDAR_METRIC_OPTIONS = [...GAUGE_METRICS, ...RATE_METRICS, ...DERIVED_METRICS].map((m) => ({
   value: m,
   label: `${metricLabel(m)} (${metricKind(m)})`,
 }));
@@ -28,7 +28,7 @@ const STUDIO_METRIC_OPTIONS = [...GAUGE_METRICS, ...RATE_METRICS, ...DERIVED_MET
 const UNIT_WORDS: Record<string, string> = { count: 'count', per_second: 'per second', ms: 'ms', ratio: 'ratio 0–1' };
 
 /**
- * Studio's own metrics, then the metrics running plugins publish (ADR-0113). A rule being edited
+ * Rahdar's own metrics, then the metrics running plugins publish (ADR-0113). A rule being edited
  * whose plugin is not running keeps its metric on the list, marked, so the form never shows it
  * blank.
  */
@@ -42,10 +42,10 @@ function metricOptions(pluginMetrics: PluginMetricView[], current: string | null
   }
   return plugin.length
     ? [
-        { group: 'Studio', items: STUDIO_METRIC_OPTIONS },
+        { group: 'Rahdar', items: RAHDAR_METRIC_OPTIONS },
         { group: 'Plugins', items: plugin },
       ]
-    : STUDIO_METRIC_OPTIONS;
+    : RAHDAR_METRIC_OPTIONS;
 }
 const STATE_OPTIONS = STATE_CONDITIONS.map((c) => ({ value: c, label: c.replaceAll('_', ' ').toLowerCase() }));
 const INSTALLATION_OPTIONS = INSTALLATION_CONDITIONS.map((c) => ({
@@ -138,7 +138,7 @@ export function RuleForm({
   /** The caller may not change rules; the form stays visible and the view says why beside it. */
   disabled?: boolean;
 }>) {
-  // A rule with no cluster is about Studio itself: always a state rule, on a storage condition (ADR-0135).
+  // A rule with no cluster is about Rahdar itself: always a state rule, on a storage condition (ADR-0135).
   const installation = initial !== undefined && !initial.clusterId;
   const form = useForm<RuleDraft>({
     initialValues: {

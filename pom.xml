@@ -12,11 +12,11 @@
     </parent>
 
     <groupId>io.github.sudoitir</groupId>
-    <artifactId>artemis-studio</artifactId>
+    <artifactId>rahdar</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <name>Artemis Studio</name>
+    <name>Rahdar</name>
     <description>Cluster-wide management and observability for Apache ActiveMQ Artemis</description>
-    <url>https://github.com/sudoitir/artemis-studio</url>
+    <url>https://github.com/sudoitir/rahdar</url>
 
     <licenses>
         <license>
@@ -35,9 +35,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:https://github.com/sudoitir/artemis-studio.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/sudoitir/artemis-studio.git</developerConnection>
-        <url>https://github.com/sudoitir/artemis-studio</url>
+        <connection>scm:git:https://github.com/sudoitir/rahdar.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/sudoitir/rahdar.git</developerConnection>
+        <url>https://github.com/sudoitir/rahdar</url>
     </scm>
 
     <properties>
@@ -101,7 +101,7 @@
         <!-- SonarQube Cloud analysis (ADR-0140), run by CI's `sonar` job. -->
         <sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
         <sonar.organization>sudoitir</sonar.organization>
-        <sonar.projectKey>sudoitir_artemis-studio</sonar.projectKey>
+        <sonar.projectKey>sudoitir_rahdar</sonar.projectKey>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.sources>src/main,web/src</sonar.sources>
         <sonar.tests>src/test,web/src</sonar.tests>
@@ -182,7 +182,7 @@
             <artifactId>jackson-dataformat-csv</artifactId>
         </dependency>
         <dependency>
-            <!-- SMTP for email notification channels (ADR-0099). Studio builds one sender per
+            <!-- SMTP for email notification channels (ADR-0099). Rahdar builds one sender per
                  channel; the auto-configured global JavaMailSender is unused and backs off
                  without spring.mail.host. -->
             <groupId>org.springframework.boot</groupId>
@@ -322,7 +322,7 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
-        <!-- The SQL Console's dialect parser (ADR-0058). Studio parses to an AST
+        <!-- The SQL Console's dialect parser (ADR-0058). Rahdar parses to an AST
              and validates every node against a whitelist; JSqlParser supplies the
              tree, never the authorization. -->
         <dependency>
@@ -373,7 +373,7 @@
             <!-- Contract tests validate every API response against web/openapi.json with it (JSON Schema
                  2020-12, so unevaluatedProperties can reject an undocumented field). Not test scoped: the
                  MCP server reads it at runtime too, and a test-scoped declaration here would leave it out
-                 of the jar and stop Studio starting. -->
+                 of the jar and stop Rahdar starting. -->
             <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
             <version>${json-schema-validator.version}</version>
@@ -401,7 +401,7 @@
     </dependencies>
 
     <build>
-        <finalName>artemis-studio</finalName>
+        <finalName>rahdar</finalName>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -416,14 +416,14 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <!-- The runnable jar is target/artemis-studio-exec.jar (the image, the release
+                    <!-- The runnable jar is target/rahdar-exec.jar (the image, the release
                          asset). The plain jar keeps the main artifact's name: it is the plugin API
                          plugins compile against, published to Maven Central (ADR-0102). -->
                     <classifier>exec</classifier>
                 </configuration>
                 <executions>
                     <!-- Bakes the running version into META-INF/build-info.properties, read
-                         by StudioVersion (kernel.plugin) for the plugin compatibility range. -->
+                         by RahdarVersion (kernel.plugin) for the plugin compatibility range. -->
                     <execution>
                         <goals>
                             <goal>build-info</goal>
@@ -637,7 +637,7 @@
                             </newVersion>
                             <parameter>
                                 <includes>
-                                    <include>@io.github.sudoitir.artemisstudio.kernel.plugin.PluginApi</include>
+                                    <include>@io.github.sudoitir.rahdar.kernel.plugin.PluginApi</include>
                                 </includes>
                                 <onlyModified>true</onlyModified>
                                 <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>

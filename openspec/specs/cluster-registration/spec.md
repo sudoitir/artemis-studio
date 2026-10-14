@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines the lifecycle of a cluster registration in Artemis Studio: creating one
+Defines the lifecycle of a cluster registration in Rahdar: creating one
 from a set of reachable seed URLs, listing and inspecting registrations,
 removing one, the dry-run contract that lets an operator probe before
 committing, and the audit trail every mutation leaves.
@@ -83,7 +83,7 @@ running configuration as its first revision").
 - **THEN** that node is listed as found but not manageable, with the reason
 
 #### Scenario: The check shows what could be configured after registering
-- **WHEN** a dry-run registration reaches a broker with a capability gap Studio could close over the management API
+- **WHEN** a dry-run registration reaches a broker with a capability gap Rahdar could close over the management API
 - **THEN** the preview carries the same recommendations the registered cluster would show, seeded from the node the check reached, presented as a preview that cannot yet be declared
 - **AND** registering then lands the operator on that cluster's recommended configuration, where the same panel can be declared and applied
 
@@ -114,7 +114,7 @@ applicable, and dry-run flag.
 
 The system SHALL expose reading the list of registered clusters with a
 rolled-up health indication, reading one cluster with its nodes, and removing a
-cluster. Removal SHALL delete Studio's registration and stored credentials for
+cluster. Removal SHALL delete Rahdar's registration and stored credentials for
 that cluster and SHALL NOT attempt any change on the broker itself. Removal
 SHALL also close that cluster's Core connections and discard its in-memory
 subscription state.
@@ -176,7 +176,7 @@ authorization capability.
 - **THEN** only the clusters they hold a read grant on are returned
 
 ### Requirement: The broker version is detected on registration
-Studio SHALL read the broker version of each seed when a cluster is registered, store each node's version, and
+Rahdar SHALL read the broker version of each seed when a cluster is registered, store each node's version, and
 show it with where it sits against the supported range.
 
 #### Scenario: Registration

@@ -1,5 +1,5 @@
 {
-  "name": "Artemis Studio",
+  "name": "Rahdar",
   "image": "ubuntu:26.04",
 
   "features": {
@@ -23,7 +23,7 @@
 
   "forwardPorts": [8080, 5173, 5432, 8161],
   "portsAttributes": {
-    "8080": { "label": "Studio API + SPA" },
+    "8080": { "label": "Rahdar API + SPA" },
     "5173": { "label": "Vite dev server" },
     "5432": { "label": "Postgres" },
     "8161": { "label": "Artemis console / Jolokia" }

@@ -13,7 +13,7 @@ import {
 } from '@tanstack/react-router';
 
 import { renderWithProviders } from '../../test/render.tsx';
-import { CONTRACT, defineFeature, type StudioFeature } from '../feature.ts';
+import { CONTRACT, defineFeature, type RahdarFeature } from '../feature.ts';
 import { FeatureProvider } from '../FeatureProvider.tsx';
 import { server } from '../../test/setup.ts';
 import type { HeldDecision, HeldOperationDetail } from './api.ts';
@@ -24,7 +24,7 @@ const PATH = `*/api/v1/held-operations/${HELD_ID}`;
 
 function problem(slug: string, status: number, detailText?: string) {
   return HttpResponse.json(
-    { type: `https://studio/problems/${slug}`, title: slug, status, detail: detailText },
+    { type: `https://rahdar/problems/${slug}`, title: slug, status, detail: detailText },
     { status, headers: { 'Content-Type': 'application/problem+json' } },
   );
 }
@@ -55,7 +55,7 @@ function serve(...views: HeldOperationDetail[]) {
   return seen;
 }
 
-function renderPage(features?: StudioFeature[]) {
+function renderPage(features?: RahdarFeature[]) {
   const root = createRootRoute({ component: Outlet });
   const list = createRoute({ getParentRoute: () => root, path: 'approvals', component: () => null });
   const page = createRoute({ getParentRoute: () => root, path: 'approvals/$id', component: ApprovalView });
@@ -152,7 +152,7 @@ describe('ApprovalView', () => {
   it('shows an approved request as running, read-only', async () => {
     serve(detail({ canDecide: false }, { state: 'EXECUTING', approverUsername: 'bob' }));
     renderPage();
-    expect(await screen.findByText('bob approved it, and Studio is running it now.')).toBeInTheDocument();
+    expect(await screen.findByText('bob approved it, and Rahdar is running it now.')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Decision' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Approve/ })).not.toBeInTheDocument();
   });
@@ -261,7 +261,7 @@ describe('ApprovalView', () => {
     await holdButton(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Approve' }));
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]).toEqual({ vote: 'APPROVE', reason: null, paramsHash: 'hash-1', version: 3 });
-    expect(await screen.findByText('bob approved it, and Studio is running it now.')).toBeInTheDocument();
+    expect(await screen.findByText('bob approved it, and Rahdar is running it now.')).toBeInTheDocument();
   });
 
   it('requires a reason to reject, beside the field', async () => {
@@ -381,7 +381,7 @@ describe('ApprovalView', () => {
     expect(screen.queryByRole('button', { name: 'Cancel request' })).not.toBeInTheDocument();
   });
 
-  it('shows a provider’s decision controls above Studio’s own', async () => {
+  it('shows a provider’s decision controls above Rahdar’s own', async () => {
     serve(detail());
     const provider = defineFeature({
       contract: CONTRACT,

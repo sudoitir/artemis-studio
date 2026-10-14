@@ -117,11 +117,11 @@ function connectorsUnknownReason(
 ): string | null {
   if (rows.length === 0) {
     return pending
-      ? 'Studio has not read the nodes’ connector names yet.'
-      : 'Studio has no node to read connector names from.';
+      ? 'Rahdar has not read the nodes’ connector names yet.'
+      : 'Rahdar has no node to read connector names from.';
   }
   if (knownCount === 0) {
-    return `Studio could not read any node's connector names: ${rows[0].reason ?? 'the read was refused'}.`;
+    return `Rahdar could not read any node's connector names: ${rows[0].reason ?? 'the read was refused'}.`;
   }
   return null;
 }
@@ -143,7 +143,7 @@ function num(v: string | number): number | null {
  * and a creation. The editor says so here, in the same words the plan uses, so
  * the High hazard there is not the first time an operator reads it.
  *
- * <p>The credential is a reference into Studio's vault (ADR-0092). The password
+ * <p>The credential is a reference into Rahdar's vault (ADR-0092). The password
  * is sealed by its own request and never enters the declaration, a revision, a
  * diff, an audit parameter or the exported XML.
  */
@@ -307,7 +307,7 @@ export function BridgeEditor({
       />
       <TextInput
         label="To address"
-        description="The address on the other broker. Studio does not read that broker from here, so it cannot check the address exists."
+        description="The address on the other broker. Rahdar does not read that broker from here, so it cannot check the address exists."
         {...form.getInputProps('forwardingAddress')}
         required
       />
@@ -360,7 +360,7 @@ export function BridgeEditor({
 
             <Select
               label="Credential"
-              description="Held in Studio's vault. The declaration carries only this reference — never a password, here, in a revision, in a difference between revisions, in an audit record or in exported XML."
+              description="Held in Rahdar's vault. The declaration carries only this reference — never a password, here, in a revision, in a difference between revisions, in an audit record or in exported XML."
               data={credentialOptions}
               {...form.getInputProps('credentialRef')}
               allowDeselect={false}

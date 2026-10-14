@@ -259,7 +259,7 @@ describe('HealthTable states', () => {
     server.use(http.get('*/api/v1/data/health', () => HttpResponse.json({ title: 'Down' }, { status: 503 })));
     renderWithProviders(<HealthTable />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Studio failed to complete the request');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Rahdar failed to complete the request');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     expect(screen.queryByText(/tables are healthy/)).not.toBeInTheDocument();
   });

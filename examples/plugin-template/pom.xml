@@ -4,37 +4,37 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- An Artemis Studio plugin: one jar holding its descriptor, code, database changes and UI.
+    <!-- A Rahdar plugin: one jar holding its descriptor, code, database changes and UI.
          Rename com.acme.notes / acme-notes throughout; `mvn verify` builds the jar and checks it
-         exactly as Studio will when it is uploaded. -->
+         exactly as Rahdar will when it is uploaded. -->
     <groupId>com.acme</groupId>
     <artifactId>acme-notes</artifactId>
     <version>1.0.0</version>
 
     <properties>
-        <!-- Above the Spring Boot BOM's 11.0.24 (three critical CVEs), matching Studio. -->
+        <!-- Above the Spring Boot BOM's 11.0.24 (three critical CVEs), matching Rahdar. -->
         <tomcat.version>11.0.25</tomcat.version>
         <java.version>25</java.version>
         <maven.compiler.release>25</maven.compiler.release>
         <!-- @PreAuthorize("@perm.can(#clusterId, ...)") reads parameter names. -->
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- The oldest Studio this plugin supports. Its API jar is what the plugin compiles
-             against, and it becomes plugin.json's studio.since, so Studio refuses the plugin
+        <!-- The oldest Rahdar this plugin supports. Its API jar is what the plugin compiles
+             against, and it becomes plugin.json's rahdar.since, so Rahdar refuses the plugin
              on anything older. -->
-        <studio.version>2026.10.5</studio.version>
-        <studio.since>${studio.version}</studio.since>
-        <!-- Studio's extension contract; a plugin built for another is refused. -->
-        <studio.contract>14</studio.contract>
+        <rahdar.version>2026.10.5</rahdar.version>
+        <rahdar.since>${rahdar.version}</rahdar.since>
+        <!-- Rahdar's extension contract; a plugin built for another is refused. -->
+        <rahdar.contract>15</rahdar.contract>
         <node.version>v24.21.0</node.version>
         <!-- Normally empty: the SDK comes from npm. Set to a packed SDK (.tgz) to build against a
-             Studio that is not released yet, as Studio's own CI does. -->
-        <studio.sdk></studio.sdk>
+             Rahdar that is not released yet, as Rahdar's own CI does. -->
+        <rahdar.sdk></rahdar.sdk>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Studio runs a newer Tomcat than the BOM below names; declared first so it wins. -->
+            <!-- Rahdar runs a newer Tomcat than the BOM below names; declared first so it wins. -->
             <dependency>
                 <groupId>org.apache.tomcat.embed</groupId>
                 <artifactId>tomcat-embed-core</artifactId>
@@ -50,9 +50,9 @@
                 <artifactId>tomcat-embed-websocket</artifactId>
                 <version>${tomcat.version}</version>
             </dependency>
-            <!-- Studio's own dependency versions: the plugin runs on these. -->
+            <!-- Rahdar's own dependency versions: the plugin runs on these. -->
             <!-- Above the Spring Boot BOM's Jackson 3.1.5 and 2.21.5 (five advisories, the last two
-                 GHSA-cxp5-3px4-pw24 and GHSA-wv8q-qhhj-9h54), matching Studio; imported first so they win. -->
+                 GHSA-cxp5-3px4-pw24 and GHSA-wv8q-qhhj-9h54), matching Rahdar; imported first so they win. -->
             <dependency>
                 <groupId>tools.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
@@ -78,38 +78,38 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Studio itself: provided at runtime, never bundled. Only @PluginApi types are the
+        <!-- Rahdar itself: provided at runtime, never bundled. Only @PluginApi types are the
              supported API; anything else may change in any release. -->
         <dependency>
             <groupId>io.github.sudoitir</groupId>
-            <artifactId>artemis-studio</artifactId>
-            <version>${studio.version}</version>
+            <artifactId>rahdar</artifactId>
+            <version>${rahdar.version}</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
 
     <build>
         <resources>
-            <!-- plugin.json gets its version, contract and studio.since from this pom. -->
+            <!-- plugin.json gets its version, contract and rahdar.since from this pom. -->
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
                 <includes>
-                    <include>META-INF/artemis-studio/plugin.json</include>
+                    <include>META-INF/rahdar/plugin.json</include>
                 </includes>
             </resource>
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>false</filtering>
                 <excludes>
-                    <exclude>META-INF/artemis-studio/plugin.json</exclude>
+                    <exclude>META-INF/rahdar/plugin.json</exclude>
                 </excludes>
             </resource>
         </resources>
 
         <plugins>
-            <!-- The UI: built by Vite with @artemis-studio/plugin-sdk's preset straight into
-                 target/classes/META-INF/artemis-studio/ui, so it lands in the jar. -->
+            <!-- The UI: built by Vite with @rahdar/plugin-sdk's preset straight into
+                 target/classes/META-INF/rahdar/ui, so it lands in the jar. -->
             <plugin>
                 <groupId>com.github.eirslett</groupId>
                 <artifactId>frontend-maven-plugin</artifactId>
@@ -127,7 +127,7 @@
                     <execution>
                         <id>npm-install</id>
                         <goals><goal>npm</goal></goals>
-                        <configuration><arguments>install --no-audit --no-fund ${studio.sdk}</arguments></configuration>
+                        <configuration><arguments>install --no-audit --no-fund ${rahdar.sdk}</arguments></configuration>
                     </execution>
                     <execution>
                         <id>npm-build</id>
@@ -138,12 +138,12 @@
                 </executions>
             </plugin>
 
-            <!-- Bundling a library? Studio refuses classes outside basePackage, so add
+            <!-- Bundling a library? Rahdar refuses classes outside basePackage, so add
                  maven-shade-plugin with an artifactSet naming only that library and a relocation
                  under com.acme.notes.shaded — see README.md. This plugin bundles nothing. -->
 
-            <!-- Checks the finished jar exactly as Studio will on upload, and fails the build
-                 on anything Studio would refuse. -->
+            <!-- Checks the finished jar exactly as Rahdar will on upload, and fails the build
+                 on anything Rahdar would refuse. -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -154,7 +154,7 @@
                         <phase>verify</phase>
                         <goals><goal>java</goal></goals>
                         <configuration>
-                            <mainClass>io.github.sudoitir.artemisstudio.kernel.plugin.PluginVerifier</mainClass>
+                            <mainClass>io.github.sudoitir.rahdar.kernel.plugin.PluginVerifier</mainClass>
                             <classpathScope>compile</classpathScope>
                             <arguments>
                                 <argument>${project.build.directory}/${project.build.finalName}.jar</argument>
@@ -167,8 +167,8 @@
     </build>
 
     <profiles>
-        <!-- Signs the jar so Studio can tell who built it: active when -Dplugin.signing.keystore is
-             set. Studio refuses an unsigned plugin unless an installer allows unverified ones.
+        <!-- Signs the jar so Rahdar can tell who built it: active when -Dplugin.signing.keystore is
+             set. Rahdar refuses an unsigned plugin unless an installer allows unverified ones.
              The store password comes from the environment, never from the command line or this
              file: export PLUGIN_SIGNING_STOREPASS. See README.md, "Sign your plugin". -->
         <profile>

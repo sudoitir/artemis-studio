@@ -16,7 +16,7 @@ export interface ReplyAddressesInputProps {
 /**
  * The reply half of an expectation: a set of literal addresses or `*` globs.
  *
- * A single field could not hold the answer for either cluster Studio has been
+ * A single field could not hold the answer for either cluster Rahdar has been
  * pointed at — both answer on a shared reply queue per responder, named per broker
  * node in one and per client host in the other — so an operator faced with one box
  * left it empty, which is the one value that makes a shared-queue flow impossible to

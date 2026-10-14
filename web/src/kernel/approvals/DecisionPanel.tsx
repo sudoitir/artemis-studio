@@ -52,7 +52,7 @@ function StaleNotice({ stale }: Readonly<{ stale: Stale }>) {
 }
 
 /**
- * Studio's own decision controls, for anyone the server says may decide: a reason, then Approve or Reject, each
+ * Rahdar's own decision controls, for anyone the server says may decide: a reason, then Approve or Reject, each
  * confirmed in a dialog that says once more what is being approved. The vote is bound to the parameters and
  * version shown, so a request that changed meanwhile is refused and shown again rather than decided blind. A
  * stale sign-in is confirmed in place, and the vote is sent again once it is.
@@ -135,7 +135,7 @@ export function DecisionPanel({ detail, refresh }: Readonly<{ detail: HeldOperat
   const runs =
     detail.mode === 'BY_REQUESTER'
       ? `${operation.requesterUsername} can then run it themselves, once, within the time allowed.`
-      : `Studio runs it once, as ${operation.requesterUsername} asked, as soon as you confirm.`;
+      : `Rahdar runs it once, as ${operation.requesterUsername} asked, as soon as you confirm.`;
 
   return (
     <Stack gap="sm">

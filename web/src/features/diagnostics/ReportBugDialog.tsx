@@ -31,7 +31,7 @@ const COPY = { verb: 'Copy', past: 'Copied', progressive: 'Copying' } as const;
 const EMPTY = { title: '', happened: '', expected: '', steps: '' };
 
 /**
- * "Report a bug…" in the user menu (diagnostics spec), for every signed-in user: a pre-filled GitHub issue. The environment comes from this Studio only; nothing leaves the browser until the
+ * "Report a bug…" in the user menu (diagnostics spec), for every signed-in user: a pre-filled GitHub issue. The environment comes from this Rahdar only; nothing leaves the browser until the
  * user opens the issue on GitHub, and Copy works where there is no internet at all.
  */
 export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean; onClose: () => void }>) {
@@ -70,7 +70,7 @@ export function ReportBugDialog({ opened, onClose }: Readonly<{ opened: boolean;
         notify.failed({
           action: COPY,
           subject: 'the report',
-          cause: 'The browser did not allow Studio to write to your clipboard.',
+          cause: 'The browser did not allow Rahdar to write to your clipboard.',
           next: 'Use "Copy as Markdown" in this dialog, then paste the report into the issue that opens.',
         });
       }

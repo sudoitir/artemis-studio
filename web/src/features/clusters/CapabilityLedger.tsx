@@ -18,7 +18,7 @@ const LABELS: Record<Key, string> = {
 
 /**
  * The capabilities whose snippet is — at least in part — an address or security
- * setting, which Studio can apply over the management API instead of an operator
+ * setting, which Rahdar can apply over the management API instead of an operator
  * editing broker.xml by hand (ADR-0068).
  *
  * The link goes to the recommendations panel rather than handing the raw snippet

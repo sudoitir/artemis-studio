@@ -1,7 +1,7 @@
 # scrape-scheduling Specification
 
 ## Purpose
-Defines how Artemis Studio periodically reads state from every manageable broker
+Defines how Rahdar periodically reads state from every manageable broker
 node without becoming a load problem: a tiered schedule, one batched request per
 node per tick, a per-node cap on management calls, and how the polled results
 are cached and aged out.
@@ -30,7 +30,7 @@ nobody is observing.
 #### Scenario: Fast tier reads HA and topology
 
 - **WHEN** the fast tier runs for a manageable node
-- **THEN** Studio reads that node's HA attributes and network topology in one
+- **THEN** Rahdar reads that node's HA attributes and network topology in one
   request and updates the node's live/replication state
 
 #### Scenario: Slow tier eventually covers every queue
@@ -81,19 +81,19 @@ page of a node's queue list, each through the node's management-call ceiling.
 #### Scenario: Fast tick is a single POST
 
 - **WHEN** the fast tier needs HA attributes plus `listNetworkTopology()` for a node
-- **THEN** Studio sends one POST whose body is a JSON array of those entries and
+- **THEN** Rahdar sends one POST whose body is a JSON array of those entries and
   reads each entry's own status from the aligned response array
 
 #### Scenario: A failed entry does not abort the tick
 
 - **WHEN** one entry in a batched response has a non-200 status
-- **THEN** Studio consumes the successful entries and records the failure without
+- **THEN** Rahdar consumes the successful entries and records the failure without
   discarding the tick or skipping other nodes
 
 ### Requirement: Management calls are rate-limited per node
 
 The system SHALL enforce a configurable ceiling on management requests per second to each
-individual node. The ceiling SHALL be applied to every HTTP request Studio issues to that
+individual node. The ceiling SHALL be applied to every HTTP request Rahdar issues to that
 node, whatever the origin:
 - a scrape tick;
 - an operator-initiated operation such as a message browse or mutation;
@@ -104,11 +104,11 @@ node, whatever the origin:
 
 A single request that carries many operations SHALL count against the ceiling in proportion
 to the operations it carries, so batching can never be used to exceed it. The default
-ceiling SHALL be conservative so that Studio is never the reason a broker is overloaded.
+ceiling SHALL be conservative so that Rahdar is never the reason a broker is overloaded.
 
 #### Scenario: Bursts are shaped, not dropped
 
-- **WHEN** Studio would exceed a node's per-second ceiling
+- **WHEN** Rahdar would exceed a node's per-second ceiling
 - **THEN** the excess calls wait until capacity is available rather than failing
 
 #### Scenario: One slow node does not stall the others
@@ -232,7 +232,7 @@ node without propagating it, and continue scraping the remaining nodes.
 
 The system SHALL re-read each scrape tier's configured interval before scheduling
 that tier's next run, so that changing a tier interval through the settings API
-takes effect on the following cycle without restarting Studio.
+takes effect on the following cycle without restarting Rahdar.
 
 #### Scenario: A shortened interval speeds up the next cycle
 

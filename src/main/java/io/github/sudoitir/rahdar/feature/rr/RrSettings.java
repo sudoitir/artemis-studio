@@ -1,0 +1,69 @@
+package io.github.sudoitir.rahdar.feature.rr;
+
+import io.github.sudoitir.rahdar.kernel.settings.SettingDef;
+import io.github.sudoitir.rahdar.kernel.settings.SettingDef.Kind;
+import io.github.sudoitir.rahdar.kernel.settings.SettingsContribution;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+
+/** Request-reply tracing deadlines, capture, and cadences. Retention is the {@code rr-flows} and {@code captured-payloads} stores (ADR-0134). */
+@Component
+@RequiredArgsConstructor
+public class RrSettings implements SettingsContribution {
+
+    private static final String CATEGORY = "Request-reply";
+    public static final String DEFAULT_DEADLINE_MS = "rr.default-deadline-ms";
+    public static final String PAYLOAD_CAPTURE_BYTES = "rr.payload-capture-bytes";
+    public static final String SWEEP_INTERVAL = "rr.sweep-interval";
+    public static final String SAMPLE_INTERVAL = "rr.sample-interval";
+
+    private final RrProperties defaults;
+    private final RrCorrelator correlator;
+
+    @Override
+    public String featureId() {
+        return "rr";
+    }
+
+    @Override
+    public List<SettingDef> settings() {
+        return List.of(
+                new SettingDef(
+                        DEFAULT_DEADLINE_MS,
+                        CATEGORY,
+                        "Default deadline (ms)",
+                        "Used only when neither the message nor its expectation carries a deadline.",
+                        Kind.INT,
+                        () -> Integer.toString(defaults.defaultDeadlineMs()),
+                        s -> correlator.setDefaultDeadlineMs(s.intValue(DEFAULT_DEADLINE_MS))),
+                new SettingDef(
+                        PAYLOAD_CAPTURE_BYTES,
+                        CATEGORY,
+                        "Payload capture cap (bytes)",
+                        "How much of a request or reply body is stored when an expectation enables capture.",
+                        Kind.INT,
+                        () -> Integer.toString(defaults.payloadCaptureBytes()),
+                        s -> correlator.setPayloadCaptureBytes(s.intValue(PAYLOAD_CAPTURE_BYTES))),
+                new SettingDef(
+                        SWEEP_INTERVAL,
+                        CATEGORY,
+                        "Deadline sweep interval",
+                        "How often flows past their deadline are marked timed out or orphaned.",
+                        Kind.DURATION,
+                        () -> defaults.sweepInterval().toString(),
+                        null),
+                new SettingDef(
+                        SAMPLE_INTERVAL,
+                        CATEGORY,
+                        "Sampler interval",
+                        "How often enabled expectations are sampled over the Core transport. "
+                                + "It is also the error bar on any latency measured by observation.",
+                        Kind.DURATION,
+                        () -> defaults.sampleInterval().toString(),
+                        // The interval is the width of the error bar Rahdar reports next to an
+                        // observed latency, so the two must never disagree.
+                        s -> correlator.setSampleIntervalMs(
+                                (int) s.duration(SAMPLE_INTERVAL).toMillis())));
+    }
+}

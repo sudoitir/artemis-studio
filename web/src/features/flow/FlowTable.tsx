@@ -162,7 +162,7 @@ function NoPaths({
       <EmptyState
         kind="unreachable"
         title="No paths to list, and some nodes did not answer"
-        description="There may be paths here that Studio cannot currently see. These nodes did not answer the last sweep, so this is an incomplete view rather than a cluster with no flow."
+        description="There may be paths here that Rahdar cannot currently see. These nodes did not answer the last sweep, so this is an incomplete view rather than a cluster with no flow."
         nodes={unreachable}
       />
     );
@@ -171,7 +171,7 @@ function NoPaths({
     <EmptyState
       kind="empty"
       title="No paths to list"
-      description="A path is one hop of a message's journey: a client producing to an address, an address routing to a queue, a queue consumed by a client. Studio draws a path once it sees a producer, a consumer or a binding on this cluster, so an empty table means none has been seen yet."
+      description="A path is one hop of a message's journey: a client producing to an address, an address routing to a queue, a queue consumed by a client. Rahdar draws a path once it sees a producer, a consumer or a binding on this cluster, so an empty table means none has been seen yet."
     />
   );
 }

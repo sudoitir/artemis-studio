@@ -1,6 +1,6 @@
 # Teams and permissions
 
-Studio decides who may see and do what with roles, granted for the whole installation, one
+Rahdar decides who may see and do what with roles, granted for the whole installation, one
 environment or one cluster, and with **teams**, which own queues and addresses by name. Several
 teams can share one broker cluster, and each sees and operates only what it owns.
 
@@ -17,14 +17,14 @@ permission acts at one of three levels, shown as a badge in the role editor:
   role or a share gives it only on the names the team owns or receives.
 
 Some permissions need others: `queue:purge` needs `queue:read`, `message:send` needs
-`address:read`. The role editor adds what is required and says so, and Studio refuses a role that
+`address:read`. The role editor adds what is required and says so, and Rahdar refuses a role that
 lacks it.
 
 Grant roles to users or directory groups under **Settings → Access → Users** or **Group mapping**,
 choosing the whole installation, an environment or a cluster. A change applies on the user's next
 request, without signing in again.
 
-Studio ships **Administrator**, **Operator** and **Viewer**, and three team roles: **Team Viewer**
+Rahdar ships **Administrator**, **Operator** and **Viewer**, and three team roles: **Team Viewer**
 (see and browse), **Team Operator** (send, move, delete, purge, pause, create inside the team's
 names) and **Team Admin** (also manages the team's user members).
 
@@ -38,7 +38,7 @@ Create teams under **Settings → Access → Teams**. A team has:
   says which team and pattern a new one collides with, and shows how many queues and addresses it
   matches today before you save.
 - **Members**: users and directory groups, each with a team role. Adding a directory group can
-  admit its users to Studio, so it needs `user:admin`; a team admin manages user members only, and
+  admit its users to Rahdar, so it needs `user:admin`; a team admin manages user members only, and
   never gives anyone more than they hold themselves.
 - **Shares**: part of what a team owns, given to another team at a chosen team role, for example
   Orders sharing `orders.events.#` with Billing as Team Viewer.

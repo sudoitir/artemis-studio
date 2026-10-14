@@ -1,7 +1,7 @@
 # cross-node-resource-views Specification
 
 ## Purpose
-Defines how Artemis Studio presents a cluster's queues, addresses, consumers,
+Defines how Rahdar presents a cluster's queues, addresses, consumers,
 sessions, connections, and producers as one view across every logical node —
 the merge key, how a live/backup pair is counted once, and how nodes that are
 unmanageable or temporarily unreachable are represented rather than hidden.
@@ -55,7 +55,7 @@ merged, paginated result.
 #### Scenario: One batched request per node
 
 - **WHEN** any of these views is loaded
-- **THEN** Studio issues one batched request per serving node, not one request
+- **THEN** Rahdar issues one batched request per serving node, not one request
   per row or per node per attribute
 
 ### Requirement: Unmanageable nodes are shown as present without data

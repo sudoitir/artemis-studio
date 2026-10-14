@@ -43,7 +43,7 @@ function DlqEmpty({ addresses, available }: Readonly<{ addresses: string[]; avai
         title="Dead-letter configuration unavailable"
         description={
           <>
-            Studio could not read this broker's address settings, so it will not guess which queues are dead-letter
+            Rahdar could not read this broker's address settings, so it will not guess which queues are dead-letter
             queues from their names. Grant the connection management-read access, or check{' '}
             <code>getAddressSettingsAsJSON</code> is permitted, then reload.
           </>

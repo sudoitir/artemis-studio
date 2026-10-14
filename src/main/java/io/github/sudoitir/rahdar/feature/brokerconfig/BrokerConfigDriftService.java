@@ -1,0 +1,373 @@
+package io.github.sudoitir.rahdar.feature.brokerconfig;
+
+import io.github.sudoitir.rahdar.feature.brokerconfig.BrokerConfigOperations.ReadScope;
+import io.github.sudoitir.rahdar.feature.brokerconfig.BrokerConfigService.Source;
+import io.github.sudoitir.rahdar.feature.brokerconfig.Plan.FindingKind;
+import io.github.sudoitir.rahdar.feature.brokerconfig.Plan.Section;
+import io.github.sudoitir.rahdar.feature.brokerconfig.Plan.Step;
+import io.github.sudoitir.rahdar.feature.brokerconfig.internal.persistence.BrokerConfigDeclarationRepository;
+import io.github.sudoitir.rahdar.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateEntity;
+import io.github.sudoitir.rahdar.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateEntity.Basis;
+import io.github.sudoitir.rahdar.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateEntity.State;
+import io.github.sudoitir.rahdar.feature.brokerconfig.internal.persistence.BrokerConfigNodeStateRepository;
+import io.github.sudoitir.rahdar.feature.brokerconfig.internal.persistence.BrokerConfigOwnedItemRepository;
+import io.github.sudoitir.rahdar.kernel.core.ConflictException;
+import io.github.sudoitir.rahdar.kernel.security.ClusterAccessGuard;
+import io.github.sudoitir.rahdar.kernel.security.Permissions;
+import io.github.sudoitir.rahdar.kernel.stream.SseHub;
+import io.github.sudoitir.rahdar.platform.clusters.ClusterLock;
+import io.github.sudoitir.rahdar.platform.clusters.ClusterOwnership;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import tools.jackson.databind.ObjectMapper;
+
+/**
+ * Compares every live node against the cluster's current revision and records the
+ * result per node (ADR-0067 D8). Evaluation is scheduled and on demand; nothing
+ * that follows from it ever is. The findings are the planner's own steps read as
+ * facts: an add that nobody applies is a missing resource, a replace is a divergent
+ * one. Read-only, unaudited.
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class BrokerConfigDriftService {
+
+    public static final String SSE_TOPIC = "config";
+
+    private final BrokerConfigService configs;
+    private final BrokerConfigReads reads;
+    private final BrokerConfigDeclarationRepository declarations;
+    private final BrokerConfigNodeStateRepository nodeStates;
+    private final BrokerConfigOwnedItemRepository ownedItems;
+    private final ClusterAccessGuard clusterAccess;
+    private final ClusterLock lock;
+    private final ClusterOwnership ownership;
+    private final SseHub sseHub;
+    private final ObjectMapper mapper;
+
+    /** One thing a node does differently from the declaration, in the words the screen shows. */
+    public record DriftFinding(
+            FindingKind kind,
+            Section section,
+            String key,
+            String detail,
+            Map<String, Object> declared,
+            Map<String, Object> observed) {}
+
+    /** A whole evaluation, per node. */
+    public record Report(int revision, Instant evaluatedAt, List<NodeReport> nodes) {}
+
+    public record NodeReport(
+            UUID nodeId,
+            String nodeName,
+            boolean live,
+            State state,
+            String detail,
+            List<DriftFinding> findings,
+            Basis basis,
+            Long basisRef) {}
+
+    /**
+     * Evaluate now, on an operator's request.
+     *
+     * <p>Single-flight like the scheduled pass: without the lock two evaluations of
+     * the same cluster read the same nodes twice and raced to write the same rows,
+     * last one winning.
+     */
+    public Report evaluate(UUID clusterId) {
+        clusterAccess.requireCluster(clusterId, Permissions.CLUSTER_READ);
+        AtomicReference<Report> report = new AtomicReference<>();
+        boolean ran = lock.runIfHeld(clusterId, ClusterLock.Scope.CONFIG_DRIFT, () -> {
+            if (applyInFlight(clusterId)) {
+                return;
+            }
+            report.set(evaluateInternal(clusterId));
+        });
+        if (!ran) {
+            throw new ConflictException(
+                    "evaluation-in-progress",
+                    "An evaluation of this cluster is already running. Its result will appear when it finishes.");
+        }
+        if (report.get() == null) {
+            throw new ConflictException(
+                    "apply-in-progress",
+                    "A configuration apply is running on this cluster. A node read while it is half applied would"
+                            + " be reported as drifted; evaluate again when the apply has finished.");
+        }
+        return report.get();
+    }
+
+    /** The scheduled pass: every declared cluster this replica owns, under the cluster lock, never throwing. */
+    public void evaluateAll() {
+        for (var header : declarations.findAll()) {
+            UUID clusterId = header.getClusterId();
+            if (!ownership.owns(clusterId)) {
+                continue;
+            }
+            try {
+                lock.runIfHeld(clusterId, ClusterLock.Scope.CONFIG_DRIFT, () -> {
+                    if (applyInFlight(clusterId)) {
+                        log.debug("Skipping drift evaluation for cluster {}: an apply is running", clusterId);
+                        return;
+                    }
+                    evaluateInternal(clusterId);
+                });
+            } catch (RuntimeException e) {
+                log.warn("Drift evaluation for cluster {} failed: {}", clusterId, e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Whether an apply holds the cluster right now.
+     *
+     * <p>A node read in the middle of an apply is half written by definition, and
+     * recording that as DRIFTED raises an alert about work that is going correctly.
+     * Skipping is safe because the apply publishes its own evaluation when it
+     * commits.
+     *
+     * <p>ponytail: probe-then-act, so an apply starting in the microseconds after the
+     * probe is still evaluated through. The post-apply evaluation corrects the row,
+     * so the window costs at most one transient reading; holding CONFIG_APPLY for the
+     * whole pass would make evaluation block applies, which is the worse trade.
+     */
+    private boolean applyInFlight(UUID clusterId) {
+        return lock.isHeld(clusterId, ClusterLock.Scope.CONFIG_APPLY);
+    }
+
+    /**
+     * Re-evaluate right after an apply so the drift tab reflects what was just written. Not transactional: the
+     * nodes are read over the network, and each node-state row is saved in its own short transaction.
+     */
+    public void evaluateAfterApply(UUID clusterId) {
+        try {
+            evaluateInternal(clusterId);
+        } catch (RuntimeException e) {
+            log.warn("Post-apply drift evaluation for cluster {} failed: {}", clusterId, e.getMessage());
+        }
+    }
+
+    Report evaluateInternal(UUID clusterId) {
+        var current = configs.current(clusterId);
+        if (current.isEmpty()) {
+            return new Report(0, Instant.now(), List.of());
+        }
+        var revision = current.get();
+        Set<OwnedItem> owned = owned(clusterId);
+        ReadScope scope = ReadScope.of(
+                revision.document(),
+                ownedKeys(owned, Section.ADDRESS_SETTING),
+                ownedKeys(owned, Section.SECURITY_SETTING));
+        List<ObservedNodeConfig> observed = reads.observe(clusterId, scope);
+        PlanOptions options =
+                PlanOptions.drift(revision.header().isReportUndeclared(), configs.exclusions(revision.header()));
+        Plan plan = BrokerConfigPlanner.plan(revision.document(), observed, owned, options);
+
+        List<NodeReport> reports = new ArrayList<>();
+        Instant now = Instant.now();
+        for (ObservedNodeConfig node : observed) {
+            BrokerConfigNodeStateEntity row = nodeStates
+                    .findById(key(clusterId, node.nodeId()))
+                    .orElseGet(() -> new BrokerConfigNodeStateEntity(clusterId, node.nodeId()));
+            NodeReport report =
+                    report(node, plan, revision.revision(), basis(row, revision.revision(), revision.source()));
+            row.recordState(
+                    report.state(),
+                    report.detail(),
+                    report.state() == State.IN_SYNC || report.state() == State.DRIFTED ? revision.revision() : null,
+                    mapper.writeValueAsString(report.findings()),
+                    report.basis(),
+                    report.basisRef());
+            nodeStates.save(row);
+            reports.add(report);
+        }
+        publishAfterCommit(clusterId);
+        return new Report(revision.revision(), now, reports);
+    }
+
+    /** The screen refetches on this topic; it must not do so before the rows it will read are committed. */
+    private void publishAfterCommit(UUID clusterId) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sseHub.publish(clusterId, SSE_TOPIC);
+                }
+            });
+        } else {
+            sseHub.publish(clusterId, SSE_TOPIC);
+        }
+    }
+
+    /**
+     * Why a node that matches the declaration matches it (changeset 025).
+     *
+     * <p>An apply records {@code VERIFIED_APPLY} against the revision it wrote, and
+     * that is the strongest evidence there is, so it survives every later evaluation
+     * of the same revision. Failing that, a declaration adopted from the cluster
+     * matches because it was copied from it — the broker was never written. Anything
+     * else is an evaluation that simply found them equal, which is what a
+     * CONFIG_MANAGED cluster's agreement always is.
+     */
+    private static Basis basis(BrokerConfigNodeStateEntity row, int revision, Source source) {
+        if (row.basis() == Basis.VERIFIED_APPLY
+                && row.getVerifiedRevision() != null
+                && row.getVerifiedRevision() == revision) {
+            return Basis.VERIFIED_APPLY;
+        }
+        return source == Source.ADOPT ? Basis.ADOPTED : Basis.OBSERVED_MATCH;
+    }
+
+    /**
+     * The evidence, in the words the drift tab shows. Never silent: a node that
+     * agrees says why it agrees, so "in sync" after an adoption cannot be mistaken
+     * for "in sync" after an apply.
+     */
+    static String why(Basis basis, int revision) {
+        if (basis == null) {
+            return "";
+        }
+        return switch (basis) {
+            case VERIFIED_APPLY -> "Rahdar applied it and read it back.";
+            case ADOPTED -> "Revision " + revision + " was adopted from this cluster; no broker was written.";
+            case OBSERVED_MATCH -> "This evaluation found them equal; Rahdar has not written to this node.";
+        };
+    }
+
+    /** Read the planner's answer for one node as drift. */
+    static NodeReport report(ObservedNodeConfig node, Plan plan, int revision, Basis basisIfInSync) {
+        if (!plan.valid()) {
+            return new NodeReport(
+                    node.nodeId(),
+                    node.nodeName(),
+                    node.live(),
+                    State.NOT_EVALUATED,
+                    "The declaration cannot be compared: "
+                            + plan.violations().getFirst().message(),
+                    List.of(),
+                    null,
+                    null);
+        }
+        if (!node.live()) {
+            return new NodeReport(
+                    node.nodeId(),
+                    node.nodeName(),
+                    false,
+                    State.NOT_EVALUATED,
+                    "Not live. A backup inherits what its primary holds once it becomes active.",
+                    List.of(),
+                    null,
+                    null);
+        }
+        if (node.unavailableReason() != null) {
+            return new NodeReport(
+                    node.nodeId(),
+                    node.nodeName(),
+                    true,
+                    State.UNREACHABLE,
+                    node.unavailableReason(),
+                    List.of(),
+                    null,
+                    null);
+        }
+        // Two REMOVE steps for one divert replace collapse into the DIVERGENT they mean.
+        List<DriftFinding> deduped = new ArrayList<>(driftFindings(node, plan).stream()
+                .collect(Collectors.toMap(
+                        f -> f.kind() + ":" + f.section() + ":" + f.key(),
+                        Function.identity(),
+                        (first, second) -> first,
+                        LinkedHashMap::new))
+                .values());
+        // A bridge that matches the declaration and is not connected is a fault, not
+        // drift (ADR-0091): its configuration is exactly what was declared, so nothing
+        // an apply could write would fix it. It is reported, and it is not counted.
+        long faults = deduped.stream()
+                .filter(f -> f.kind() == FindingKind.NOT_CONNECTED)
+                .count();
+        State state = deduped.size() == faults ? State.IN_SYNC : State.DRIFTED;
+        Basis basis = state == State.IN_SYNC ? basisIfInSync : null;
+        String faultNote = faultNote(faults);
+        String detail = state == State.IN_SYNC
+                ? "Matches revision " + revision + ". " + why(basis, revision) + faultNote
+                : (deduped.size() - faults) + " findings." + faultNote;
+        Long basisRef = basis == Basis.ADOPTED ? (long) revision : null;
+        return new NodeReport(node.nodeId(), node.nodeName(), true, state, detail, deduped, basis, basisRef);
+    }
+
+    /** What this node's steps and the plan's findings say it does differently, before duplicates collapse. */
+    private static List<DriftFinding> driftFindings(ObservedNodeConfig node, Plan plan) {
+        List<DriftFinding> findings = new ArrayList<>();
+        plan.nodes().stream()
+                .filter(n -> n.nodeId().equals(node.nodeId()))
+                .findFirst()
+                .ifPresent(mine -> mine.steps().stream()
+                        .filter(s -> !s.already())
+                        .map(BrokerConfigDriftService::stepFinding)
+                        .forEach(findings::add));
+        plan.findings().stream()
+                .filter(f -> node.nodeId().equals(f.nodeId()))
+                .map(f -> new DriftFinding(f.kind(), f.section(), f.key(), f.detail(), Map.of(), Map.of()))
+                .forEach(findings::add);
+        return findings;
+    }
+
+    private static DriftFinding stepFinding(Step s) {
+        return switch (s.op()) {
+            case ADD ->
+                new DriftFinding(FindingKind.MISSING, s.section(), s.key(), s.description(), s.after(), Map.of());
+            case REPLACE ->
+                new DriftFinding(FindingKind.DIVERGENT, s.section(), s.key(), s.description(), s.after(), s.before());
+            case REMOVE ->
+                new DriftFinding(
+                        FindingKind.UNDECLARED,
+                        s.section(),
+                        s.key(),
+                        "Rahdar applied it and it is no longer declared.",
+                        Map.of(),
+                        s.before());
+        };
+    }
+
+    private static String faultNote(long faults) {
+        if (faults == 0) {
+            return "";
+        }
+        String bridges = faults == 1 ? " declared bridge is" : " declared bridges are";
+        return " " + faults + bridges
+                + " not forwarding; that is a fault on the broker, not a difference from the declaration.";
+    }
+
+    Set<OwnedItem> owned(UUID clusterId) {
+        return ownedItems.findByClusterId(clusterId).stream()
+                .map(e -> new OwnedItem(Section.valueOf(e.getKind()), e.getItemKey()))
+                .collect(Collectors.toCollection(HashSet::new));
+    }
+
+    static Set<String> ownedKeys(Set<OwnedItem> owned, Section section) {
+        Set<String> out = new HashSet<>();
+        owned.stream().filter(o -> o.section() == section).forEach(o -> out.add(o.key()));
+        return out;
+    }
+
+    static BrokerConfigNodeStateEntity.Key key(UUID clusterId, UUID nodeId) {
+        BrokerConfigNodeStateEntity.Key k = new BrokerConfigNodeStateEntity.Key();
+        k.setClusterId(clusterId);
+        k.setNodeId(nodeId);
+        return k;
+    }
+}

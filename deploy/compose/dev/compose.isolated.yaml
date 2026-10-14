@@ -1,12 +1,12 @@
-# Artemis Studio — ISOLATED overlay: a second stack beside the first.
+# Rahdar — ISOLATED overlay: a second stack beside the first.
 #
-#   docker compose -p artemis-studio-qa-<name> \
+#   docker compose -p rahdar-qa-<name> \
 #                  -f deploy/compose/dev/compose.dev.yaml \
 #                  -f deploy/compose/dev/compose.isolated.yaml up -d      (or: just qa-up <name> <port>)
 #
 # Layered on the dev stack so a UI sweep can run next to `just dev-up` or `just demo` without
 # touching their ports, containers or volumes (the project name, `-p`, keeps those apart; it
-# overrides `name:` in the base file). Studio is published on 127.0.0.1:${QA_PORT:-18080}. Every
+# overrides `name:` in the base file). Rahdar is published on 127.0.0.1:${QA_PORT:-18080}. Every
 # broker gets a random loopback host port, which `docker compose port <service> 8161` reports, so
 # scripts/demo-seed.sh still finds them. Postgres is not published at all.
 #
@@ -17,7 +17,7 @@
 # extra brokers. Not hardened, not for anywhere public.
 #
 # The session idle timeout is a runtime setting, not configuration, so `just qa-up` raises it
-# through the settings API once Studio is up.
+# through the settings API once Rahdar is up.
 
 services:
   postgres:
@@ -33,6 +33,6 @@ services:
       - "127.0.0.1::8161"
       - "127.0.0.1::61616"
 
-  studio:
+  rahdar:
     ports: !override
       - "127.0.0.1:${QA_PORT:-18080}:8080"

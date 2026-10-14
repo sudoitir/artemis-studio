@@ -1,44 +1,44 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.platform.scrape`
+|`io.github.sudoitir.rahdar.platform.scrape`
 |Spring components
 |_Repositories_
 
-* `i.g.s.a.p.s.MetricSamples`
+* `i.g.s.r.p.s.MetricSamples`
 
 _Event listeners_
 
-* `i.g.s.a.p.s.PluginMetrics`
-* `i.g.s.a.p.s.ScrapeScheduler`
+* `i.g.s.r.p.s.PluginMetrics`
+* `i.g.s.r.p.s.ScrapeScheduler`
 
 _Configuration properties_
 
-* `i.g.s.a.p.s.ScrapeProperties`
+* `i.g.s.r.p.s.ScrapeProperties`
 
 _Others_
 
-* `i.g.s.a.p.s.MetricSampleStore`
-* `i.g.s.a.p.s.MetricSampleWriter`
-* `i.g.s.a.p.s.QueueLocator`
-* `i.g.s.a.p.s.QueueSnapshotUpsert`
-* `i.g.s.a.p.s.QueueSnapshots`
-* `i.g.s.a.p.s.ScrapeCycle`
-* `i.g.s.a.p.s.ScrapeSettings`
-* `i.g.s.a.p.s.StreamSignals`
+* `i.g.s.r.p.s.MetricSampleStore`
+* `i.g.s.r.p.s.MetricSampleWriter`
+* `i.g.s.r.p.s.QueueLocator`
+* `i.g.s.r.p.s.QueueSnapshotUpsert`
+* `i.g.s.r.p.s.QueueSnapshots`
+* `i.g.s.r.p.s.ScrapeCycle`
+* `i.g.s.r.p.s.ScrapeSettings`
+* `i.g.s.r.p.s.StreamSignals`
 |Bean references
-|* `i.g.s.a.k.l.partition.PartitionDrops` (in Data lifecycle)
-* `i.g.s.a.k.c.PartitionProvisioner` (in Core)
-* `i.g.s.a.k.s.SettingsService` (in Settings)
-* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
-* `i.g.s.a.p.b.BrokerConnections` (in Broker connectivity)
-* `i.g.s.a.p.c.NodeStateRecorder` (in Clusters)
-* `i.g.s.a.p.c.ClusterOwnership` (in Clusters)
-* `i.g.s.a.p.c.ClusterService` (in Clusters)
-* `i.g.s.a.p.b.CoreSubscriptionManager` (in Broker connectivity)
-* `i.g.s.a.k.s.SseHub` (in Event stream)
+|* `i.g.s.r.k.l.partition.PartitionDrops` (in Data lifecycle)
+* `i.g.s.r.k.c.PartitionProvisioner` (in Core)
+* `i.g.s.r.k.s.SettingsService` (in Settings)
+* `i.g.s.r.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.r.p.b.BrokerConnections` (in Broker connectivity)
+* `i.g.s.r.p.c.NodeStateRecorder` (in Clusters)
+* `i.g.s.r.p.c.ClusterOwnership` (in Clusters)
+* `i.g.s.r.p.c.ClusterService` (in Clusters)
+* `i.g.s.r.p.b.CoreSubscriptionManager` (in Broker connectivity)
+* `i.g.s.r.k.s.SseHub` (in Event stream)
 |Events listened to
-|* `i.g.s.a.p.s.ScrapeTierCompleted` 
-* `i.g.s.a.p.c.ClusterDutyAcquired` 
-* `i.g.s.a.p.c.ClusterDutyReleased` 
+|* `i.g.s.r.p.s.ScrapeTierCompleted` 
+* `i.g.s.r.p.c.ClusterDutyAcquired` 
+* `i.g.s.r.p.c.ClusterDutyReleased` 
 |===

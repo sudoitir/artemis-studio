@@ -60,7 +60,7 @@ export function InstallersDialog({ opened, onClose }: Readonly<{ opened: boolean
     <Modal opened={opened} onClose={onClose} title="Who can install plugins" size="lg">
       <Stack gap="md">
         <Text size="sm" c="dimmed">
-          Installing a plugin runs its code inside Studio, so this is kept apart from roles: no role, however broad,
+          Installing a plugin runs its code inside Rahdar, so this is kept apart from roles: no role, however broad,
           lets anyone install. Changes take effect on the person's next request.
         </Text>
         <DataTable
@@ -107,7 +107,7 @@ export function InstallersDialog({ opened, onClose }: Readonly<{ opened: boolean
           <FieldRow>
             <TextInput
               label="Add an installer"
-              description="Their Studio username"
+              description="Their Rahdar username"
               {...form.getInputProps('username')}
               className={styles.field}
             />

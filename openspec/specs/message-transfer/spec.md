@@ -73,7 +73,7 @@ silently left.
 ### Requirement: Transfers work on queues of any size
 
 The system SHALL take the selection from the source in bounded chunks and SHALL never
-hold the whole selection in one broker call or in Studio's memory. For a move, the
+hold the whole selection in one broker call or in Rahdar's memory. For a move, the
 number of messages parked outside the source queue at any moment SHALL be bounded.
 Throughput SHALL be limited by a configurable messages-per-second rate and batch
 size, and every management call SHALL go through the per-node rate limiter of both
@@ -86,7 +86,7 @@ nodes.
 
 ### Requirement: No message is lost or duplicated by an interruption
 
-A move SHALL first take the selection off the source queue into a Studio-owned
+A move SHALL first take the selection off the source queue into a Rahdar-owned
 staging queue on the source broker and SHALL relay from there. A message SHALL be
 acknowledged on the source only after the target has committed it, so that at every
 moment each message exists on a broker. Every transferred message SHALL carry a
@@ -94,9 +94,9 @@ duplicate-detection id derived from the run and the source message. A copy SHALL
 record which source messages it has copied so that a resumed copy does not copy
 them again.
 
-#### Scenario: Studio stops between the target commit and the source acknowledgement
+#### Scenario: Rahdar stops between the target commit and the source acknowledgement
 
-- **WHEN** Studio stops after a batch is committed on the target and before it is acknowledged on the source, and the run is resumed
+- **WHEN** Rahdar stops after a batch is committed on the target and before it is acknowledged on the source, and the run is resumed
 - **THEN** the target holds each message of that batch exactly once
 
 #### Scenario: The target becomes unreachable mid-run
@@ -224,7 +224,7 @@ A run SHALL be persisted and observable live. It SHALL be one of these states:
 
 It SHALL report the counts selected, held in staging, delivered, and not transferred, together with its rate. Stop SHALL finish the batch in flight and then halt. A stopped, interrupted or failed run SHALL offer resume, and a move SHALL also offer return to source, which puts every message still held back on the source queue.
 
-A run holding messages SHALL NOT be discarded. A Studio restart SHALL mark running runs interrupted without losing their messages. Only one active run SHALL exist per source queue. A staging queue that belongs to no run SHALL be listed as orphaned, with a way to return its messages.
+A run holding messages SHALL NOT be discarded. A Rahdar restart SHALL mark running runs interrupted without losing their messages. Only one active run SHALL exist per source queue. A staging queue that belongs to no run SHALL be listed as orphaned, with a way to return its messages.
 
 #### Scenario: Return to source
 
@@ -233,7 +233,7 @@ A run holding messages SHALL NOT be discarded. A Studio restart SHALL mark runni
 
 #### Scenario: Restart mid-run
 
-- **WHEN** Studio restarts while a move is running
+- **WHEN** Rahdar restarts while a move is running
 - **THEN** the run is interrupted, its held messages are intact, and resuming completes it
 
 #### Scenario: A second run on the same source queue

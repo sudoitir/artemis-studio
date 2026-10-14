@@ -163,7 +163,7 @@ describe('AddressEditor', () => {
     const { user, onClose } = open(ORDERS);
 
     const remove = await screen.findByRole('button', { name: 'Remove from declaration' });
-    expect(remove).toHaveAttribute('title', 'Stops Studio checking for it. Nothing on the broker is deleted.');
+    expect(remove).toHaveAttribute('title', 'Stops Rahdar checking for it. Nothing on the broker is deleted.');
     await user.click(remove);
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
@@ -176,7 +176,7 @@ describe('AddressEditor', () => {
     server.use(
       http.put('*/api/v1/clusters/c1/config', () =>
         HttpResponse.json(
-          { type: 'urn:studio:stale-revision', title: 'Declaration changed', detail: 'Revision 4 exists.' },
+          { type: 'urn:rahdar:stale-revision', title: 'Declaration changed', detail: 'Revision 4 exists.' },
           { status: 409 },
         ),
       ),

@@ -1,11 +1,11 @@
 ---
 title: MCP server
-description: Artemis Studio speaks the Model Context Protocol, so an assistant can answer questions against your real clusters under the same grants and the same audit trail as a person.
+description: Rahdar speaks the Model Context Protocol, so an assistant can answer questions against your real clusters under the same grants and the same audit trail as a person.
 ---
 
 # MCP server
 
-Studio speaks the [Model Context Protocol](https://modelcontextprotocol.io), so
+Rahdar speaks the [Model Context Protocol](https://modelcontextprotocol.io), so
 an assistant can answer *"why is `ORDERS.DLQ` backed up"* against your real
 clusters instead of guessing.
 
@@ -25,7 +25,7 @@ it may call → copy the value. It is shown once.
   after it was minted (90 days by default, *Settings → API tokens → Maximum
   lifetime*). Lowering the maximum shortens existing keys at once.
 - **Tools.** A key restricted to named tools is offered only those, plus
-  `studio_help`. The other tools are not listed or described to it, and calling
+  `rahdar_help`. The other tools are not listed or described to it, and calling
   one answers exactly as a tool that does not exist.
 - **Rotation.** **Rotate** issues a new secret and keeps the old one working
   for the rotation overlap (24 hours by default), so an assistant's
@@ -48,9 +48,9 @@ it may call → copy the value. It is shown once.
 ```json
 {
   "mcpServers": {
-    "artemis-studio": {
+    "rahdar": {
       "type": "http",
-      "url": "https://studio.example.com/mcp",
+      "url": "https://rahdar.example.com/mcp",
       "headers": { "Authorization": "Bearer as_..." }
     }
   }
@@ -60,7 +60,7 @@ it may call → copy the value. It is shown once.
 Smoke-test it without a client:
 
 ```bash
-curl -s https://studio.example.com/mcp \
+curl -s https://rahdar.example.com/mcp \
   -H "Authorization: Bearer as_..." \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
@@ -76,7 +76,7 @@ can be run again.
 
 | Kind | Name | For |
 |---|---|---|
-| Tool | `studio_help` | the catalogue itself: every tool, its posture and its parameters |
+| Tool | `rahdar_help` | the catalogue itself: every tool, its posture and its parameters |
 | Tool | `diagnose` | a cluster (HA role per node, split-brain, replication lag, firing alerts) or one queue end to end |
 | Tool | `list_resources` | queues, addresses, consumers, sessions, connections, producers, diverts, bridges |
 | Tool | `metric_series` | a bucketed timeseries for one metric |
@@ -84,14 +84,14 @@ can be run again.
 | Tool | `broker_config` | the cluster's declaration, its drift per node, the `broker.xml` fragment, or past applies |
 | Tool | `browse_messages` | headers, or one body by id |
 | Tool | `trace_request_reply` | flows, latency and timeout statistics, configured expectations |
-| Tool | `activity_log` | broker events, or Studio's own audit trail |
+| Tool | `activity_log` | broker events, or Rahdar's own audit trail |
 | Tool | `message_action` | move / retry / delete / expire / purge |
 | Tool | `queue_lifecycle` | create, update, pause, resume or destroy a queue, address or divert |
 | Tool | `broker_config_change` | declare a configuration, or apply it canary-first with hazards acknowledged by id |
 | Tool | `connection_action` | close a connection, session, consumer or an address's consumers |
 | Tool | `send_message` | enqueue one message |
-| Tool | `alert_rule` / `studio_setting` | alert rules; operational settings |
-| Resource | `studio://clusters`, `studio://permissions`, `studio://tools` | what this key can see and do |
+| Tool | `alert_rule` / `rahdar_setting` | alert rules; operational settings |
+| Resource | `rahdar://clusters`, `rahdar://permissions`, `rahdar://tools` | what this key can see and do |
 | Resource | `cluster://{id}/topology`, `cluster://{id}/capabilities`, `cluster://{id}/nodes/{nodeId}/settings` | nodes; what the connection supports, with the `broker.xml` to enable what it does not; one node's effective settings |
 | Prompt | `triage_cluster`, `investigate_queue`, `before_you_purge`, `tune_scrape_load` | runbooks |
 
@@ -125,6 +125,6 @@ boring and explicit. This one is:
 
 ## Discovery
 
-`studio_help` is a tool, not an optional resource, and one catalogue generates
+`rahdar_help` is a tool, not an optional resource, and one catalogue generates
 the schemas, the help text, the resource and the server instructions — so they
 cannot disagree ([ADR-0054](/reference/adr/0054-mcp-discovery-is-a-tool-not-a-resource)).

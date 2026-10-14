@@ -31,15 +31,15 @@ the main checkout, which stays on `main` for whoever else is using it:
 
 ```bash
 git fetch
-git worktree add -b <branch> ../worktrees/artemis-studio-<NN-slug> origin/main
+git worktree add -b <branch> ../worktrees/rahdar-<NN-slug> origin/main
 # … work, verify, PR, merge …
-git worktree remove ../worktrees/artemis-studio-<NN-slug> && git branch -D <branch>
+git worktree remove ../worktrees/rahdar-<NN-slug> && git branch -D <branch>
 ```
 
 Two changes run in parallel only when neither depends on the other. Before the PR, rebase
 onto the latest `main`. When two parallel changes both bump `Contract.VERSION` or add
 Liquibase changesets, the second to merge rebases and renumbers its own. A session that
-runs Studio for screenshots uses its own ports and compose project name, so parallel
+runs Rahdar for screenshots uses its own ports and compose project name, so parallel
 sessions do not share a dev stack.
 
 **Merging is automatic** (ADR-0170): once the PR is ready, `gh pr merge <n> --merge --auto`. The

@@ -1,0 +1,134 @@
+package io.github.sudoitir.rahdar.feature.alerting.internal.persistence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+/**
+ * Maps {@code alert_delivery} (changeset 013): the durable retry queue and
+ * ledger for one notification, batched per {@code (rule, channel)} per
+ * evaluation tick — never one row per firing subject (ADR-0036, design.md
+ * decision 5). {@link io.github.sudoitir.rahdar.feature.alerting.AlertDispatcher}
+ * is the only writer of {@code state}/{@code attempts}/{@code lastError}.
+ */
+@Entity
+@Table(name = "alert_delivery")
+@Getter
+@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+public class AlertDeliveryEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "seq", nullable = false, updatable = false)
+    @EqualsAndHashCode.Include
+    private Long seq;
+
+    /** Null for a notice. */
+    @Column(name = "rule_id", updatable = false)
+    private UUID ruleId;
+
+    /** {@code alert} or {@code notice}. */
+    @Column(name = "kind", nullable = false, updatable = false)
+    private String kind = ALERT;
+
+    /** The plugin that sent a notice; null for an alert. */
+    @Column(name = "source", updatable = false)
+    private String source;
+
+    @Column(name = "channel_id", nullable = false, updatable = false)
+    private UUID channelId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "payload", nullable = false, updatable = false)
+    private String payload;
+
+    public static final String ALERT = "alert";
+    public static final String NOTICE = "notice";
+    private static final String PENDING = "PENDING";
+
+    @Column(name = "state", nullable = false)
+    private String state = PENDING;
+
+    @Column(name = "attempts", nullable = false)
+    private int attempts;
+
+    @Column(name = "last_error")
+    private String lastError;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(name = "next_attempt_at", nullable = false)
+    private Instant nextAttemptAt;
+
+    @Column(name = "delivered_at")
+    private Instant deliveredAt;
+
+    public AlertDeliveryEntity(UUID ruleId, UUID channelId, String payload) {
+        this(ruleId, channelId, payload, ALERT, null);
+    }
+
+    private AlertDeliveryEntity(UUID ruleId, UUID channelId, String payload, String kind, String source) {
+        this.ruleId = ruleId;
+        this.channelId = channelId;
+        this.payload = payload;
+        this.kind = kind;
+        this.source = source;
+        this.state = PENDING;
+        Instant now = Instant.now();
+        this.createdAt = now;
+        this.nextAttemptAt = now;
+    }
+
+    /** The successful attempt counts too, so the delivery log's "attempts" is every try made. */
+    public void recordSuccess(Instant now) {
+        this.attempts++;
+        this.state = "SENT";
+        this.deliveredAt = now;
+        this.lastError = null;
+    }
+
+    /** Backs off via the given delay, or gives up to {@code DEAD} at {@code maxAttempts}. */
+    public void recordFailure(Instant now, String error, Duration nextDelay, int maxAttempts) {
+        this.attempts++;
+        this.lastError = error;
+        if (this.attempts >= maxAttempts) {
+            this.state = "DEAD";
+        } else {
+            this.nextAttemptAt = now.plus(nextDelay);
+        }
+    }
+
+    /**
+     * An operator returns a dead delivery to the queue (ADR-0105 D6): attempted on the
+     * dispatcher's next pass, with a fresh attempt budget. The last error is kept until the
+     * next attempt replaces it, so the log still says why it died.
+     */
+    public void requeue(Instant now) {
+        this.state = PENDING;
+        this.attempts = 0;
+        this.nextAttemptAt = now;
+    }
+
+    /** A permanently-invalid destination (e.g. a revoked Slack webhook) — no retry. */
+    public void recordDead(String error) {
+        this.attempts++;
+        this.lastError = error;
+        this.state = "DEAD";
+    }
+}

@@ -55,7 +55,7 @@ function HealthEmpty({
             ? `${unreachable[0]} could not be reached`
             : `${unreachable.length} nodes could not be reached`
         }
-        description={`There may be queues here that Studio cannot currently see. ${
+        description={`There may be queues here that Rahdar cannot currently see. ${
           unreachable.length === 1 ? 'This node' : 'These nodes'
         } did not answer the last scrape, so this is an incomplete view rather than a healthy cluster.`}
         nodes={unreachable}
@@ -112,7 +112,7 @@ export function ConsumerHealthView() {
   });
 
   // An empty grid has three different causes, and presenting an absence as a fact
-  // is the one that misleads: a node Studio could not reach contributes no rows,
+  // is the one that misleads: a node Rahdar could not reach contributes no rows,
   // which looks exactly like a cluster whose queues are all healthy.
   const cluster = useCluster(clusterId);
   const unreachable = (cluster.data?.topology.nodes ?? [])

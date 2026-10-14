@@ -67,7 +67,7 @@ describe('RoleGrants', () => {
     renderGrants();
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(alert).toHaveTextContent('permissions unavailable');
 
     serve(PERMISSIONS);

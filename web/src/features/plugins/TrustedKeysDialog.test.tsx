@@ -154,7 +154,7 @@ describe('Trusted keys', () => {
     const remove = screen.getByRole('button', { name: 'Remove Example Publisher' });
     expect(remove).toHaveAttribute('aria-disabled', 'true');
     expect(remove).toHaveAccessibleDescription(
-      'Set by configuration. Remove it from artemis-studio.plugins.trusted-keys and restart Studio.',
+      'Set by configuration. Remove it from rahdar.plugins.trusted-keys and restart Rahdar.',
     );
 
     // The disabled control still takes focus, so its reason is reachable, and activating it does nothing.

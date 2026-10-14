@@ -50,7 +50,7 @@ function twoLines(first: ReactNode, second: string | null) {
 }
 
 /**
- * What a connection check found, one row per node: who it is, where Studio manages it, and what each of
+ * What a connection check found, one row per node: who it is, where Rahdar manages it, and what each of
  * the two accounts did there. Three columns, each with a line of detail, so the check reads whole in the
  * width of a form instead of hiding the facts it is there to show.
  */

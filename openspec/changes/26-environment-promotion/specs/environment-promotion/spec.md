@@ -27,7 +27,7 @@ The interface SHALL show the diff, let the user select the differences to promot
 - **THEN** the preview lists only those changes and their hazards
 
 ### Requirement: A promotion goes through the target's declaration and apply
-A promotion SHALL save the selected differences as a new revision of the target cluster's declaration, naming the source, and SHALL change brokers only through the existing apply, with its plan, hazards, canary-first order and halt on failure. A target whose configuration is managed outside Studio SHALL receive the revision and SHALL NOT be applied to.
+A promotion SHALL save the selected differences as a new revision of the target cluster's declaration, naming the source, and SHALL change brokers only through the existing apply, with its plan, hazards, canary-first order and halt on failure. A target whose configuration is managed outside Rahdar SHALL receive the revision and SHALL NOT be applied to.
 
 #### Scenario: A promotion to a managed cluster
 - **WHEN** a promotion of two queues is confirmed

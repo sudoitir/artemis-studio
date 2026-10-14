@@ -68,7 +68,7 @@ export function AddManagementUrl({
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
             Its pair reported <code>{endpoint?.coreUrl}</code>. That is a broker-to-broker connector, not a management
-            URL. Studio derives one from the cluster&apos;s management URL pattern, but could not for this node
+            URL. Rahdar derives one from the cluster&apos;s management URL pattern, but could not for this node
             {endpoint?.urlProblem ? `: ${urlProblemWords(endpoint.urlProblem)}` : ' yet'}. Enter the Jolokia URL you can
             reach this broker on.
           </Text>
@@ -79,7 +79,7 @@ export function AddManagementUrl({
           />
           <TextInput
             label="Core URL"
-            description="Optional. Set this when the advertised connector is not reachable from Studio (needed for live events)."
+            description="Optional. Set this when the advertised connector is not reachable from Rahdar (needed for live events)."
             placeholder="tcp://broker-2:61617"
             {...form.getInputProps('coreUrl')}
           />

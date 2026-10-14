@@ -90,7 +90,7 @@ export function rateSortValue(rate: number | null | undefined, descending: boole
 export function edgeText(view: FlowEdgeView): string {
   const parts = kindParts(view);
   for (const f of view.faults ?? []) parts.push(faultText(f, view));
-  if (view.studio) parts.push('Studio capture');
+  if (view.rahdar) parts.push('Rahdar capture');
   if (view.stale) parts.push('stale');
   return parts.join(' · ');
 }

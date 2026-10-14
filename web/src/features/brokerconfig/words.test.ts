@@ -38,7 +38,7 @@ const node = (over: Partial<ConfigNodeStateView> = {}): ConfigNodeStateView => (
 });
 
 const declaration = (nodes: ConfigNodeStateView[], over: Partial<ConfigDeclarationView> = {}): ConfigDeclarationView =>
-  ({ declared: true, revision: 3, applyMode: 'STUDIO_MANAGED', nodes, ...over }) as ConfigDeclarationView;
+  ({ declared: true, revision: 3, applyMode: 'RAHDAR_MANAGED', nodes, ...over }) as ConfigDeclarationView;
 
 describe('sections', () => {
   it('accepts only the five section names', () => {
@@ -86,8 +86,8 @@ describe('state words', () => {
     expect(applyOutcomeWords('HALTED')).toEqual({ text: 'halted', tone: 'warning' });
     expect(applyOutcomeWords('FAILED')).toEqual({ text: 'failed', tone: 'danger' });
     expect(applyOutcomeWords('OTHER' as never)).toEqual({ text: 'OTHER' });
-    expect(applyModeWords('CONFIG_MANAGED')).toBe('Managed outside Studio');
-    expect(applyModeWords('STUDIO_MANAGED')).toBe('Managed by Studio');
+    expect(applyModeWords('CONFIG_MANAGED')).toBe('Managed outside Rahdar');
+    expect(applyModeWords('RAHDAR_MANAGED')).toBe('Managed by Rahdar');
   });
 
   it('words a plan step by status, and an applied step by how it was read back', () => {

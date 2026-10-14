@@ -2,8 +2,8 @@
 #
 # Seed the load test's stack: clusters, queues, messages, audit records and accounts.
 #
-# Runs from scripts/load.sh, which exports STUDIO, COMPOSE, ADMIN_PASSWORD (the one-time password the first boot
-# printed), NEW_ADMIN_PASSWORD, SEED_DIR and the LOAD_* sizes of the profile. Everything Studio can do goes through
+# Runs from scripts/load.sh, which exports RAHDAR, COMPOSE, ADMIN_PASSWORD (the one-time password the first boot
+# printed), NEW_ADMIN_PASSWORD, SEED_DIR and the LOAD_* sizes of the profile. Everything Rahdar can do goes through
 # its REST API; queues and messages go through the brokers' own management and CLI, because a real estate's
 # thousands of queues were never created one audited call at a time. Nothing writes to a table directly.
 #
@@ -11,7 +11,7 @@
 # scenarios share, so that its per-user limit is reached) and clusters.csv (cluster id, name, a queue name).
 set -euo pipefail
 
-STUDIO=${STUDIO:?}
+RAHDAR=${RAHDAR:?}
 COMPOSE=${COMPOSE:?}
 SEED_DIR=${SEED_DIR:?}
 ADMIN_USER=${ADMIN_USER:-admin}
@@ -35,7 +35,7 @@ say() { printf '\n\033[1m→ %s\033[0m\n' "$*"; }
 json() { python3 -c "import json,sys; d=json.load(sys.stdin); print($1)"; }
 
 mkdir -p "$SEED_DIR"
-studio_sign_in "${NEW_ADMIN_PASSWORD:-}" NEW_ADMIN_PASSWORD || exit 1
+rahdar_sign_in "${NEW_ADMIN_PASSWORD:-}" NEW_ADMIN_PASSWORD || exit 1
 # The same run's later steps and the load test sign the shared accounts in with this one password.
 LOAD_PASSWORD=$(openssl rand -hex 16)
 
@@ -66,7 +66,7 @@ while [ "$i" -lt "$LOAD_BROKERS" ] && [ "$per_queue" -gt 0 ]; do
 done
 
 say "registering $LOAD_CLUSTERS clusters of $LOAD_NODES_PER_CLUSTER nodes"
-# Cluster c takes its own brokers, c x nodes onward: Studio refuses to register a broker in two clusters.
+# Cluster c takes its own brokers, c x nodes onward: Rahdar refuses to register a broker in two clusters.
 printf 'clusterId,clusterName,queue\n' > "$SEED_DIR/clusters.csv"
 cluster_ids=()
 c=0
@@ -91,7 +91,7 @@ while [ "$c" -lt "$LOAD_CLUSTERS" ]; do
   c=$((c + 1))
 done
 
-say "waiting for Studio to read the queues"
+say "waiting for Rahdar to read the queues"
 want=$LOAD_QUEUES
 # The next tier-C tick (15 s in the load stack) walks every queue of every node.
 tick=${LOAD_TIER_C%s}
@@ -106,7 +106,7 @@ for id in "${cluster_ids[@]}"; do
 done
 
 say "writing $LOAD_AUDIT_ROWS audit records through the API"
-# Each queue Studio creates is an audited mutation, so the audit export has rows to stream.
+# Each queue Rahdar creates is an audited mutation, so the audit export has rows to stream.
 n=0
 while [ "$n" -lt "$LOAD_AUDIT_ROWS" ]; do
   id=${cluster_ids[$((n % LOAD_CLUSTERS))]}
@@ -129,7 +129,7 @@ make_account() { # username file
     COOKIES=$(mktemp)
     trap 'rm -f "$COOKIES"' EXIT
     ADMIN_USER=$name ADMIN_PASSWORD=$initial
-    studio_sign_in "$LOAD_PASSWORD" LOAD_PASSWORD
+    rahdar_sign_in "$LOAD_PASSWORD" LOAD_PASSWORD
   )
   printf '%s,%s\n' "$name" "$LOAD_PASSWORD" >> "$file"
 }

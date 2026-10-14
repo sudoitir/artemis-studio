@@ -44,7 +44,7 @@ when the broker restarts. Configuration created over the management API survives
 so such wording would be false and would invite an operator to leave something in place
 expecting it to clear itself.
 
-#### Scenario: A divert Studio did not create carries no origin claim
+#### Scenario: A divert Rahdar did not create carries no origin claim
 
 - **WHEN** an operator views a divert the system does not own
 - **THEN** it is listed with what it does, and no statement is made about whether it came
@@ -208,7 +208,7 @@ address" is answerable directly.
 - **WHEN** an operator filters the divert view by an address
 - **THEN** the diverts that read from or write to it are shown
 
-### Requirement: Capture diverts are identified as Studio's own and are not managed here
+### Requirement: Capture diverts are identified as Rahdar's own and are not managed here
 
 A divert that exists to serve a message capture subscription SHALL be identified as such
 wherever diverts are listed, together with the subscription it serves.

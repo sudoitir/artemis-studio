@@ -68,7 +68,7 @@ export function RecommendedConfiguration({
       <EmptyState
         kind="empty"
         title="Nothing to recommend"
-        description="Every capability this connection was assessed on is available. There is nothing Studio would change."
+        description="Every capability this connection was assessed on is available. There is nothing Rahdar would change."
       />
     );
   }
@@ -88,7 +88,7 @@ export function RecommendedConfiguration({
     <Stack gap="xl">
       {appliable.length > 0 ? (
         <Section
-          title="Studio can apply these"
+          title="Rahdar can apply these"
           description={
             recommendations.seededFrom
               ? `Each entry below is the whole setting as ${recommendations.seededFrom} runs it today, with the` +
@@ -135,7 +135,7 @@ export function RecommendedConfiguration({
 
                   {r.manualSnippet ? (
                     <Text size="sm" c="dimmed" ml="xl">
-                      Its verdict only reaches Studio once the broker-plugin below is installed too.
+                      Its verdict only reaches Rahdar once the broker-plugin below is installed too.
                     </Text>
                   ) : null}
                 </Stack>
@@ -171,7 +171,7 @@ export function RecommendedConfiguration({
       {manual.length > 0 ? (
         <Section
           title="These still need a broker.xml edit"
-          description="No management operation writes any of them, so Studio never will. Paste the fragment and restart the broker."
+          description="No management operation writes any of them, so Rahdar never will. Paste the fragment and restart the broker."
         >
           {manual.map((r) => (
             <Stack key={`${r.capability}-manual`} gap="xs">
@@ -252,11 +252,11 @@ function rolesDescription(r: ConfigRecommendationView): string | undefined {
   if (source.kind === 'BROKER_ACCOUNT') {
     const narrowed = rolesOf(r).length < r.accountRoles.length;
     return (
-      `Read from Studio's broker account (${r.accountRoles.join(', ')}).` +
+      `Read from Rahdar's broker account (${r.accountRoles.join(', ')}).` +
       (narrowed ? ' Narrowed to the roles the broker already names for this address.' : '')
     );
   }
-  const unread = `Studio's account roles could not be read: ${source.reason}.`;
+  const unread = `Rahdar's account roles could not be read: ${source.reason}.`;
   return source.kind === 'SECURITY_SETTINGS'
     ? `${unread} These are the roles the broker names for this address.`
     : `${unread} The broker names no role for this address either, so there is nothing to copy. Name the one your account holds.`;

@@ -67,12 +67,12 @@ describe('TransferRunView states in words', () => {
     [
       'interrupted with staging',
       { state: 'INTERRUPTED', held: 5 },
-      'Interrupted: Studio stopped while it ran. 5 messages held in staging on node-a. Nothing is lost; resume it or return it.',
+      'Interrupted: Rahdar stopped while it ran. 5 messages held in staging on node-a. Nothing is lost; resume it or return it.',
     ],
     [
       'interrupted without staging',
       { state: 'INTERRUPTED', sameNode: true },
-      'Interrupted: Studio stopped while it ran. Nothing is lost; resume it.',
+      'Interrupted: Rahdar stopped while it ran. Nothing is lost; resume it.',
     ],
     [
       'failed without staging',

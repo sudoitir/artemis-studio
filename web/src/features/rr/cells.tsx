@@ -51,7 +51,7 @@ export function ReplyAddressesCell({ expectation: e }: Readonly<{ expectation: E
 /**
  * One traced address's last tick, in a sentence an operator can act on.
  *
- * The interesting states are all "Studio looked and found nothing" versus "Studio
+ * The interesting states are all "Rahdar looked and found nothing" versus "Rahdar
  * never looked", which the flows list alone cannot distinguish.
  */
 export function ExpectationStatus({

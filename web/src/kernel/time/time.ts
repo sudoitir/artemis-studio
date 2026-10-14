@@ -5,8 +5,8 @@ import { displayZone, zoneSuffix } from './timezone.ts';
 /**
  * The one place the UI knows what time it is, and it is not the browser's time.
  *
- * Studio already refuses to trust a broker's clock: ADR-0053 measures every
- * broker against Studio's, normalises foreign timestamps at the boundary where
+ * Rahdar already refuses to trust a broker's clock: ADR-0053 measures every
+ * broker against Rahdar's, normalises foreign timestamps at the boundary where
  * they enter, and alerts when a clock is wrong. The browser is one more foreign
  * clock, and until this module existed it was the only one taken on faith. An
  * operator's laptop running four minutes fast inflated every age on the screen by
@@ -143,13 +143,13 @@ export function offerPing(data: unknown): void {
   if (Math.abs(serverMs - serverNow()) > PING_DRIFT_MS) void syncServerTime();
 }
 
-/** Studio's clock, as best the browser can tell. The only wall-clock read in the app. */
+/** Rahdar's clock, as best the browser can tell. The only wall-clock read in the app. */
 export function serverNow(): number {
   return Date.now() + offsetMs;
 }
 
 /**
- * Put a browser-stamped instant on Studio's timeline.
+ * Put a browser-stamped instant on Rahdar's timeline.
  *
  * The only such instants are TanStack Query's `dataUpdatedAt`, which it stamps
  * with its own `Date.now()` when a response lands. Comparing one against
@@ -160,7 +160,7 @@ export function toServerMs(browserMs: number): number {
   return browserMs + offsetMs;
 }
 
-/** How far the browser's clock is from Studio's, in ms. Positive means the browser is ahead. */
+/** How far the browser's clock is from Rahdar's, in ms. Positive means the browser is ahead. */
 export function browserOffsetMs(): number {
   // Not a bare negation: `-0` is a real value that survives into `Object.is`
   // comparisons and into a rendered "-0ms".
@@ -216,7 +216,7 @@ export function startServerTimeSync(): () => void {
 }
 
 /**
- * A clock that ticks to re-render a relative label, on Studio's time.
+ * A clock that ticks to re-render a relative label, on Rahdar's time.
  *
  * Also re-renders when the offset itself changes, which matters more than it
  * looks: `MetricsView` ticks at the metric bucket width, up to an hour, and would

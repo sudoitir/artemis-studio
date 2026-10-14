@@ -39,13 +39,13 @@ The `release` job in `.github/workflows/ci.yml` does all of it, with no manual s
   merge commit and pushes only the tag. It commits nothing, so `main` never moves on a
   release and no open pull request falls behind because of one
   ([ADR-0129](../../docs/adr/0129-releases-tag-the-merge-commit-and-commit-nothing.md));
-- pushes the image to Docker Hub — `sudoit1/artemis-studio`, `linux/amd64` +
+- pushes the image to Docker Hub — `sudoit1/rahdar`, `linux/amd64` +
   `linux/arm64`, tags `:<version>` (immutable), `:<YYYY.MM>` (moving month pointer),
   `:dev` (moving channel pointer);
 - attests the image and the jar keylessly with `actions/attest` (ADR-0139): SLSA provenance and
   a CycloneDX SBOM (Syft) for each, the image's pushed to Docker Hub as OCI referrers;
 - creates a GitHub Release with the notes as its body and the
-  `artemis-studio-<version>.jar`, its `.sha256`, its provenance bundle (`.jar.intoto.jsonl`) and
+  `rahdar-<version>.jar`, its `.sha256`, its provenance bundle (`.jar.intoto.jsonl`) and
   both SBOMs (`.jar.cdx.json`, `.image.cdx.json`) attached, then verifies the attestations with
   the commands in `site/src/guide/verify-releases.md` and dispatches `pages.yml`
   so the site's changelog lists it (a release made with the workflow token triggers
@@ -56,12 +56,12 @@ version already there, so a failed publish is retried by the next release:
 
 - `publish-api`: the plugin API to Maven Central, when `src/main` or `pom.xml` changed, and
   attests the files it deployed;
-- `publish-sdk`: `@artemis-studio/plugin-sdk` to npm, when `web/packages`, `web/src/sdk`,
+- `publish-sdk`: `@rahdar/plugin-sdk` to npm, when `web/packages`, `web/src/sdk`,
   `web/src/kernel` or the web manifests changed. Its job stays in `ci.yml`: npm trusted
   publishing is bound to that file name;
-- `publish-client-ts` and `publish-client-java`: `@artemis-studio/client` to npm and
-  `io.github.sudoitir:artemis-studio-client` to Central, on **every** release, generated from the
-  release's `web/openapi.json` (ADR-0151). The release also attaches `artemis-studio-<version>.openapi.json`.
+- `publish-client-ts` and `publish-client-java`: `@rahdar/client` to npm and
+  `io.github.sudoitir:rahdar-client` to Central, on **every** release, generated from the
+  release's `web/openapi.json` (ADR-0151). The release also attaches `rahdar-<version>.openapi.json`.
 
 A pull request that changes the image inputs scans the built image with Grype and fails on a
 critical or high finding that has a fix; bump the base-image digest or the dependency.
@@ -86,7 +86,7 @@ When the project cuts its first stable release, three edits flip the channel:
 1. `ci.yml` — add `:latest` to the `build-push-action` tag list.
 2. `ci.yml` — drop `prerelease: true` from the `action-gh-release` step.
 3. `deploy/compose/compose.prod.yaml` + `deploy/compose/.env.example` — change the
-   `STUDIO_IMAGE` default from `:dev` to `:latest`.
+   `RAHDAR_IMAGE` default from `:dev` to `:latest`.
 
 ## Changelog
 

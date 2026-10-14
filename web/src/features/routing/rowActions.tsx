@@ -16,7 +16,7 @@ export function CopyDivertName({ target, host }: Readonly<ActionProps<DivertTarg
 }
 
 /**
- * "Delete divert…" on a divert's row. A capture divert is Studio's own and reconciliation would put
+ * "Delete divert…" on a divert's row. A capture divert is Rahdar's own and reconciliation would put
  * it back, so it is not deletable here, and the item says where it is managed instead.
  */
 export function DeleteDivert({ clusterId, target, host }: Readonly<ActionProps<DivertTarget>>) {

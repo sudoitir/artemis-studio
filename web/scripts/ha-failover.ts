@@ -1,5 +1,5 @@
 /**
- * Failover of the reference HA deployment (deploy/compose/compose.ha.yaml with dev/compose.ha.test.yaml): two Studio
+ * Failover of the reference HA deployment (deploy/compose/compose.ha.yaml with dev/compose.ha.test.yaml): two Rahdar
  * replicas behind HAProxy on one Postgres and one broker. Through the load balancer it registers the broker, holds
  * three event streams and a request loop (a read every 200 ms and a queue created and deleted every 500 ms), then:
  *
@@ -10,12 +10,12 @@
  *
  * Throughout, every persisted broker event between a stream's first and last id must have reached that stream.
  *
- *   COMPOSE='docker compose -p artemis-studio-ha-test --env-file deploy/compose/dev/ha/test.env \
+ *   COMPOSE='docker compose -p rahdar-ha-test --env-file deploy/compose/dev/ha/test.env \
  *            -f deploy/compose/compose.ha.yaml -f deploy/compose/dev/compose.ha.test.yaml' \
- *   STUDIO=http://127.0.0.1:18080 node --experimental-strip-types scripts/ha-failover.ts
+ *   RAHDAR=http://127.0.0.1:18080 node --experimental-strip-types scripts/ha-failover.ts
  *
  * COMPOSE is how this script starts, kills and reads the logs of the stack's containers. The one-time admin
- * password is read from studio-1's log unless ADMIN_PASSWORD is set; the stack is throwaway, so the script picks the
+ * password is read from rahdar-1's log unless ADMIN_PASSWORD is set; the stack is throwaway, so the script picks the
  * password the admin changes it to. `just ha-failover` and CI's image job run it.
  */
 import { execFile } from 'node:child_process';
@@ -24,7 +24,7 @@ import { randomBytes } from 'node:crypto';
 
 import { nextTotp } from './totp.ts';
 
-const BASE = process.env.STUDIO ?? 'http://127.0.0.1:18080';
+const BASE = process.env.RAHDAR ?? 'http://127.0.0.1:18080';
 const COMPOSE = (process.env.COMPOSE ?? '').split(/\s+/).filter(Boolean);
 const BROKER = 'http://artemis-primary:8161/console/jolokia';
 
@@ -109,9 +109,9 @@ async function signIn() {
   const password =
     process.env.ADMIN_PASSWORD ??
     (await until(
-      "the one-time admin password in studio-1's log",
+      "the one-time admin password in rahdar-1's log",
       60_000,
-      async () => /password:\s+(\S+)/.exec(await compose('logs', 'studio-1'))?.[1],
+      async () => /password:\s+(\S+)/.exec(await compose('logs', 'rahdar-1'))?.[1],
     ));
   await call('GET', '/auth/me'); // issues the CSRF cookie
   const login = await call('POST', '/auth/login', { username: 'admin', password });
@@ -286,7 +286,7 @@ async function readLoop(cluster: string, running: () => boolean) {
   }
 }
 
-/** A queue created and deleted every 500 ms: the broker then tells Studio, and Studio its streams. */
+/** A queue created and deleted every 500 ms: the broker then tells Rahdar, and Rahdar its streams. */
 async function writeLoop(cluster: string, running: () => boolean) {
   for (let i = 0; running(); i++) {
     const started = Date.now();
@@ -384,7 +384,7 @@ async function main() {
 
   // ── 1. the owner dies ──
   const victim = owner;
-  const survivor = victim === 'studio-1' ? 'studio-2' : 'studio-1';
+  const survivor = victim === 'rahdar-1' ? 'rahdar-2' : 'rahdar-1';
   step(`SIGKILL ${victim}, the owner of the cluster`);
   const before = Object.fromEntries(streams.map((s, i) => [i, s.last ?? 0]));
   const killed = Date.now();

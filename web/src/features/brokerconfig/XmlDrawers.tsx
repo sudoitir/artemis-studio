@@ -123,7 +123,7 @@ function importedDocument(
 }
 
 /**
- * Paste a `broker.xml` (or a fragment) and preview what Studio recognised, what
+ * Paste a `broker.xml` (or a fragment) and preview what Rahdar recognised, what
  * it cannot carry, and what is wrong — before anything is saved. Raw XML is an
  * interchange format here, not a second editor (ADR-0067 D1): the saved thing is
  * the parsed document, and unsupported elements are listed, never dropped

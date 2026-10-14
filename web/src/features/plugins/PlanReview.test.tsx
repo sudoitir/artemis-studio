@@ -22,7 +22,7 @@ function trustPlan(over: Partial<PluginPlanView> = {}, trust: Partial<PluginPlan
 const onTrust = () => undefined;
 
 describe('PlanReview', () => {
-  it('states who made a new plugin, which Studio versions it supports, and every capability as a sentence', () => {
+  it('states who made a new plugin, which Rahdar versions it supports, and every capability as a sentence', () => {
     renderWithProviders(
       <PlanReview
         plan={plan({
@@ -52,10 +52,10 @@ describe('PlanReview', () => {
     );
 
     expect(screen.getByText('Notes 1.0.0')).toBeInTheDocument();
-    expect(screen.getByText('by Acme · Apache-2.0 · supports Studio 2026.01.0 and later')).toBeInTheDocument();
+    expect(screen.getByText('by Acme · Apache-2.0 · supports Rahdar 2026.01.0 and later')).toBeInTheDocument();
     expect(screen.getByText('Shared notes on queues.')).toBeInTheDocument();
-    expect(screen.getByText(/Add screens to Studio, which act with the rights of whoever views them/)).toBeVisible();
-    expect(screen.getByText(/Run code inside Studio/)).toBeVisible();
+    expect(screen.getByText(/Add screens to Rahdar, which act with the rights of whoever views them/)).toBeVisible();
+    expect(screen.getByText(/Run code inside Rahdar/)).toBeVisible();
     expect(screen.getByText('Give the assistant 1 read-only tool: notes_search.')).toBeVisible();
     expect(
       screen.getByText(/Give the assistant 2 tools that change things: notes_delete, notes_purge\./),
@@ -103,13 +103,13 @@ describe('PlanReview', () => {
       />,
     );
 
-    expect(screen.getByText('by Acme · supports Studio 2026.01.0 to 2027.01.0')).toBeInTheDocument();
-    expect(screen.queryByText(/Add screens to Studio/)).not.toBeInTheDocument();
+    expect(screen.getByText('by Acme · supports Rahdar 2026.01.0 to 2027.01.0')).toBeInTheDocument();
+    expect(screen.queryByText(/Add screens to Rahdar/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Give the assistant/)).not.toBeInTheDocument();
     expect(screen.queryByText(/permission/)).not.toBeInTheDocument();
     expect(screen.queryByText(/database schema/)).not.toBeInTheDocument();
     expect(screen.queryByText('Show the SQL')).not.toBeInTheDocument();
-    expect(screen.getByText(/Run code inside Studio/)).toBeVisible();
+    expect(screen.getByText(/Run code inside Rahdar/)).toBeVisible();
   });
 
   it('shows an update against the installed version: what it adds, removes, and which roles lose a permission', () => {

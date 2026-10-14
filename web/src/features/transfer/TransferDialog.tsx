@@ -166,7 +166,7 @@ function DestinationForm({
           <EmptyState
             kind="empty"
             title="No source node to read from"
-            description="No node of this cluster is live and managed by Studio now, so there is nothing to transfer from. Wait for a node to come back, then open this again."
+            description="No node of this cluster is live and managed by Rahdar now, so there is nothing to transfer from. Wait for a node to come back, then open this again."
           />
         ) : null}
         {redistribute ? (
@@ -209,7 +209,7 @@ function DestinationForm({
           data={targetNodes}
           {...form.getInputProps('targetNodeId')}
           value={chosenNode}
-          nothingFoundMessage="This cluster has no nodes Studio knows of."
+          nothingFoundMessage="This cluster has no nodes Rahdar knows of."
         />
         {redistribute ? null : (
           <AddressPicker
@@ -224,7 +224,7 @@ function DestinationForm({
         )}
         {uncertain && !blocked ? (
           <Text size="sm">
-            Whether these brokers allow Studio&rsquo;s management operations has not been established yet. The preview
+            Whether these brokers allow Rahdar&rsquo;s management operations has not been established yet. The preview
             is offered anyway, and states what it could not check.
           </Text>
         ) : null}

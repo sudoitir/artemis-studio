@@ -87,14 +87,14 @@ describe('costVerdict', () => {
       sentence: 'Not estimated: You are not allowed to do this.',
     });
     expect(costVerdict(input({ planError: new ApiError(500, {}) })).sentence).toBe(
-      'Not estimated: Studio failed to complete the request.',
+      'Not estimated: Rahdar failed to complete the request.',
     );
   });
 
   it('says there is no plan when none came, rather than inventing a cost', () => {
     expect(costVerdict(input({ plan: undefined }))).toMatchObject({
       badge: 'Unavailable',
-      sentence: 'Not estimated: Studio has no plan for this query.',
+      sentence: 'Not estimated: Rahdar has no plan for this query.',
     });
   });
 
@@ -115,7 +115,7 @@ describe('costVerdict', () => {
     expect(costVerdict(input({ plan: indexed }))).toEqual({
       badge: 'Index',
       tone: 'neutral',
-      sentence: "Reads Studio's index, up to 1,000 rows from 2 queues. No broker is read.",
+      sentence: "Reads Rahdar's index, up to 1,000 rows from 2 queues. No broker is read.",
     });
   });
 
@@ -128,32 +128,32 @@ describe('costVerdict', () => {
     expect(costVerdict(input({ plan: scan }))).toEqual({
       badge: 'Scan',
       tone: 'warning',
-      sentence: 'Studio reads and examines about 1,200,000 messages on 2 queues across 3 nodes.',
+      sentence: 'Rahdar reads and examines about 1,200,000 messages on 2 queues across 3 nodes.',
     });
   });
 
   it('says one queue on one node in the singular', () => {
     const scan = plan({ requiresScan: true, estimatedMessagesExamined: 1 });
     expect(costVerdict(input({ plan: scan })).sentence).toBe(
-      'Studio reads and examines about 1 message on 1 queue across 1 node.',
+      'Rahdar reads and examines about 1 message on 1 queue across 1 node.',
     );
   });
 
-  it('says the brokers filter, and bounds what Studio examines by the row limit', () => {
+  it('says the brokers filter, and bounds what Rahdar examines by the row limit', () => {
     expect(costVerdict(input())).toEqual({
       badge: 'Broker-filtered',
       tone: 'neutral',
-      sentence: 'The brokers filter; Studio examines at most 100 messages from 1 queue.',
+      sentence: 'The brokers filter; Rahdar examines at most 100 messages from 1 queue.',
     });
   });
 
   it('never shows an unknown figure as 0', () => {
     const scan = plan({ requiresScan: true, estimatedMessagesExamined: undefined });
     expect(costVerdict(input({ plan: scan })).sentence).toBe(
-      'Studio reads and examines about an unknown number of messages on 1 queue across 1 node.',
+      'Rahdar reads and examines about an unknown number of messages on 1 queue across 1 node.',
     );
     expect(costVerdict(input({ plan: plan({ effectiveLimit: undefined }) })).sentence).toBe(
-      'The brokers filter; Studio examines at most an unknown number of messages from 1 queue.',
+      'The brokers filter; Rahdar examines at most an unknown number of messages from 1 queue.',
     );
     expect(costVerdict(input({ plan: plan({ source: 'INDEX', effectiveLimit: undefined }) })).sentence).toContain(
       'up to an unknown number of rows',

@@ -158,16 +158,16 @@ describe('nodeFacts: pair', () => {
 });
 
 describe('nodeFacts: version, address, origin and the sentence', () => {
-  it('states the version, and the note when it is outside what Studio supports', () => {
+  it('states the version, and the note when it is outside what Rahdar supports', () => {
     const old = pair([endpoint({ version: '2.31.2', versionSupport: 'BELOW_MINIMUM' })]).of('e1');
     expect(old).toMatchObject({
       version: '2.31.2',
       versionLabel: 'Artemis 2.31.2',
-      versionNote: 'unsupported release: older than Studio supports',
+      versionNote: 'unsupported release: older than Rahdar supports',
       versionFlag: 'unsupported',
     });
     const newer = pair([endpoint({ version: '2.60.0', versionSupport: 'NEWER_THAN_TESTED' })]).of('e1');
-    expect(newer).toMatchObject({ versionNote: 'newer release than Studio has tested', versionFlag: 'untested' });
+    expect(newer).toMatchObject({ versionNote: 'newer release than Rahdar has tested', versionFlag: 'untested' });
     expect(pair([primary]).of('p')).toMatchObject({ versionNote: null, versionFlag: null });
   });
 
@@ -186,7 +186,7 @@ describe('nodeFacts: version, address, origin and the sentence', () => {
     expect(pair([endpoint({ jolokiaUrl: null, coreUrl: null })]).of('e1').address).toBeNull();
   });
 
-  it('says how Studio found the node', () => {
+  it('says how Rahdar found the node', () => {
     expect(pair([endpoint({ urlSource: 'MANUAL' })]).of('e1').origin).toBe('Management URL set by hand');
     expect(pair([endpoint({ urlSource: 'DERIVED' })]).of('e1').origin).toBe('Derived from the management URL pattern');
     expect(pair([endpoint({ urlSource: 'SEED' })]).of('e1').origin).toBe('From the registered seed address');
@@ -210,7 +210,7 @@ describe('nodeFacts: version, address, origin and the sentence', () => {
       pair([endpoint({ version: '2.31.2', versionSupport: 'BELOW_MINIMUM', state: 'STOPPED', lastError: null })]).of(
         'e1',
       ).sentence,
-    ).toContain('Stopped. No pair (standalone). Artemis 2.31.2, unsupported release: older than Studio supports.');
+    ).toContain('Stopped. No pair (standalone). Artemis 2.31.2, unsupported release: older than Rahdar supports.');
   });
 });
 

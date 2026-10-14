@@ -152,7 +152,7 @@ again SHALL end the previous overlap. A revoked or expired token SHALL NOT be ro
   and cannot exceed the lifetime cap
 
 ### Requirement: Administrators cap token lifetime
-An administrator SHALL be able to set a maximum token lifetime, 90 days by default. Studio SHALL
+An administrator SHALL be able to set a maximum token lifetime, 90 days by default. Rahdar SHALL
 refuse to mint a token that expires later than the cap allows. A token's effective expiry SHALL
 be the earlier of its own expiry and its creation time plus the current cap, evaluated on every
 request, so lowering the cap shortens existing tokens at once and raising it never extends a
@@ -167,7 +167,7 @@ token past its own expiry.
 - **THEN** the next request with that token is rejected as expired
 
 ### Requirement: Tokens and users are rate and concurrency limited
-Studio SHALL enforce per-token rate and concurrency limits and a per-user request limit across
+Rahdar SHALL enforce per-token rate and concurrency limits and a per-user request limit across
 that user's tokens, all administrator-set, on requests authenticated by a token, answering excess
 requests with 429 and headers that state the limit, the remaining allowance and when it resets.
 Requests authenticated by a browser session SHALL NOT be limited by these limits.
@@ -185,7 +185,7 @@ Requests authenticated by a browser session SHALL NOT be limited by these limits
 - **THEN** the response states the limit, the remaining allowance and when it resets
 
 ### Requirement: Token usage is summarised in audit
-Studio SHALL provide, per token, a summary of use over the last day, 7 days or 30 days: request
+Rahdar SHALL provide, per token, a summary of use over the last day, 7 days or 30 days: request
 counts and how many were denied, limited or failed, in total and per day.
 
 #### Scenario: Summary

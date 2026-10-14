@@ -15,9 +15,9 @@ top to bottom direction
 !include <C4/C4_Context>
 !include <C4/C4_Component>
 
-System_Boundary("ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
-  Container_Boundary("ArtemisStudioApplication.ArtemisStudioApplication_boundary", "ArtemisStudioApplication", $tags="") {
-    Component(ArtemisStudioApplication.ArtemisStudioApplication.Core, "Core", $techn="Module", $descr="", $tags="", $link="")
+System_Boundary("RahdarApplication_boundary", "RahdarApplication", $tags="") {
+  Container_Boundary("RahdarApplication.RahdarApplication_boundary", "RahdarApplication", $tags="") {
+    Component(RahdarApplication.RahdarApplication.Core, "Core", $techn="Module", $descr="", $tags="", $link="")
   }
 
 }

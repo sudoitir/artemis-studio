@@ -1,16 +1,16 @@
 ---
-title: What Artemis Studio is
+title: What Rahdar is
 description: Cluster-wide management and observability for Apache ActiveMQ Artemis — what it does, what it deliberately does not, and how it treats your brokers.
 ---
 
-# What Artemis Studio is
+# What Rahdar is
 
 Apache ActiveMQ Artemis ships with a console that manages **one broker at a
 time** and has no idea a cluster exists. That is fine until the question you
 have spans nodes — which it always does, because the interesting questions are
 "which node is live", "where is the depth", and "where did that message go".
 
-Artemis Studio is the other thing: **one instance across many clusters**, with
+Rahdar is the other thing: **one instance across many clusters**, with
 the cluster as the unit of everything.
 
 It works against your **existing** brokers. There is no `broker.xml` rewrite
@@ -36,7 +36,7 @@ These are not aspirations; they are constraints the code is held to.
 
 **Broker-friendly by construction.** Reads are batched — one Jolokia POST per
 node, never one per queue — and tiered by how fast a thing actually changes,
-behind a per-node rate limiter. Studio must never be the reason a broker falls
+behind a per-node rate limiter. Rahdar must never be the reason a broker falls
 over.
 
 **Safe by default.** Every destructive operation takes `?dryRun=true` and

@@ -255,7 +255,7 @@ describe('TransferDialog what may not be done', () => {
     open();
 
     const notice = await screen.findByRole('region', { name: 'No source node to read from' });
-    expect(notice).toHaveTextContent('No node of this cluster is live and managed by Studio now');
+    expect(notice).toHaveTextContent('No node of this cluster is live and managed by Rahdar now');
     const dialog = screen.getByRole('dialog');
     expect(previewButton(dialog)).toBeDisabled();
     expect(within(dialog).getByRole('combobox', { name: 'Target node' })).toBeInTheDocument();
@@ -439,7 +439,7 @@ describe('TransferDialog preview', () => {
       http.post('*/api/v1/clusters/c1/transfers/runs/r1/execute', () =>
         HttpResponse.json(
           {
-            type: 'https://artemis-studio.dev/problems/transfer-plan-mismatch',
+            type: 'https://rahdar.dev/problems/transfer-plan-mismatch',
             title: 'Conflict',
             status: 409,
             detail: 'The plan changed.',

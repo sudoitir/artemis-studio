@@ -96,7 +96,7 @@ export function ConfigurationView() {
       </Page>
     );
   }
-  const studioManaged = d.applyMode === 'STUDIO_MANAGED';
+  const rahdarManaged = d.applyMode === 'RAHDAR_MANAGED';
   const nothingDeclared: GateVerdict = d.declared
     ? { kind: 'allowed', uncertain: false }
     : { kind: 'blocked', reason: 'Nothing is declared yet.' };
@@ -173,12 +173,12 @@ export function ConfigurationView() {
             {writeButton('Import XML', 'importing XML', () => setDrawer('import'))}
             <CapabilityGate verdict={nothingDeclared} what="exporting the declaration">
               <Button
-                variant={studioManaged ? 'default' : 'filled'}
+                variant={rahdarManaged ? 'default' : 'filled'}
                 size="xs"
                 onClick={() => setDrawer('export')}
                 disabled={!d.declared}
               >
-                {studioManaged ? 'Export XML' : 'Copy broker.xml fragment'}
+                {rahdarManaged ? 'Export XML' : 'Copy broker.xml fragment'}
               </Button>
             </CapabilityGate>
           </>
@@ -189,7 +189,7 @@ export function ConfigurationView() {
         declaration={d}
         applyGate={applyGate}
         nothingDeclared={nothingDeclared}
-        studioManaged={studioManaged}
+        rahdarManaged={rahdarManaged}
         onReview={() => setScope({})}
       />
 
@@ -248,7 +248,7 @@ function DeclarePrompt({
         description={
           <Stack gap="xs">
             <Text size="sm">
-              A declaration is the configuration Studio can apply over the management API and measure every live node
+              A declaration is the configuration Rahdar can apply over the management API and measure every live node
               against: addresses and queues, address settings, security settings, diverts and bridges. Nothing is
               declared for this cluster yet, so there is nothing to compare the nodes with.
             </Text>
@@ -290,13 +290,13 @@ function StatusBar({
   declaration,
   applyGate,
   nothingDeclared,
-  studioManaged,
+  rahdarManaged,
   onReview,
 }: Readonly<{
   declaration: ConfigDeclarationView;
   applyGate: GateVerdict;
   nothingDeclared: GateVerdict;
-  studioManaged: boolean;
+  rahdarManaged: boolean;
   onReview: () => void;
 }>) {
   const evaluate = useEvaluateBrokerConfigDrift(declaration.clusterId);
@@ -348,7 +348,7 @@ function StatusBar({
           <CapabilityGate verdict={applyGate} what="review and apply">
             <Button
               size="xs"
-              variant={studioManaged ? 'filled' : 'default'}
+              variant={rahdarManaged ? 'filled' : 'default'}
               onClick={onReview}
               disabled={applyGate.kind === 'blocked'}
             >
@@ -383,7 +383,7 @@ function RecommendedTab({
       <Stack gap="sm">
         <ErrorState error={query.error} onRetry={() => void query.refetch()} />
         <Text size="sm" c="dimmed">
-          Studio could not assess this cluster, so it has nothing to recommend — this is not the same as having nothing
+          Rahdar could not assess this cluster, so it has nothing to recommend — this is not the same as having nothing
           to recommend.
         </Text>
       </Stack>

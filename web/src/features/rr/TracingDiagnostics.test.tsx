@@ -83,13 +83,13 @@ describe('TracingDiagnostics', () => {
     expect(await screen.findByText(/no queue for address/)).toBeInTheDocument();
   });
 
-  it('says when Studio itself is the suspect rather than blaming every broker', async () => {
+  it('says when Rahdar itself is the suspect rather than blaming every broker', async () => {
     server.use(
       http.get('*/api/v1/clusters/c1/rr/diagnostics', () =>
         HttpResponse.json(
           diagnostics({
             clock: {
-              verdict: 'STUDIO_SUSPECT',
+              verdict: 'RAHDAR_SUSPECT',
               worstOffsetMs: 600_000,
               uncertaintyMs: 510,
               skewedNodes: ['broker-1', 'broker-2'],
@@ -102,7 +102,7 @@ describe('TracingDiagnostics', () => {
     );
     renderWithProviders(<TracingDiagnostics clusterId="c1" />);
 
-    expect(await screen.findByText(/Studio.s own host/)).toBeInTheDocument();
+    expect(await screen.findByText(/Rahdar.s own host/)).toBeInTheDocument();
   });
 
   it('lists what the sampler did for each traced address in a table, with its heading level under the section', async () => {
@@ -111,7 +111,7 @@ describe('TracingDiagnostics', () => {
 
     const table = await screen.findByRole('table', { name: 'What the sampler did for each traced address' });
     expect(within(table).getByRole('rowheader', { name: 'orders.request' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 3, name: /here is what Studio did/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /here is what Rahdar did/ })).toBeInTheDocument();
   });
 
   it('says it cannot say why when the diagnostics cannot be read, with the cause and a retry', async () => {
@@ -121,7 +121,7 @@ describe('TracingDiagnostics', () => {
     renderWithProviders(<TracingDiagnostics clusterId="c1" />);
 
     expect(await screen.findByText(/cannot say why there are no flows/)).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Studio failed to complete the request');
+    expect(screen.getByRole('alert')).toHaveTextContent('Rahdar failed to complete the request');
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 

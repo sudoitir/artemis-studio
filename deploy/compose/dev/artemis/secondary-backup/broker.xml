@@ -57,7 +57,7 @@
     <cluster-password>password-admin</cluster-password>
 
     <cluster-connections>
-      <cluster-connection name="studio-dev">
+      <cluster-connection name="rahdar-dev">
         <connector-ref>secondary-backup-connector</connector-ref>
         <message-load-balancing>ON_DEMAND</message-load-balancing>
         <max-hops>1</max-hops>

@@ -2,13 +2,13 @@
 
 ## Context
 
-Studio is built for one broker. 18 files import `org.apache.activemq`, 13 modules call
+Rahdar is built for one broker. 18 files import `org.apache.activemq`, 13 modules call
 `JolokiaBrokerClient` with raw MBean operation strings, and the data model uses Artemis nouns (address,
-routing type, divert). Studio is to manage Kafka, RabbitMQ and ActiveMQ Classic too, in one estate
+routing type, divert). Rahdar is to manage Kafka, RabbitMQ and ActiveMQ Classic too, in one estate
 view: clusters of any kind side by side, shared screens across all of them, and system-only screens
 contributed per system. The abstraction is also a product of its own: a framework-free **broker SDK**
 that other projects, with other brokers, can adopt. This change builds that SDK, moves Artemis behind
-it as its first driver, and makes Studio's domain and data model broker-neutral, **with no behaviour
+it as its first driver, and makes Rahdar's domain and data model broker-neutral, **with no behaviour
 change for Artemis**.
 
 The SDK is called **OpenBroker** (artifacts `openbroker-*`, packages `io.github.sudoitir.openbroker…`). The
@@ -21,7 +21,7 @@ Goals:
 - A broker-neutral SDK (`openbroker-api`, `-support`, `-tck`, `-bom`) with a driver SPI, good enough for
   outside adoption.
 - The Artemis driver (`openbroker-artemis`), holding every line of Artemis-specific transport code.
-- Every Studio feature on the SDK's facets, with the same behaviour, wire traffic and load on Artemis.
+- Every Rahdar feature on the SDK's facets, with the same behaviour, wire traffic and load on Artemis.
 - A broker-neutral data model.
 
 Non-goals:
@@ -36,7 +36,7 @@ Prior-art reviews shaped every name below. The ADRs written during apply cite th
 
 ## Design principles
 
-- **Ports and adapters.** The SDK is the port, a driver is an adapter, and Studio is the core.
+- **Ports and adapters.** The SDK is the port, a driver is an adapter, and Rahdar is the core.
 - **Bridge, as in JDBC.** A stable API plus drivers found through `ServiceLoader`, metadata for
   capabilities, and `unwrap()` for vendor extensions.
 - **Type Object**. Each resource has an open, driver-defined **kind**
@@ -49,23 +49,23 @@ Prior-art reviews shaped every name below. The ADRs written during apply cite th
   - Polymorphism and Protected Variations: drivers vary behind facets.
   - Interface Segregation: one facet per concern; optional facets are `Optional`.
   - Pure Fabrication: `Access`, `Partial`, `Position`, `Scope`.
-  - Indirection: the Studio gateway.
+  - Indirection: the Rahdar gateway.
 - **One extension mechanism.** Native features go through `unwrap`, never as a `Native` member of the
   operation hierarchy. Native *event types* are allowed: events are data, not behaviour.
 - **A sealed Command hierarchy** for operations, with exhaustive `switch`.
 
 ## 1. Artifacts and layout
 
-The Studio repo becomes a Maven reactor with a `pom`-packaged root:
+The Rahdar repo becomes a Maven reactor with a `pom`-packaged root:
 
 | Module | Contents | Depends on |
 |---|---|---|
 | `openbroker-api` | Consumers and drivers share these types, as in JDBC, R2DBC, SLF4J and OpenFeature. Two packages: `io.github.sudoitir.openbroker` (the consumer API) and `.spi` (`BrokerDriver`, `DriverContext`, `CallInterceptor`). Java 25. `module-info.java` with `uses`/`provides`. No dependencies except JSpecify. | – |
 | `openbroker-tck` | The driver conformance kit: abstract JUnit 5 contract tests. The driver supplies the broker. | api, JUnit |
-| `openbroker-artemis` (driver, R2DBC-style name) | All Jolokia, Core, MBean, notification, relay and broker.xml-snippet code, moved out of Studio. Its tests move with it, without Spring, and the TCK runs in its integration tests. | api, artemis-jakarta-client, Jackson |
-| `openbroker-support` | Shared implementation code for drivers and consumers, so `-api` stays interface-only (the OTel api/sdk reason): the portable `openbroker.match` filter evaluator, the polling watch helper (Kubernetes informer: diff successive `read`s into events, with `Gap` on a missed cycle), and rate and counter-reset logic moved out of Studio. | api |
+| `openbroker-artemis` (driver, R2DBC-style name) | All Jolokia, Core, MBean, notification, relay and broker.xml-snippet code, moved out of Rahdar. Its tests move with it, without Spring, and the TCK runs in its integration tests. | api, artemis-jakarta-client, Jackson |
+| `openbroker-support` | Shared implementation code for drivers and consumers, so `-api` stays interface-only (the OTel api/sdk reason): the portable `openbroker.match` filter evaluator, the polling watch helper (Kubernetes informer: diff successive `read`s into events, with `Gap` on a missed cycle), and rate and counter-reset logic moved out of Rahdar. | api |
 | `openbroker-bom` | Version alignment for adopters. | – |
-| `studio/` (with `web/`) | The app, artifactId unchanged. | api, support, `openbroker-artemis` |
+| `rahdar/` (with `web/`) | The app, artifactId unchanged. | api, support, `openbroker-artemis` |
 
 - The SDK artifacts are published to Central when they change, with their own SemVer (`0.x` until stable).
 - These follow the move:
@@ -79,7 +79,7 @@ The Studio repo becomes a Maven reactor with a `pom`-packaged root:
     contract break, so `Contract.VERSION` is bumped in 19c.
 - ArchUnit:
   - No `org.apache.activemq..` or `org.jolokia..` outside the driver.
-  - Studio never imports `io.github.sudoitir.openbroker.artemis..`, and only the gateway imports
+  - Rahdar never imports `io.github.sudoitir.openbroker.artemis..`, and only the gateway imports
     `io.github.sudoitir.openbroker.spi`. Packages: `io.github.sudoitir.openbroker` (API), `.spi`, `.support`, `.tck`,
     `.artemis`.
   - `unwrap(...)` is used only inside `system/artemis`.
@@ -187,7 +187,7 @@ ClusterConnection extends AutoCloseable (thread-safe):
     - `Truncate(Position)` on a `DESTINATION` or `PARTITION`. It removes data for every subscription
       (Kafka `deleteRecords`), so its effect differs from `Purge`.
     - `ResetCounters`, `Close`.
-  - Studio's staging and tap queues are a `Create` of a `SUBSCRIPTION` with standard attributes
+  - Rahdar's staging and tap queues are a `Create` of a `SUBSCRIPTION` with standard attributes
     (`dead_letter: none`, node-local placement, `managed_by`), removed with `Delete(ifEmpty)`. There is
     no separate holding facet.
 - `Scope = Whole | Shards(Set<Shard>)`, where `Shard = NodeInstance(NodeId) | Partition(PartitionId)`.
@@ -221,7 +221,7 @@ ClusterConnection extends AutoCloseable (thread-safe):
   - `sender(SendTarget, SenderOptions)` returns a `Sender` with `send(msg, Optional<idempotencyKey>)`.
   - A transacted batch (`commit()`/`rollback()` on both) is the capability `transport.transacted`.
     Artemis has it, which keeps today's relay protocol (transacted batch, duplicate refusal, two commits).
-    A driver without it declares it unavailable, and Studio's relay picks a settle-based strategy.
+    A driver without it declares it unavailable, and Rahdar's relay picks a settle-based strategy.
 - `Events.watch(Scope, EventListener)` returns an `AutoCloseable`; `state()` returns per-node stream
   state.
   - `BrokerEvent` is a CloudEvents-shaped envelope (`id`, `source` = node, `type`, `subject` = resource,
@@ -233,13 +233,13 @@ ClusterConnection extends AutoCloseable (thread-safe):
   - Events are data, so native types are a namespaced `type` string. This is not a second extension
     mechanism for behaviour.
   - A system with no push events builds `events()` from the `-support` polling watch helper, so adopters
-    get events without Studio.
+    get events without Rahdar.
 - `Access` (dynamic capability, like Kubernetes `SelfSubjectAccessReview`):
   - `check(Capability, Optional<ResourceId>)` returns `Assessment(status AVAILABLE|UNAVAILABLE|UNKNOWN,
     reason, Optional<Remedy(text, snippet, mediaType)>)`.
   - `probe()` returns a `Snapshot`.
   - `Capability` is open: standard constants plus namespaced driver ids. The static half is `Kind.verbs`.
-  - Evidence learned from failed calls stays in Studio's ledger.
+  - Evidence learned from failed calls stays in Rahdar's ledger.
 - Errors: one `BrokerException(Status, retryable, Optional<NodeId>, nativeCode)`.
   - `Status` uses gRPC's canonical codes: `CANCELLED`, `UNKNOWN`, `INVALID_ARGUMENT`,
     `DEADLINE_EXCEEDED`, `NOT_FOUND`, `ALREADY_EXISTS`, `PERMISSION_DENIED`, `RESOURCE_EXHAUSTED`,
@@ -255,7 +255,7 @@ ClusterConnection extends AutoCloseable (thread-safe):
   - A `Cursor` is valid across reconnects of the same connection, and invalid after the subscription is
     recreated (`FAILED_PRECONDITION`).
   - `CredentialSource` is asked on every (re)connect, so a rotated secret takes effect on the next connect.
-  - `Permit.complete(..., serverTime)` stays: only the driver sees the broker's response time, and Studio
+  - `Permit.complete(..., serverTime)` stays: only the driver sees the broker's response time, and Rahdar
     derives the clock offset from it.
   - Logging goes through `System.Logger`.
 
@@ -275,18 +275,18 @@ ClusterConnection extends AutoCloseable (thread-safe):
 | transacted transport | yes | yes | no (settle) | yes (transactions) |
 | events | Core notifications | advisories | event exchange | none |
 
-## 3. Studio on the SDK
+## 3. Rahdar on the SDK
 
 - `platform/broker` becomes the **gateway**.
   - One `ClusterConnection` per cluster from the driver registry.
-  - Studio's `CallInterceptor` implementation covers the per-node limiter, `BrokerCallGuard`,
+  - Rahdar's `CallInterceptor` implementation covers the per-node limiter, `BrokerCallGuard`,
     `NodeCallHealth`, Micrometer observations and the clock offset.
-  - Credentials come from Studio secrets.
+  - Credentials come from Rahdar secrets.
   - It reconnects on a topology or TLS change.
-  - Studio keeps the URL-pattern node discovery, gzip body decoding and `SendNames` checks.
+  - Rahdar keeps the URL-pattern node discovery, gzip body decoding and `SendNames` checks.
 - Generic features move onto facets: resources, scrape, metrics, queues, messages, bulk, triage, events,
   rr, flow, sql capture, plugin messaging, transfer, alerting.
-- Artemis-only product features move to the Studio module `system/artemis`, through
+- Artemis-only product features move to the Rahdar module `system/artemis`, through
   `unwrap(ArtemisManagement.class)`: brokerconfig (broker.xml), the Artemis setup rule packs, and remedy
   snippets.
 - Neutral data model (baselines edited in place):
@@ -307,7 +307,7 @@ ClusterConnection extends AutoCloseable (thread-safe):
 
 ## 4. Order (each group leaves a working product)
 
-1. **Reactor move.** `git mv` the app into `studio/`, add the parent pom, and fix the Dockerfile, CI,
+1. **Reactor move.** `git mv` the app into `rahdar/`, add the parent pom, and fix the Dockerfile, CI,
    Sonar and JaCoCo. Proof: green CI, `docker build`, `just demo`.
 2. **Characterization harness, before any code moves.** A recording HTTP proxy in front of a
    Testcontainers broker captures golden files of the Jolokia request bodies, headers and per-node batch
@@ -340,7 +340,7 @@ ClusterConnection extends AutoCloseable (thread-safe):
 - The golden files are byte-identical after extraction: same requests, same batch counts per node.
 - The existing suite passes; CI runs the full suite. Local checks are narrow, inside the capped
   `systemd-run` scope, at most two at once.
-- ArchUnit and Modulith are green. `grep -ril "org.apache.activemq\|jolokia" studio/src` shows hits only
+- ArchUnit and Modulith are green. `grep -ril "org.apache.activemq\|jolokia" rahdar/src` shows hits only
   in `system/artemis`, through `unwrap`.
 - `just demo` works end to end, including HA.
 - The Sonar quality gate is green; the PR merges on green CI.
@@ -352,7 +352,7 @@ ClusterConnection extends AutoCloseable (thread-safe):
 - **Relay correctness** (transacted batch, duplicate refusal, two commits). Mitigation: it moves last,
   behind the existing relay ITs plus a kill-mid-batch test.
 - **Closed sets frozen at `1.0`** (`Role`, `Operation`, `Position`, `Status`, `Plane`). Mitigation: they
-  are completed against all four systems now. The Kafka and RabbitMQ drivers run before Studio's stable
+  are completed against all four systems now. The Kafka and RabbitMQ drivers run before Rahdar's stable
   release, while breaking changes are still free.
 - **A larger build** (a reactor, five SDK artifacts). Accepted: it is what makes the SDK adoptable and
   lets the compiler enforce the dependency direction.

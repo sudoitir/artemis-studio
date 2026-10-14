@@ -1,0 +1,21 @@
+/**
+ * Tiered polling of every node, and the queue snapshot and metric sample read APIs.
+ */
+@ApplicationModule(
+        displayName = "Scraping",
+        allowedDependencies = {
+            "kernel.core",
+            "kernel.jobs",
+            "kernel.lifecycle",
+            "kernel.lifecycle::partition",
+            "kernel.plugin",
+            "kernel.plugin :: descriptor",
+            "kernel.security",
+            "kernel.settings",
+            "kernel.stream",
+            "platform.broker",
+            "platform.clusters"
+        })
+package io.github.sudoitir.rahdar.platform.scrape;
+
+import org.springframework.modulith.ApplicationModule;

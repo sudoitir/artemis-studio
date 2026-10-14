@@ -22,7 +22,7 @@ const ROLE_WORD: Record<string, string> = {
   STORE_AND_FORWARD: 'Cluster redistribution queue',
   TEMPORARY: 'Temporary queues, collapsed',
   ANONYMOUS: 'Producers that name no address',
-  CAPTURE: "Studio's message capture",
+  CAPTURE: "Rahdar's message capture",
   DEAD_LETTER: 'Dead-letter address',
   EXPIRY: 'Expiry address',
   CLUSTER_NODE: 'Another node of this cluster',

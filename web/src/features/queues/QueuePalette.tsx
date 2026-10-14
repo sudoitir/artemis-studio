@@ -8,7 +8,7 @@ const SHOWN = 8;
 
 /**
  * The command palette's Queues group (ADR-0109): the queues whose name or address matches what is
- * typed, each opening that queue. It reads Studio's own queue snapshot — never a broker — and only
+ * typed, each opening that queue. It reads Rahdar's own queue snapshot — never a broker — and only
  * while the palette is open with at least two characters typed, once per query rather than polling.
  */
 export const QueuePalette: PaletteSource = ({ clusterId, query, opened, report }) => {

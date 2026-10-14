@@ -1,7 +1,7 @@
 # plugin-metrics Specification
 
 ## Purpose
-The metrics a runtime plugin publishes: how it declares them, how Studio samples them into its time series and Prometheus, and how alert rules and permissions apply to them.
+The metrics a runtime plugin publishes: how it declares them, how Rahdar samples them into its time series and Prometheus, and how alert rules and permissions apply to them.
 
 ## Requirements
 
@@ -24,9 +24,9 @@ Its full identifier SHALL be `<plugin id>:<name>`. The system SHALL refuse a plu
 - **WHEN** a plugin declares a metric readable with `acme-notes:stats` but does not declare that permission
 - **THEN** it is refused at upload with the reason
 
-### Requirement: Studio samples plugin metrics into its time series and Prometheus
+### Requirement: Rahdar samples plugin metrics into its time series and Prometheus
 
-On every tier-B scrape of a cluster, the system SHALL ask each running plugin's metric sources for that cluster's values. It SHALL store every value in its time series with the same retention as queue metrics, and SHALL expose it on its Prometheus endpoint as `studio_plugin_metric` with the labels `plugin`, `metric`, `cluster` and `subject`. A source that fails or takes longer than two seconds SHALL be skipped for that scrape without delaying the other sources or the scrape. A plugin's metrics SHALL stop being sampled and exported when it stops.
+On every tier-B scrape of a cluster, the system SHALL ask each running plugin's metric sources for that cluster's values. It SHALL store every value in its time series with the same retention as queue metrics, and SHALL expose it on its Prometheus endpoint as `rahdar_plugin_metric` with the labels `plugin`, `metric`, `cluster` and `subject`. A source that fails or takes longer than two seconds SHALL be skipped for that scrape without delaying the other sources or the scrape. A plugin's metrics SHALL stop being sampled and exported when it stops.
 
 #### Scenario: A plugin metric reaches the time series and Prometheus
 - **WHEN** a running plugin's source returns 3 for subject `daily` on a cluster
@@ -57,7 +57,7 @@ The system SHALL return a plugin metric's series for one subject over a window, 
 - **THEN** the request is refused, as any cluster read the user may not make is
 
 ### Requirement: A plugin can read metric history under its acting user's permissions
-The plugin API SHALL let a plugin read the metric history Studio keeps on behalf of an acting user it names: the queue and cluster metrics Studio samples, and any running plugin's declared metrics. A read names the acting user, the cluster, the metric or metrics, the subject and the time range, and SHALL return the same series, buckets, range and size bounds and truncation flag as the metrics read API. The acting user's account and grants SHALL be read as they stand at the time of the read. A read SHALL answer exactly as for a cluster that does not exist when the acting user is missing, unknown or disabled, or may not read the cluster, and SHALL be refused as the read API refuses it when the user lacks a plugin metric's declared permission.
+The plugin API SHALL let a plugin read the metric history Rahdar keeps on behalf of an acting user it names: the queue and cluster metrics Rahdar samples, and any running plugin's declared metrics. A read names the acting user, the cluster, the metric or metrics, the subject and the time range, and SHALL return the same series, buckets, range and size bounds and truncation flag as the metrics read API. The acting user's account and grants SHALL be read as they stand at the time of the read. A read SHALL answer exactly as for a cluster that does not exist when the acting user is missing, unknown or disabled, or may not read the cluster, and SHALL be refused as the read API refuses it when the user lacks a plugin metric's declared permission.
 
 #### Scenario: Reading a queue's depth history
 - **WHEN** a plugin reads the depth history of a queue on a cluster its acting user may read

@@ -1,11 +1,11 @@
 ---
 title: MCP 服务器
-description: Artemis Studio 支持 Model Context Protocol，让助手在与人完全相同的授权与审计链路下，针对你真实的集群作答。
+description: Rahdar 支持 Model Context Protocol，让助手在与人完全相同的授权与审计链路下，针对你真实的集群作答。
 ---
 
 # MCP 服务器
 
-Studio 支持 [Model Context Protocol](https://modelcontextprotocol.io)，因此助手可以针对你真实的集群回答*"为什么 `ORDERS.DLQ` 堆积了"*，而不是靠猜。
+Rahdar 支持 [Model Context Protocol](https://modelcontextprotocol.io)，因此助手可以针对你真实的集群回答*"为什么 `ORDERS.DLQ` 堆积了"*，而不是靠猜。
 
 它暴露的是十六个**意图化**工具——`diagnose`、`message_action`、`broker_config_change`——而不是 REST API 的镜像。镜像会把模型的上下文耗在管道细节上，再把诊断工作丢回给它；这里的工具是按问题的形状设计的（[ADR-0045](/reference/adr/0045-mcp-server-is-a-capability-surface)，英文）。
 
@@ -14,7 +14,7 @@ Studio 支持 [Model Context Protocol](https://modelcontextprotocol.io)，因此
 登录 → 头像菜单 → **Account** → **API keys** → **New key** → 选择过期时间、它携带的范围与权限，以及（可选）它可以调用的 **MCP 工具** → 复制。密钥只显示一次。
 
 - **过期。** 每把密钥都会过期，最长为安装设定的最大寿命（默认 90 天，*Settings → API tokens → Maximum lifetime*）。调低最大寿命会立刻缩短已有密钥。
-- **工具。** 限定了工具的密钥只会看到这些工具以及 `studio_help`；其他工具既不会列出也不会被描述，调用它们得到的回答与调用不存在的工具完全相同。
+- **工具。** 限定了工具的密钥只会看到这些工具以及 `rahdar_help`；其他工具既不会列出也不会被描述，调用它们得到的回答与调用不存在的工具完全相同。
 - **轮换。** **Rotate** 会签发新密钥，旧密钥在轮换重叠期内（默认 24 小时）继续可用，因此可以不中断地更新助手的配置。密钥保留原有权限和过期时间。
 - **限流。** 每把密钥每分钟最多 600 个请求、同时最多 8 个，每个用户所有密钥合计每分钟 1,200 个。每个响应都带有 `RateLimit-Limit`、`RateLimit-Remaining` 和 `RateLimit-Reset`，超出的请求得到 `429` 和 `Retry-After`。
 - **用量** 按天显示每把密钥的请求数，以及被拒绝、被限流和失败的数量。拥有 *See and revoke every user's API tokens* 权限的管理员可以在 **Admin → API keys** 中看到所有密钥，长期未用的会被标记，任何密钥都可以吊销（[ADR-0136](/reference/adr/0136-token-rotation-lifetime-cap-limits-and-usage)，英文）。
@@ -26,9 +26,9 @@ Studio 支持 [Model Context Protocol](https://modelcontextprotocol.io)，因此
 ```json
 {
   "mcpServers": {
-    "artemis-studio": {
+    "rahdar": {
       "type": "http",
-      "url": "https://studio.example.com/mcp",
+      "url": "https://rahdar.example.com/mcp",
       "headers": { "Authorization": "Bearer as_..." }
     }
   }
@@ -38,7 +38,7 @@ Studio 支持 [Model Context Protocol](https://modelcontextprotocol.io)，因此
 不用客户端也能冒烟测试：
 
 ```bash
-curl -s https://studio.example.com/mcp \
+curl -s https://rahdar.example.com/mcp \
   -H "Authorization: Bearer as_..." \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
@@ -49,7 +49,7 @@ curl -s https://studio.example.com/mcp \
 
 | 类型 | 名称 | 用途 |
 |---|---|---|
-| Tool | `studio_help` | 目录本身：每个工具、它的姿态与参数 |
+| Tool | `rahdar_help` | 目录本身：每个工具、它的姿态与参数 |
 | Tool | `diagnose` | 一个集群（每个节点的 HA 角色、脑裂、复制延迟、正在触发的告警）或一个队列的全链路 |
 | Tool | `list_resources` | 队列、地址、消费者、会话、连接、生产者、divert、bridge |
 | Tool | `metric_series` | 单个指标的分桶时间序列 |
@@ -57,14 +57,14 @@ curl -s https://studio.example.com/mcp \
 | Tool | `broker_config` | 集群的声明、每个节点的漂移、`broker.xml` 片段，或历史应用 |
 | Tool | `browse_messages` | 消息头，或按 id 取单条消息体 |
 | Tool | `trace_request_reply` | 流、延迟与超时统计、已配置的预期 |
-| Tool | `activity_log` | Broker 事件，或 Studio 自身的审计链路 |
+| Tool | `activity_log` | Broker 事件，或 Rahdar 自身的审计链路 |
 | Tool | `message_action` | 移动 / 重投 / 删除 / 过期 / 清空 |
 | Tool | `queue_lifecycle` | 创建、更新、暂停、恢复或销毁队列、地址或 divert |
 | Tool | `broker_config_change` | 声明一份配置，或以金丝雀优先、按 id 确认危害的方式应用它 |
 | Tool | `connection_action` | 关闭连接、会话、消费者或某个地址的全部消费者 |
 | Tool | `send_message` | 投递一条消息 |
-| Tool | `alert_rule` / `studio_setting` | 告警规则；运维设置 |
-| Resource | `studio://clusters`、`studio://permissions`、`studio://tools` | 这把密钥能看到什么、能做什么 |
+| Tool | `alert_rule` / `rahdar_setting` | 告警规则；运维设置 |
+| Resource | `rahdar://clusters`、`rahdar://permissions`、`rahdar://tools` | 这把密钥能看到什么、能做什么 |
 | Resource | `cluster://{id}/topology`、`cluster://{id}/capabilities`、`cluster://{id}/nodes/{nodeId}/settings` | 节点；连接支持什么，以及启用其余部分所需的 `broker.xml`；单个节点的生效设置 |
 | Prompt | `triage_cluster`、`investigate_queue`、`before_you_purge`、`tune_scrape_load` | 运行手册 |
 
@@ -80,4 +80,4 @@ curl -s https://studio.example.com/mcp \
 
 ## 发现机制
 
-`studio_help` 是一个工具，而不是一个可选资源；并且由同一份目录生成 schema、帮助文本、资源与服务器说明——所以它们不可能相互矛盾（[ADR-0054](/reference/adr/0054-mcp-discovery-is-a-tool-not-a-resource)，英文）。
+`rahdar_help` 是一个工具，而不是一个可选资源；并且由同一份目录生成 schema、帮助文本、资源与服务器说明——所以它们不可能相互矛盾（[ADR-0054](/reference/adr/0054-mcp-discovery-is-a-tool-not-a-resource)，英文）。

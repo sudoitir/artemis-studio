@@ -1,7 +1,7 @@
 import { createRouter, type RouterHistory } from '@tanstack/react-router';
 import type { QueryClient } from '@tanstack/react-query';
 
-import type { StudioFeature } from '../kernel/feature.ts';
+import type { RahdarFeature } from '../kernel/feature.ts';
 import { clusterRoute, pluginClusterFallback, rootRoute, shellRoutes } from '../kernel/routing/roots.ts';
 import { RouteError } from '../kernel/shell/RouteError.tsx';
 import { RouteNotFound } from '../kernel/shell/RouteNotFound.tsx';
@@ -11,7 +11,7 @@ import { RouteNotFound } from '../kernel/shell/RouteNotFound.tsx';
  * names (ADR-0070). Every installed feature is routed, enabled or not; a disabled feature's view
  * renders the page that explains it. `history` is the browser's unless given, as a test gives one in memory.
  */
-export function createAppRouter(queryClient: QueryClient, features: StudioFeature[], history?: RouterHistory) {
+export function createAppRouter(queryClient: QueryClient, features: RahdarFeature[], history?: RouterHistory) {
   const routeTree = rootRoute.addChildren([
     ...shellRoutes,
     ...features.flatMap((feature) => feature.routes?.root ?? []),

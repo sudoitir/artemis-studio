@@ -37,7 +37,7 @@ describe('LatencyPanel', () => {
 
     expect(await screen.findByText(/not the same as there being no traced flows/)).toBeInTheDocument();
     const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 

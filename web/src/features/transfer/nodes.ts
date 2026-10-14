@@ -6,13 +6,13 @@ type Topology = components['schemas']['TopologyView'];
 export const endpointsOf = (topology: Topology | undefined): Endpoint[] =>
   (topology?.nodes ?? []).flatMap((n) => n.endpoints);
 
-/** A node that can take part in a transfer now: live, a primary, and managed by Studio. */
+/** A node that can take part in a transfer now: live, a primary, and managed by Rahdar. */
 export const serving = (e: Endpoint) => e.active && e.haRole !== 'BACKUP' && e.manageable;
 
 /** Why a node cannot be a transfer's target, in words; null when it can. */
 export function unavailableReason(e: Endpoint): string | null {
   if (e.haRole === 'BACKUP') return 'a backup, which takes messages only through its live peer';
-  if (!e.manageable) return 'not managed by Studio: it has no management URL';
+  if (!e.manageable) return 'not managed by Rahdar: it has no management URL';
   if (!e.active) return 'not live now';
   return null;
 }

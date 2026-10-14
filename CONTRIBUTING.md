@@ -1,4 +1,4 @@
-# Contributing to Artemis Studio
+# Contributing to Rahdar
 
 Thanks for looking. The project is pre-alpha; the shape of things can still move.
 
@@ -17,7 +17,7 @@ Thanks for looking. The project is pre-alpha; the shape of things can still move
 
 ```bash
 just            # list tasks
-just up         # dev stack (Postgres + Artemis primary/backup + Studio)
+just up         # dev stack (Postgres + Artemis primary/backup + Rahdar)
 just verify     # what CI runs
 just fmt        # Palantir Java Format (Spotless) + eslint --fix
 ```
@@ -32,7 +32,7 @@ just fmt        # Palantir Java Format (Spotless) + eslint --fix
   released one.
 - Code goes in its module: `kernel`, `platform` or a feature, on the backend and in
   `web/src` alike. `CLAUDE.md` ("Layout") and the site's
-  [plugin guide](https://sudoitir.github.io/artemis-studio/guide/plugins) say where;
+  [plugin guide](https://rahdar.dev/guide/plugins) say where;
   `just verify` fails on a boundary violation.
 
 ## Pull requests

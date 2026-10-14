@@ -46,7 +46,7 @@ export function settingsSearch(raw: Record<string, unknown>): SettingsSearch {
 
 /**
  * A cluster's Settings page, behind `settings:read`: one tab per section the features contribute and one per
- * settings category, under fixed headings in the order an operator's reach widens — what Studio shares, this
+ * settings category, under fixed headings in the order an operator's reach widens — what Rahdar shares, this
  * cluster, then what plugins added (operator-ui spec). Personal display preferences are on the account page,
  * and the installation's encryption keys and health under Administration. One search finds settings across every
  * category. Edits form one draft across categories, applied together from the footer. The open tab and the
@@ -78,7 +78,7 @@ export function SettingsPage() {
           {
             id: 'configuration',
             title: 'Configuration',
-            group: 'studio',
+            group: 'rahdar',
             panel: (
               <Section title="Configuration">
                 <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />
@@ -101,7 +101,7 @@ export function SettingsPage() {
     <Page>
       <PageHeader
         title="Settings"
-        description="What Studio shares across clusters, and this cluster's configuration."
+        description="What Rahdar shares across clusters, and this cluster's configuration."
       />
       <Toolbar
         label="Find settings"
@@ -155,7 +155,7 @@ function SearchBox({ value, onChange }: Readonly<{ value: string; onChange: (val
 }
 
 /** A tab for a settings category, with the heading it sits under. */
-type CategoryTab = SectionTab & { group: 'studio' | 'plugins' };
+type CategoryTab = SectionTab & { group: 'rahdar' | 'plugins' };
 
 /** The categories as forms, the draft's footer and the guard against leaving with unsaved edits. */
 function DraftedSettings({ search, onClearFilters }: Readonly<{ search: SettingsSearch; onClearFilters: () => void }>) {

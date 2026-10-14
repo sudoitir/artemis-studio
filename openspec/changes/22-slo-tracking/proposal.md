@@ -6,11 +6,11 @@ This change states **requirements only**. Run it in a fresh Claude session, in n
 3. Brainstorm and investigate (`/opsx:explore`, `superpowers:brainstorming`); check libraries with ctx7. Ask the user only what is really theirs to decide.
 4. `/opsx:update`: add `design.md`, sharpen the specs (turn ADDED into MODIFIED where a requirement changes an existing one), replace the stub `tasks.md`.
 5. `/opsx:apply` with the harness under **Execution**. New decisions get an ADR.
-6. Verify: `just verify`; for UI, run Studio and check screenshots (light and dark, empty and error states).
+6. Verify: `just verify`; for UI, run Rahdar and check screenshots (light and dark, empty and error states).
 7. PR, merge on green CI, `/opsx:archive`.
 
 ## Why
-Operators reason about reliability in terms of objectives, such as message age or consumption lag staying below a limit, but Studio only offers raw metrics and threshold alerts. There is no way to state a target over a window, see how much budget is left, or be warned when the budget burns too fast. Teams running business-critical queues need this to decide when to act.
+Operators reason about reliability in terms of objectives, such as message age or consumption lag staying below a limit, but Rahdar only offers raw metrics and threshold alerts. There is no way to state a target over a window, see how much budget is left, or be warned when the budget burns too fast. Teams running business-critical queues need this to decide when to act.
 
 ## What Changes
 - Define SLOs on queue depth, message age, consumption lag and request-reply latency
@@ -25,7 +25,7 @@ Operators reason about reliability in terms of objectives, such as message age o
 - none
 
 ## Out of scope
-- Business-level SLOs that need data Studio does not observe
+- Business-level SLOs that need data Rahdar does not observe
 - Reports (change 31 may deliver SLO summaries)
 
 ## Depends on

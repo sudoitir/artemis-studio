@@ -105,7 +105,7 @@ export function QueueLifecycleActions({
           the operator has already scrolled past. */}
       {write?.status === 'UNKNOWN' ? (
         <Text size="xs" c="dimmed">
-          Studio has not yet seen a management write on this connection, so it cannot promise these will work. The first
+          Rahdar has not yet seen a management write on this connection, so it cannot promise these will work. The first
           one settles it.
         </Text>
       ) : null}
@@ -288,7 +288,7 @@ function DeleteConsequence({
           <ErrorState
             variant="inline"
             error={previewFailed}
-            next="The estimate could not be taken. The delete can still proceed, but Studio cannot tell you how many messages it would destroy."
+            next="The estimate could not be taken. The delete can still proceed, but Rahdar cannot tell you how many messages it would destroy."
           />
         ) : null}
 

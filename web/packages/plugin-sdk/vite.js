@@ -6,23 +6,19 @@ import peers from './peers.json' with { type: 'json' };
 /**
  * Vite configuration for a plugin's UI (ADR-0100): a Module Federation remote named after the
  * plugin, exposing `./feature`, that takes React, Mantine, TanStack and this SDK from the running
- * Studio (`import: false`), with a relative base so it is served from wherever Studio mounts it,
- * built into the jar's `META-INF/artemis-studio/ui/`.
+ * Rahdar (`import: false`), with a relative base so it is served from wherever Rahdar mounts it,
+ * built into the jar's `META-INF/rahdar/ui/`.
  *
- * The build fails on an import Studio does not share — `@mantine/notifications`, say, or
- * Mantine's CSS — since a plugin's own copy would load beside Studio's and silently misbehave.
+ * The build fails on an import Rahdar does not share — `@mantine/notifications`, say, or
+ * Mantine's CSS — since a plugin's own copy would load beside Rahdar's and silently misbehave.
  *
  * @param {{ id: string, entry?: string, outDir?: string }} options
  * @returns {import('vite').PluginOption[]}
  */
-export function studioPlugin({
-  id,
-  entry = './src/feature.tsx',
-  outDir = 'target/classes/META-INF/artemis-studio/ui',
-}) {
+export function rahdarPlugin({ id, entry = './src/feature.tsx', outDir = 'target/classes/META-INF/rahdar/ui' }) {
   if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)+$/.test(id)) {
     throw new Error(
-      `studioPlugin: "${id}" is not a plugin id (lowercase kebab-case, at least two segments, as in plugin.json)`,
+      `rahdarPlugin: "${id}" is not a plugin id (lowercase kebab-case, at least two segments, as in plugin.json)`,
     );
   }
   const shared = Object.fromEntries([
@@ -36,7 +32,7 @@ export function studioPlugin({
 
   return [
     {
-      name: 'artemis-studio-plugin',
+      name: 'rahdar-plugin',
       // A remote has no index.html: the exposed module is the build's input, remoteEntry.js its entry.
       config: () => ({
         base: './',
@@ -46,11 +42,11 @@ export function studioPlugin({
         if (!importer || !source.startsWith('@mantine/')) return null;
         if (allowed.has(packageOf(source)) && !source.endsWith('.css')) return null;
         this.error(
-          `${source} is not shared by Studio, so a plugin would load its own copy beside Studio's. ` +
+          `${source} is not shared by Rahdar, so a plugin would load its own copy beside Rahdar's. ` +
             (source.startsWith('@mantine/notifications')
-              ? 'Use notify from @artemis-studio/plugin-sdk instead.'
+              ? 'Use notify from @rahdar/plugin-sdk instead.'
               : source.endsWith('.css')
-                ? "Studio already loads Mantine's styles; remove this import."
+                ? "Rahdar already loads Mantine's styles; remove this import."
                 : 'Use @mantine/core and @mantine/hooks only.'),
         );
       },

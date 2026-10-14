@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines how Artemis Studio compares the effective broker configuration of two nodes in
+Defines how Rahdar compares the effective broker configuration of two nodes in
 one cluster — most usefully a primary and its backup — so that configuration drift that
 would only surface at failover is visible beforehand, and so that a difference which is
 correct by design is never reported as drift.

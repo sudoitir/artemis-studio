@@ -135,7 +135,7 @@ function statusOf(draft: SettingsDraft): string {
   const outcome = draft.previewCurrent ? draft.preview?.outcome : undefined;
   if (invalid > 0) return `${plural(invalid, 'value needs', 'values need')} fixing before the changes can apply.`;
   if (draft.previewError)
-    return 'Studio could not check whether these changes need approval. Applying still asks the server.';
+    return 'Rahdar could not check whether these changes need approval. Applying still asks the server.';
   if (!outcome) return 'Checking what applying would do…';
   if (outcome === 'HOLD') {
     return draft.preview?.policyLabel

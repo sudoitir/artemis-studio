@@ -41,7 +41,7 @@ function Source({
  * {@link Spotlight}, and the header's Search button opens it too.
  *
  * The typed query reaches the features' sources, debounced, together with whether the palette is
- * open, so a source searches only while someone is looking — and only what Studio already holds.
+ * open, so a source searches only while someone is looking — and only what Rahdar already holds.
  * A view the operator may not open is still listed, disabled, with the reason: the rail shows it the
  * same way.
  *

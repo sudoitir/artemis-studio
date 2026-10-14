@@ -11,14 +11,14 @@ import { DataTable, type Column } from '../../../ui/table/index.ts';
  * Shared by the divert and the bridge editors, which is what closes the gap where
  * a divert's properties were read and then written back untouched.
  *
- * <p>Studio cannot verify the class is on a broker's classpath — no management
+ * <p>Rahdar cannot verify the class is on a broker's classpath — no management
  * operation reports what a broker has loaded. The three honest options were to
  * hide the field, to disable it, or to state the uncertainty; ADR-0090 and
  * ADR-0049 D5 take the third. The statement is plain text beside the field, so it
  * is reachable from the keyboard rather than hanging off a hover.
  */
 export const TRANSFORMER_REACH =
-  'Studio cannot check that this class is on each broker’s classpath before the configuration is applied. ' +
+  'Rahdar cannot check that this class is on each broker’s classpath before the configuration is applied. ' +
   'A node that cannot load it fails that step and names the class.';
 
 export interface TransformerValue {

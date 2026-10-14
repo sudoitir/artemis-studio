@@ -104,7 +104,7 @@ function passwordsRequired(f: Fields, connection: Connection): { management: boo
   };
 }
 
-/** Whether saving changes who Studio signs in as, which can lock it out of the brokers. */
+/** Whether saving changes who Rahdar signs in as, which can lock it out of the brokers. */
 function changesCredentials(f: Fields, connection: Connection): boolean {
   const core = connection.coreUsername ?? '';
   if (f.username !== (connection.managementUsername ?? '') || f.password !== '') return true;
@@ -126,7 +126,7 @@ function rejections(check: ConnectionCheck): string[] {
  * The connection of a registered cluster, edited in one place (ADR-0176): the seeds and the pattern that
  * give every node's management URL, the TLS bundle and both accounts. A change is
  * checked first, node by node, with nothing saved; saving is offered once the check of exactly these
- * values passed. Changing an account asks for the cluster's name, because a wrong one locks Studio out.
+ * values passed. Changing an account asks for the cluster's name, because a wrong one locks Rahdar out.
  */
 export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: ClusterDetail; connection: Connection }>) {
   const check = useCheckConnectionEdit(cluster.id);
@@ -204,7 +204,7 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
 
         <TextInput
           label="Broker management URL"
-          description="The addresses you gave. Studio derives the rest from the pattern."
+          description="The addresses you gave. Rahdar derives the rest from the pattern."
           {...form.getInputProps('seed')}
           size="sm"
         />
@@ -336,7 +336,7 @@ export function ConnectionForm({ cluster, connection }: Readonly<{ cluster: Clus
         consequence={
           <Stack gap="xs">
             <Text size="sm">
-              This changes the account Studio signs in to <strong>{cluster.name}</strong> with. The brokers accepted it
+              This changes the account Rahdar signs in to <strong>{cluster.name}</strong> with. The brokers accepted it
               in the check; if they stop accepting it later, the cluster reads as rejected until it is corrected.
             </Text>
             {update.isError ? <ErrorState variant="inline" error={update.error} /> : null}

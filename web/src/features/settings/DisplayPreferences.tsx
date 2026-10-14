@@ -27,7 +27,7 @@ function ZoneNote({ preference, resolved }: Readonly<{ preference: string; resol
   if (resolved === 'UTC') {
     return (
       <Text size="xs" c="dimmed">
-        UTC, which is what Studio&rsquo;s container and the broker logs you are likely correlating against are in.
+        UTC, which is what Rahdar&rsquo;s container and the broker logs you are likely correlating against are in.
       </Text>
     );
   }
@@ -50,7 +50,7 @@ function ZoneNote({ preference, resolved }: Readonly<{ preference: string; resol
  */
 export function DisplayPreferences() {
   const preference = useDisplayZone();
-  // A live preview needs a live clock, and it must be Studio's — previewing the
+  // A live preview needs a live clock, and it must be Rahdar's — previewing the
   // workstation's clock in a chosen zone would answer the wrong question, since
   // the whole point of `app/time.ts` is that the workstation's clock may be wrong.
   const now = useServerNow();
@@ -66,7 +66,7 @@ export function DisplayPreferences() {
         label="Timezone"
         description={
           'The zone every timestamp on every screen is written in. Display only — nothing ' +
-          'Studio stores or sends to a broker changes, and no other operator’s screen is ' +
+          'Rahdar stores or sends to a broker changes, and no other operator’s screen is ' +
           'affected.'
         }
         data={groups}

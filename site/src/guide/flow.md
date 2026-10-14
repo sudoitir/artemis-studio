@@ -106,13 +106,13 @@ Every rate says where it came from and how old it is:
 | Source | Used for |
 |---|---|
 | **Sampled clients** | Producer → address and queue → consumer, from each client's own counters |
-| **Queue metrics** | Address → queue, from the scrape Studio already runs. A queue refreshed only by the slow sweep says *~5 min average* |
+| **Queue metrics** | Address → queue, from the scrape Rahdar already runs. A queue refreshed only by the slow sweep says *~5 min average* |
 | **Broker keeps no count** | Diverts. Artemis does not count what a divert moves, so Flow draws the divert and says so rather than inventing a number |
 
 A rate that cannot be computed yet reads **measuring…** — never `0`, which would look
 like a path that stopped.
 
-## Studio only samples while you are watching
+## Rahdar only samples while you are watching
 
 Per-client rates are not something the broker keeps, so Flow samples them — **only
 while a Flow view is open** on that cluster. The open view renews a short lease; about
@@ -122,7 +122,7 @@ traffic from Flow at all.
 While a view is open, each sweep sends **one request per serving node**, carrying
 everything Flow needs: producers, consumers, diverts, bridges, store-and-forward,
 temporary and filtered queues, and the dead-letter and expiry addresses. It counts
-against the same per-node rate limit as every other Studio call. With several Studio
+against the same per-node rate limit as every other Rahdar call. With several Rahdar
 instances, one samples and all of them show the same result.
 
 On a very large node, the number of producers and consumers read per sweep is capped.
@@ -140,7 +140,7 @@ Routing is drawn in layers you switch on and off in the toolbar:
 | Cluster hops | Messages a node moves to another node through its store-and-forward queue | on |
 | Dead letter & expiry | Where a failed or expired message from each shown queue goes | off |
 | Temporary queues | One node per client for all its short-lived reply queues | off |
-| Studio capture | Studio's own capture taps, marked as Studio's | off |
+| Rahdar capture | Rahdar's own capture taps, marked as Rahdar's | off |
 
 A queue bound to a **wildcard** address such as `orders.#` is joined to the concrete
 addresses it matches. That match assumes Artemis' default wildcard syntax, because a

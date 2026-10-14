@@ -1,41 +1,41 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.kernel.plugin`
+|`io.github.sudoitir.rahdar.kernel.plugin`
 |Spring components
 |_Services_
 
-* `i.g.s.a.k.p.PluginInstallers`
+* `i.g.s.r.k.p.PluginInstallers`
 
 _Event listeners_
 
-* `i.g.s.a.k.p.PluginScopedBeans` (via `i.g.s.a.k.p.PluginLicenseStore`)
-* `i.g.s.a.k.p.internal.host.PluginHost`
-* `i.g.s.a.k.p.PluginBridge` (via `i.g.s.a.k.p.internal.runtime.CoreEventPluginBridge`)
+* `i.g.s.r.k.p.PluginScopedBeans` (via `i.g.s.r.k.p.PluginLicenseStore`)
+* `i.g.s.r.k.p.internal.host.PluginHost`
+* `i.g.s.r.k.p.PluginBridge` (via `i.g.s.r.k.p.internal.runtime.CoreEventPluginBridge`)
 
 _Configuration properties_
 
-* `i.g.s.a.k.p.PluginProperties`
+* `i.g.s.r.k.p.PluginProperties`
 
 _Others_
 
-* `i.g.s.a.k.p.PluginBridge` (via `i.g.s.a.k.p.FeatureRegistry`)
-* `i.g.s.a.k.p.StudioVersion`
-* `i.g.s.a.k.p.internal.descriptor.PluginDescriptorParser`
-* `i.g.s.a.k.p.internal.host.StudioRestart`
-* `i.g.s.a.k.p.PluginRuntimeStatus` (via `i.g.s.a.k.p.internal.runtime.PluginRuntimeStatusImpl`)
-* `i.g.s.a.k.p.internal.trust.PluginTrust`
-* `i.g.s.a.k.p.internal.trust.PluginTrustHealthIndicator`
-* `i.g.s.a.k.p.internal.validation.PluginValidator`
+* `i.g.s.r.k.p.PluginBridge` (via `i.g.s.r.k.p.FeatureRegistry`)
+* `i.g.s.r.k.p.RahdarVersion`
+* `i.g.s.r.k.p.internal.descriptor.PluginDescriptorParser`
+* `i.g.s.r.k.p.internal.host.RahdarRestart`
+* `i.g.s.r.k.p.PluginRuntimeStatus` (via `i.g.s.r.k.p.internal.runtime.PluginRuntimeStatusImpl`)
+* `i.g.s.r.k.p.internal.trust.PluginTrust`
+* `i.g.s.r.k.p.internal.trust.PluginTrustHealthIndicator`
+* `i.g.s.r.k.p.internal.validation.PluginValidator`
 |Bean references
-|* `i.g.s.a.k.r.StudioBus` (in Replicas)
-* `i.g.s.a.k.r.ReplicaRegistry` (in Replicas)
+|* `i.g.s.r.k.r.RahdarBus` (in Replicas)
+* `i.g.s.r.k.r.ReplicaRegistry` (in Replicas)
 |Events listened to
-|* `i.g.s.a.k.r.BusResumed` 
-* `i.g.s.a.k.p.PluginPurged` 
-* `i.g.s.a.k.r.ReplicaSignal` 
+|* `i.g.s.r.k.r.BusResumed` 
+* `i.g.s.r.k.p.PluginPurged` 
+* `i.g.s.r.k.r.ReplicaSignal` 
 * `org.springframework.boot.context.event.ApplicationReadyEvent` 
-* `i.g.s.a.k.r.BusResumed` 
-* `i.g.s.a.k.r.ReplicaSignal` 
+* `i.g.s.r.k.r.BusResumed` 
+* `i.g.s.r.k.r.ReplicaSignal` 
 * `org.springframework.context.ApplicationEvent` 
 |===

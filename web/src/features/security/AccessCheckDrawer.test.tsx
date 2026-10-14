@@ -70,7 +70,7 @@ describe('AccessCheckDrawer', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('checks Studio itself at first, showing what is allowed and the role that allows it', async () => {
+  it('checks Rahdar itself at first, showing what is allowed and the role that allows it', async () => {
     serveLookups();
     const asked = serve(() => GLOBAL_RESULT);
     renderDrawer();
@@ -81,7 +81,7 @@ describe('AccessCheckDrawer', () => {
     expect(read).toHaveTextContent('VIEWER, granted global');
     expect(screen.getByRole('row', { name: /queue:purge/ })).toHaveTextContent('Not allowed');
     expect(asked).toEqual([{}]);
-    expect(screen.getByText(/1 of 2 permissions are allowed on Studio itself/)).toBeInTheDocument();
+    expect(screen.getByText(/1 of 2 permissions are allowed on Rahdar itself/)).toBeInTheDocument();
   });
 
   it('asks about a queue on a cluster and names the team and the share that allow it', async () => {

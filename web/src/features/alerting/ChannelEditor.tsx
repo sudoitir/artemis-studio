@@ -131,7 +131,7 @@ function EmailFields({ form }: KindFieldsProps) {
         </Text>
       ) : null}
       <div className={classes.form}>
-        <TextInput label="From" {...form.getInputProps('from')} placeholder="artemis-studio@example.com" required />
+        <TextInput label="From" {...form.getInputProps('from')} placeholder="rahdar@example.com" required />
         <TextInput
           label="Username"
           description="Blank when the server needs no authentication."
@@ -383,7 +383,7 @@ export function TestOutcome({ result, kind }: Readonly<{ result: ChannelTestResu
         <Text size="sm">
           {kind === 'PAGERDUTY'
             ? 'PagerDuty accepted a test incident and its resolution; it will appear already resolved.'
-            : 'Check the destination for a message titled "Test notification from Artemis Studio".'}
+            : 'Check the destination for a message titled "Test notification from Rahdar".'}
         </Text>
       </Stack>
     );

@@ -5,7 +5,7 @@ import { MantineProvider } from '@mantine/core';
 
 import { QueryEditor } from './QueryEditor.tsx';
 
-// The browser project is served with Studio's Trusted Types directives (vitest.config.ts). SQL with markup
+// The browser project is served with Rahdar's Trusted Types directives (vitest.config.ts). SQL with markup
 // in a literal must go in and come out unchanged without the page's policy refusing anything (ADR-0168).
 let violations: SecurityPolicyViolationEvent[];
 const onViolation = (event: SecurityPolicyViolationEvent) => violations.push(event);

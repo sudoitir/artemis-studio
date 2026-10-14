@@ -1,6 +1,6 @@
 # Architecture
 
-Artemis Studio is one Spring Boot service, a React SPA it serves, and a PostgreSQL
+Rahdar is one Spring Boot service, a React SPA it serves, and a PostgreSQL
 database. It talks to many Artemis clusters over their standard management
 endpoints.
 
@@ -32,7 +32,7 @@ startup toggle and the manifest entry.
 | | `plugin` | `FeatureDescriptor`, `@FeatureModule`, the feature registry, `GET /api/v1/manifest`, `404 feature-disabled` |
 | | `security` | principals, grants, `@perm`, `ClusterAccessGuard`, the one filter chain, users and roles, the identity provider SPI |
 | | `audit` | `AuditService` and `audit_event` |
-| | `settings` | the runtime settings registry (`studio_setting`) and the JDBC bootstrap property source |
+| | `settings` | the runtime settings registry (`rahdar_setting`) and the JDBC bootstrap property source |
 | | `jobs` | `ScheduledJob`, the one scheduler, job status and its health |
 | | `stream` | `SseHub`, `GET /api/v1/stream`, the topic registry |
 | platform | `broker` | Jolokia and Core clients, `NodeCallLimiter`, capability probing, notification subscriptions, `MessageTransport` |
@@ -46,13 +46,13 @@ written by `DocumentationTest` from the same model `ModularityTest` verifies.
 
 ### Composition and toggles
 
-Composition is at build time. `app/StudioFeatures` is the one list of backend
+Composition is at build time. `app/RahdarFeatures` is the one list of backend
 modules: each module's descriptor, and an `@Import` of each feature's
 `@FeatureModule` configuration. The application scans only `kernel` and `platform`.
 The frontend's `web/src/app/features.ts` is the matching list.
 
-A feature is loaded while `artemis-studio.features.<id>.enabled` is not `false`
-(`ARTEMIS_STUDIO_FEATURES_<ID>_ENABLED`). A disabled feature contributes no beans,
+A feature is loaded while `rahdar.features.<id>.enabled` is not `false`
+(`RAHDAR_FEATURES_<ID>_ENABLED`). A disabled feature contributes no beans,
 endpoints, jobs, topics or MCP tools; its API paths answer `404` with problem type
 `feature-disabled`; its screens explain that it is off and name the property. Kernel
 and platform modules are required, and a feature that `requires` another cannot start
@@ -99,7 +99,7 @@ module's `internal` package. `BoundaryRulesTest` adds what Modulith does not see
 - features never inject the container or enable framework features.
 
 Every feature also has an `@ApplicationModuleTest` that starts it with its direct
-dependencies only, and `FeatureToggleTest` starts Studio once with each optional
+dependencies only, and `FeatureToggleTest` starts Rahdar once with each optional
 feature disabled.
 
 A kernel module never imports a platform or feature type. Upward needs are inverted:
@@ -167,8 +167,8 @@ it is contained at runtime instead:
 - **Host** (`internal.host.PluginHost`) sequences plan, activate (Instant, Brief
   maintenance, Restart), disable, uninstall, rollback and purge, one at a time; starts
   plugins after `ApplicationReadyEvent`; trips safe mode after three unclean boots; and
-  restarts Studio when a plugin needs it and a supervisor will start it again
-  (`StudioRestart`, ADR-0104).
+  restarts Rahdar when a plugin needs it and a supervisor will start it again
+  (`RahdarRestart`, ADR-0104).
 - **Administration** (`feature/plugins`) puts the installer tier and step-up
   re-authentication (ADR-0103) in front of every change and audits each step.
 - **UI** (ADR-0100): `web/src/kernel/plugins/boot.ts` loads each active plugin's Module
@@ -204,7 +204,7 @@ it is contained at runtime instead:
 ### Scrape path (pull)
 
 A tiered scheduler emits work per node (ADR-0015). Cadences are runtime-tunable
-via `studio_setting`; the values below are the defaults.
+via `rahdar_setting`; the values below are the defaults.
 
 | Tier | Content | Interval |
 |---|---|---|
@@ -270,12 +270,12 @@ reconciles the subscription set against the live topology at the end of each
 tier-A scrape, so a failover is followed — a subscription moves to the survivor,
 not to a configured node. The subscriber polls `receive(timeout)` on a virtual
 thread (a `MessageListener` deadlocks against `close()` on the pinned client),
-and Studio drives its own reconnect with backoff (the broker advertises
+and Rahdar drives its own reconnect with backoff (the broker advertises
 connector hosts a client often cannot resolve). Each notification is normalised
 to a `BrokerEvent` and handed to every `BrokerEventSink`. The events feature's
 buffered writer (ADR-0028) batch-inserts into `broker_event`; the buffer is bounded
 and overflow increments a per-cluster `dropped` counter the events API surfaces. A
-reaper trims past a retention window (default 72h, a `studio_setting`).
+reaper trims past a retention window (default 72h, a `rahdar_setting`).
 
 `NOTIFICATIONS` is not a fixed `UNKNOWN`: `CapabilityProbe` reads the cached
 subscription verdict (`AVAILABLE` on ≥1 subscribed node; `UNAVAILABLE` with the
@@ -312,7 +312,7 @@ stream**.
 ## State ownership
 
 - **PostgreSQL** — clusters, nodes, credentials (AES-GCM), users, roles, audit,
-  alert rules, request-reply expectations, operator settings (`studio_setting`),
+  alert rules, request-reply expectations, operator settings (`rahdar_setting`),
   and the metrics cache.
 - **URL** — navigable UI state (selected cluster, view, filter, sort, page). Routes
   are code-based TanStack Router routes composed from the features; every list view's
@@ -332,7 +332,7 @@ capability is `UNKNOWN`, and unknown leaves a control enabled with the uncertain
 stated (ADR-0049 D5).
 
 Oversized body and property values are truncated by the broker at
-`management-message-attribute-size-limit` over Jolokia, and Studio discloses that
+`management-message-attribute-size-limit` over Jolokia, and Rahdar discloses that
 **per message** (a `bodyTruncated` flag and the `broker.xml` snippet that raises the
 limit). The Core channel carries faithful bytes.
 
@@ -387,7 +387,7 @@ request-reply samples by browsing and runs on its own.
 The console is one editor over three sources of the same shape (ADR-0058): a live
 broker read, the persisted `message_index`, and a live tail of either. `SELECT ...
 FROM broker."ORDER.#"` fans out to every serving node, pushes down what Artemis'
-own filter syntax can express, and evaluates the rest in Studio. Every bound it
+own filter syntax can express, and evaluates the rest in Rahdar. Every bound it
 reaches — target cap, scan cap, row cap, timeout — is reported in words, because a
 bounded result that does not say so reads as a complete one.
 
@@ -398,11 +398,11 @@ bounded result that does not say so reads as a complete one.
   long enough to be seen. A queue that drains faster than the interval is invisible,
   which the console states permanently and non-dismissably on every sampled tail.
 - **Captured** (ADR-0062). A non-exclusive divert copies the address into a
-  Studio-owned queue, drained by a Core consumer. Complete for what the address
+  Rahdar-owned queue, drained by a Core consumer. Complete for what the address
   routed, whether or not anything consumed it in between.
 
 ```
-source address ──non-exclusive divert──► artemis-studio.capture.<instance>.<address>.<sub>
+source address ──non-exclusive divert──► rahdar.capture.<instance>.<address>.<sub>
       (per node)                              ring-size N, address-full-policy=DROP,
                                               expiry-delay, non-durable
                                                        │
@@ -415,7 +415,7 @@ source address ──non-exclusive divert──► artemis-studio.capture.<insta
 
 The tap is bounded by construction, which is what makes it safe to leave running:
 the ring drops the oldest message rather than growing, `DROP` keeps the broker from
-paging or blocking on Studio's account, and `expiry-delay` with
+paging or blocking on Rahdar's account, and `expiry-delay` with
 `auto-create-expiry-resources=false` bounds it in age too. None of those objects
 disappears on a broker restart (ADR-0065 — measured, not assumed), so **every
 removal is an explicit act**: `CaptureReconciler` is the only thing that takes a tap
@@ -423,15 +423,15 @@ away.
 
 That reconciler is the whole lifecycle. Desired state is the `CAPTURE` subscriptions
 in Postgres, resolved through the same planner an operator's own query uses; actual
-state is each live node's divert names filtered to this Studio's instance id. One
+state is each live node's divert names filtered to this Rahdar's instance id. One
 idempotent loop is simultaneously the install path, the crash-recovery path, the
 failover path (a promoted backup carries no divert, and the next pass installs one)
 and the removal path. It acts on drift only, through `NodeCallLimiter`, and takes a
-per-cluster Postgres advisory lock so two instances of the same Studio cannot fight.
+per-cluster Postgres advisory lock so two instances of the same Rahdar cannot fight.
 
 Two preflight refusals, both because the alternative fails silently: an **exclusive
 divert** already on the source address would shadow ours and capture nothing, and a
-capture queue Studio cannot **restrict with a `security-setting`** would be an
+capture queue Rahdar cannot **restrict with a `security-setting`** would be an
 unguarded second copy of production payload. Both refuse with the `broker.xml` that
 would change the answer.
 
@@ -453,7 +453,7 @@ rows are `system`. `audit_event` carries no foreign keys (ADR-0072): an audit ro
 keeps its cluster id and name after the cluster is removed.
 
 **Bulk safety cap.** A destructive message operation whose dry-run count exceeds
-`safety.bulk-cap` (a `studio_setting`, default 1000) is rejected with a `422`
+`safety.bulk-cap` (a `rahdar_setting`, default 1000) is rejected with a `422`
 (`bulk-cap-exceeded`, carrying `affectedCount` and `cap`) unless the caller passes
 `?override=true` — which the UI reaches only behind the dry-run preview plus a
 a held confirmation that names the action and count (ADR-0022, ADR-0186). A cap that lived only in the
@@ -472,7 +472,7 @@ ones must be acknowledged by id, then the canary node receives every step and is
 back before the next node is touched. The first failure halts the run, nothing is
 rolled back, and re-running converges. A real run names the plan hash it previewed
 and is refused (`409 plan-changed`) if the cluster moved; a Postgres advisory lock
-refuses a concurrent apply. Studio removes only what it applied, never writes
+refuses a concurrent apply. Rahdar removes only what it applied, never writes
 `broker.xml` and never calls `reloadConfigurationFile`. Drift is evaluated on a
 schedule and after every apply, and feeds alerting through `AlertSignalSource`.
 
@@ -488,7 +488,7 @@ only a reference in the declaration (ADR-0092).
 read fails the view says exactly that and infers nothing.
 
 **Data governance** (ADR-0075). Message content passes one content policy, owned by the
-required `platform.governance` module, wherever it leaves Studio or is stored. Rules
+required `platform.governance` module, wherever it leaves Rahdar or is stored. Rules
 (header, property or JSON body path, optionally per address pattern) and checksum
 detectors (card numbers, IBANs, emails, phones, bearer tokens and JWTs) classify values
 into fixed data classes; credentials are dropped for everyone, other classes masked or
@@ -520,8 +520,8 @@ A directory provider would be one more module implementing the credential interf
 
 ## Operational health
 
-`/actuator/health/studio` groups three indicators, kept out of liveness and readiness
-so a broker outage never restarts Studio: `jobs` (each scheduled job's last run,
+`/actuator/health/rahdar` groups three indicators, kept out of liveness and readiness
+so a broker outage never restarts Rahdar: `jobs` (each scheduled job's last run,
 degraded after three missed intervals; also `GET /api/v1/system/jobs`), `brokers`
 (per node, the last management success or failure and the rate-limit wait; per
 cluster, open Core connections) and `subscriptions` (per serving node, whether the
@@ -533,14 +533,14 @@ then subscriptions and capture, then the Core pools.
 
 `POST /mcp` is a second inbound edge onto the same services (ADR-0045), mounted by
 Spring AI's WebMVC starter as a stateless Streamable HTTP transport. The platform
-module owns the server, `studio_help`, resources and runbook prompts; each feature
+module owns the server, `rahdar_help`, resources and runbook prompts; each feature
 owns its tools, in its own `mcp` package, and lists them in its descriptor's catalogue.
 A disabled feature's tools are absent from the server and the catalogue, and a runbook
-prompt names the property that restores them. `artemis-studio.features.mcp.enabled=false`
+prompt names the property that restores them. `rahdar.features.mcp.enabled=false`
 removes the server altogether.
 
 Everything above applies unchanged: `ClusterAccessGuard` and `@PreAuthorize` are the
-enforcement, the bulk cap is the same `studio_setting`, and every mutation writes the
+enforcement, the bulk cap is the same `rahdar_setting`, and every mutation writes the
 same `audit_event` under the key owner's identity with the key's name attached. Tool
 bodies run on the servlet thread (`type: SYNC`), because permission and actor
 resolution both read `ThreadLocal` state. Mutations add a model-facing gate: `dryRun`

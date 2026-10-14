@@ -1,34 +1,34 @@
 [%autowidth.stretch, cols="h,a"]
 |===
 |Base package
-|`io.github.sudoitir.artemisstudio.feature.triage`
+|`io.github.sudoitir.rahdar.feature.triage`
 |Spring components
 |_Controllers_
 
-* `i.g.s.a.f.t.web.TriageController`
+* `i.g.s.r.f.t.web.TriageController`
 
 _Services_
 
-* `i.g.s.a.f.t.ConsumerHealthService`
+* `i.g.s.r.f.t.ConsumerHealthService`
 
 _Configuration properties_
 
-* `i.g.s.a.f.t.ConsumerHealthProperties`
+* `i.g.s.r.f.t.ConsumerHealthProperties`
 
 _Others_
 
-* `i.g.s.a.f.t.HealthVerdictCondition`
-* `i.g.s.a.f.t.TriageFeature`
+* `i.g.s.r.f.t.HealthVerdictCondition`
+* `i.g.s.r.f.t.TriageFeature`
 |Bean references
-|* `i.g.s.a.f.r.CrossNodeAggregator` (in Resources)
-* `i.g.s.a.p.s.MetricSamples` (in Scraping)
-* `i.g.s.a.f.e.BrokerEventService` (in Broker events)
-* `i.g.s.a.p.s.ScrapeProperties` (in Scraping)
-* `i.g.s.a.k.s.ClusterAccessGuard` (in Security)
-* `i.g.s.a.k.s.PermissionResolver` (in Security)
-* `i.g.s.a.p.m.McpProperties` (in MCP server)
-* `i.g.s.a.p.c.ClusterService` (in Clusters)
-* `i.g.s.a.k.a.AuditQueryService` (in Audit log)
-* `i.g.s.a.p.c.ClusterDirectory` (in Clusters)
-* `i.g.s.a.p.b.ClockOffsetService` (in Broker connectivity)
+|* `i.g.s.r.f.r.CrossNodeAggregator` (in Resources)
+* `i.g.s.r.p.s.MetricSamples` (in Scraping)
+* `i.g.s.r.f.e.BrokerEventService` (in Broker events)
+* `i.g.s.r.p.s.ScrapeProperties` (in Scraping)
+* `i.g.s.r.k.s.ClusterAccessGuard` (in Security)
+* `i.g.s.r.k.s.PermissionResolver` (in Security)
+* `i.g.s.r.p.m.McpProperties` (in MCP server)
+* `i.g.s.r.p.c.ClusterService` (in Clusters)
+* `i.g.s.r.k.a.AuditQueryService` (in Audit log)
+* `i.g.s.r.p.c.ClusterDirectory` (in Clusters)
+* `i.g.s.r.p.b.ClockOffsetService` (in Broker connectivity)
 |===

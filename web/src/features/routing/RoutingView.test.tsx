@@ -136,24 +136,24 @@ describe('RoutingView diverts', () => {
     expect(screen.getByText('1–3 of 3 diverts')).toBeInTheDocument();
   });
 
-  it('opens the broker.xml that would make the configuration match for a divert Studio created', async () => {
+  it('opens the broker.xml that would make the configuration match for a divert Rahdar created', async () => {
     serve({ diverts: [divert({ name: 'by-operator', owner: 'OPERATOR', brokerXml: '<divert name="by-operator"/>' })] });
     const user = userEvent.setup();
     renderWithProviders(<RoutingView />);
 
-    await user.click(await screen.findByRole('button', { name: 'Studio — not in broker.xml' }));
+    await user.click(await screen.findByRole('button', { name: 'Rahdar — not in broker.xml' }));
 
     const dialog = await screen.findByRole('dialog', { name: '"by-operator" is not in broker.xml' });
     expect(within(dialog).getByText(/will not appear in the broker\.xml/)).toBeInTheDocument();
     expect(within(dialog).getByText('<divert name="by-operator"/>')).toBeInTheDocument();
   });
 
-  it('still explains the drift when Studio holds no broker.xml for the divert', async () => {
+  it('still explains the drift when Rahdar holds no broker.xml for the divert', async () => {
     serve({ diverts: [divert({ owner: 'OPERATOR', brokerXml: null })] });
     const user = userEvent.setup();
     renderWithProviders(<RoutingView />);
 
-    await user.click(await screen.findByRole('button', { name: 'Studio — not in broker.xml' }));
+    await user.click(await screen.findByRole('button', { name: 'Rahdar — not in broker.xml' }));
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(/will not appear in the broker\.xml/)).toBeInTheDocument();
@@ -227,7 +227,7 @@ describe('RoutingView diverts', () => {
     renderWithProviders(<RoutingView />);
 
     const alert = await screen.findByRole('alert');
-    expect(within(alert).getByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(within(alert).getByText('Rahdar failed to complete the request')).toBeInTheDocument();
     expect(screen.queryByText('No diverts yet')).not.toBeInTheDocument();
 
     const before = calls;
@@ -315,7 +315,7 @@ describe('RoutingView bridges', () => {
     serve();
     renderWithProviders(<RoutingView />);
 
-    expect(await screen.findByText(/which is not enabled on this Studio/)).toBeInTheDocument();
+    expect(await screen.findByText(/which is not enabled on this Rahdar/)).toBeInTheDocument();
   });
 
   it('says a filter emptied the bridges and offers to clear it', async () => {

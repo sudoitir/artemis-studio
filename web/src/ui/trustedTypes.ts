@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify';
 
 /**
- * Studio sends `require-trusted-types-for 'script'` (ADR-0168): the DOM's script sinks (`innerHTML`,
+ * Rahdar sends `require-trusted-types-for 'script'` (ADR-0168): the DOM's script sinks (`innerHTML`,
  * `outerHTML`, `insertAdjacentHTML`, `document.write`, `new Worker(url)`, script `src`, `eval`) refuse
  * a plain string, so an injected string cannot become markup or code. The policy names the page may
  * create are listed in the same header, and this file is where each one is made:
@@ -10,7 +10,7 @@ import DOMPurify from 'dompurify';
  *   cannot open a tag. Mantine writes CSS into `<style>` elements through `innerHTML`, and that is
  *   all this lets through; any markup, and any script or script URL, is refused.
  * - `dompurify`: DOMPurify's own policy, for the highlighter's markup.
- * - `studio#worker`: the script URL of the layout worker, which must be on this origin.
+ * - `rahdar#worker`: the script URL of the layout worker, which must be on this origin.
  *
  * A fourth would be a new entry in the header and in this list, with a reason.
  */
@@ -36,7 +36,7 @@ let workerPolicy: Pick<TrustedTypePolicy, 'createScriptURL'> | undefined;
 export function workerScriptUrl(url: string): string {
   const trustedTypes = factory();
   if (!trustedTypes) return url;
-  workerPolicy ??= trustedTypes.createPolicy('studio#worker', {
+  workerPolicy ??= trustedTypes.createPolicy('rahdar#worker', {
     createScriptURL: (input: string) => {
       if (new URL(input, globalThis.location.href).origin !== globalThis.location.origin) {
         throw new TypeError('A worker script must come from this origin.');
@@ -49,7 +49,7 @@ export function workerScriptUrl(url: string): string {
 }
 
 /**
- * The markup the code highlighter produced, cleaned. Syntax-highlighted code is the one place Studio
+ * The markup the code highlighter produced, cleaned. Syntax-highlighted code is the one place Rahdar
  * renders HTML (Mantine sets it with `dangerouslySetInnerHTML`), and its text comes from broker data:
  * message bodies, headers, configuration. The highlighter escapes it, and this is the second line: only
  * `<span>` elements with a class and a style survive, whatever the input, and where Trusted Types is

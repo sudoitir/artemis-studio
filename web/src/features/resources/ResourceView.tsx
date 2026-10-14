@@ -208,7 +208,7 @@ function ResourceEmpty({
             ? `${unreachable[0]} could not be reached`
             : `${unreachable.length} nodes could not be reached`
         }
-        description={`There may be ${nouns} here that Studio cannot currently see. ${
+        description={`There may be ${nouns} here that Rahdar cannot currently see. ${
           unreachable.length === 1 ? 'This node' : 'These nodes'
         } did not answer the last scrape, so this is an incomplete view rather than an empty cluster.`}
         nodes={unreachable}

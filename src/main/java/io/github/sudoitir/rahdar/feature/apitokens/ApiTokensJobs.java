@@ -1,0 +1,21 @@
+package io.github.sudoitir.rahdar.feature.apitokens;
+
+import io.github.sudoitir.rahdar.kernel.jobs.ScheduledJob;
+import java.time.Duration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/** Writes each token's last use and usage counters at most once a minute (api-tokens spec). */
+@Configuration(proxyBeanMethods = false)
+class ApiTokensJobs {
+
+    @Bean
+    ScheduledJob apiTokenLastUsedFlushJob(ApiTokenService tokens) {
+        return ScheduledJob.fixedDelay(
+                "api-token-last-used-flush",
+                "apitokens",
+                ScheduledJob.Scope.INSTANCE,
+                () -> Duration.ofMinutes(1),
+                tokens::flush);
+    }
+}

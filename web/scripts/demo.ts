@@ -160,7 +160,7 @@ async function clip(
   { size = SIZE, gifWidth = GIF_WIDTH } = {},
 ) {
   if (ONLY && !ONLY.includes(name)) return;
-  const dir = await mkdtemp(join(tmpdir(), `artemis-studio-${name}-`));
+  const dir = await mkdtemp(join(tmpdir(), `rahdar-${name}-`));
   const browser = await chromium.launch();
   const started = Date.now();
   const context = await browser.newContext({
@@ -188,7 +188,7 @@ async function clip(
 
 await mkdir(OUT, { recursive: true });
 
-// ── 1. What Artemis Studio is ────────────────────────────────────────────────
+// ── 1. What Rahdar is ────────────────────────────────────────────────
 await clip('demo', async (page, clusterId, mark) => {
   await page.goto(`${BASE}/clusters/${clusterId}/topology`);
   await page.locator('.react-flow__node').first().waitFor({ timeout: 30_000 });
@@ -251,7 +251,7 @@ await clip('demo', async (page, clusterId, mark) => {
 await clip(
   'flow',
   async (page, clusterId, mark) => {
-    // Every routing layer the seed builds: diverts, the bridge, cluster hops and Studio's capture tap.
+    // Every routing layer the seed builds: diverts, the bridge, cluster hops and Rahdar's capture tap.
     await page.goto(`${BASE}/clusters/${clusterId}/flow?layers=BRIDGES,CAPTURE,CLUSTER,DIVERTS`);
     // Client rates come from the sampler's second sweep; a clip without them is a screenshot. Reload once
     // they exist, so the layout orders every column busiest first. All before `mark()`.
@@ -398,7 +398,7 @@ if (PLUGIN_JAR) {
         }
         await hold(page, 1_000);
       }
-      // A publisher Studio has not met yet: compare the fingerprint, then trust the key from here.
+      // A publisher Rahdar has not met yet: compare the fingerprint, then trust the key from here.
       const trust = dialog.getByRole('button', { name: 'Trust this key…' });
       if (await trust.count()) {
         await click(page, trust);
@@ -422,9 +422,9 @@ if (PLUGIN_JAR) {
       await dialog.getByText(/is active/).waitFor({ timeout: 90_000 });
       await hold(page, 1_800);
 
-      // Its screen, loaded into the running Studio: a reload picks up the new bundle, then the plugin's
+      // Its screen, loaded into the running Rahdar: a reload picks up the new bundle, then the plugin's
       // page is one sidebar link like any other.
-      await click(page, dialog.getByRole('button', { name: 'Reload Studio' }));
+      await click(page, dialog.getByRole('button', { name: 'Reload Rahdar' }));
       await page.waitForLoadState();
       await page.goto(`${BASE}/clusters/${clusterId}/topology`);
       await navigate(page, 'Notes');

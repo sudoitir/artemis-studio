@@ -42,7 +42,7 @@ export function stateWords(state: TransferState): { text: string; tone: Tone } {
     case 'STOPPED':
       return { text: 'Stopped', tone: 'warning' };
     case 'INTERRUPTED':
-      return { text: 'Interrupted: Studio stopped while it ran', tone: 'danger' };
+      return { text: 'Interrupted: Rahdar stopped while it ran', tone: 'danger' };
     case 'FAILED':
       return { text: 'Failed', tone: 'danger' };
     case 'RETURNED':

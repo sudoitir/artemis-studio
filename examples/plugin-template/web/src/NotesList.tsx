@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button, Stack, Textarea } from '@mantine/core';
-import { DataTable, EmptyState, ErrorState, Section, useCan, type Column } from '@artemis-studio/plugin-sdk';
+import { DataTable, EmptyState, ErrorState, Section, useCan, type Column } from '@rahdar/plugin-sdk';
 
 import { ID, useAddNote, useDeleteNote, useQueueNotes, type Note } from './api.ts';
 

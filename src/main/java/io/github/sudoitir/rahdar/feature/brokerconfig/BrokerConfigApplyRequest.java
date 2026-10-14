@@ -1,0 +1,41 @@
+package io.github.sudoitir.rahdar.feature.brokerconfig;
+
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * What an operator asked an apply to do beyond "the current revision, every live
+ * node".
+ *
+ * @param revision the revision number to apply; null means the current one, and a
+ *     number that is not current is refused
+ * @param nodeIds live nodes to target; empty means all
+ * @param canaryNodeId the node to apply first
+ * @param removeUndeclared opt in to removing settings and diverts Rahdar did not apply
+ * @param acknowledgedHazards the High hazard identifiers the operator acknowledged
+ * @param expectedPlanHash the plan the operator previewed; a real run refuses when it changed
+ * @param override lift the step cap for this run
+ * @param stepIds the plan step identifiers to run, {@code SECTION:key:OP}; empty means the whole
+ *     plan (ADR-0087 D2)
+ */
+public record BrokerConfigApplyRequest(
+        Integer revision,
+        Set<UUID> nodeIds,
+        UUID canaryNodeId,
+        boolean removeUndeclared,
+        List<String> acknowledgedHazards,
+        String expectedPlanHash,
+        boolean override,
+        Set<String> stepIds) {
+
+    public BrokerConfigApplyRequest {
+        nodeIds = nodeIds == null ? Set.of() : Set.copyOf(nodeIds);
+        acknowledgedHazards = acknowledgedHazards == null ? List.of() : List.copyOf(acknowledgedHazards);
+        stepIds = stepIds == null ? Set.of() : Set.copyOf(stepIds);
+    }
+
+    public static BrokerConfigApplyRequest everything() {
+        return new BrokerConfigApplyRequest(null, Set.of(), null, false, List.of(), null, false, Set.of());
+    }
+}

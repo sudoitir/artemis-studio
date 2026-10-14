@@ -262,7 +262,7 @@ describe('ConfigDiffView', () => {
     renderWithProviders(<ConfigDiffView />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Studio failed to complete the request');
+    expect(alert).toHaveTextContent('Rahdar failed to complete the request');
     expect(within(alert).getByText('No node answered the comparison.')).toBeInTheDocument();
     expect(within(alert).getByRole('button', { name: 'Retry' })).toBeEnabled();
   });

@@ -1,6 +1,6 @@
-# Artemis Studio — ISOLATED overlay for the demo estate's extra brokers.
+# Rahdar — ISOLATED overlay for the demo estate's extra brokers.
 #
-#   docker compose -p artemis-studio-qa-<name> \
+#   docker compose -p rahdar-qa-<name> \
 #                  -f deploy/compose/dev/compose.dev.yaml \
 #                  -f deploy/compose/dev/compose.demo.yaml \
 #                  -f deploy/compose/dev/compose.isolated.yaml \

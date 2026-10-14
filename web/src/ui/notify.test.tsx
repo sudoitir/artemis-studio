@@ -171,7 +171,7 @@ describe('notify', () => {
       mount();
       const denied = {
         status: 403,
-        type: 'https://artemis-studio.dev/problems/operation-denied',
+        type: 'https://rahdar.dev/problems/operation-denied',
         problem: { detail: 'Purges need a change window.' },
       };
       act(() => {

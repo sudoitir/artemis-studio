@@ -123,7 +123,7 @@ describe('ApiKeysPanel', () => {
     );
     renderKeys();
 
-    expect(await screen.findByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(await screen.findByText('Rahdar failed to complete the request')).toBeInTheDocument();
     expect(screen.getByText('Database unavailable')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
@@ -413,7 +413,7 @@ describe('ApiKeysPanel', () => {
     mockBaseApis([{ scopeType: 'GLOBAL', scopeId: null, permissions: ['cluster:read'] }]);
     server.use(
       http.post('*/api/v1/tokens', () =>
-        HttpResponse.json({ type: `https://artemis-studio.dev/problems/${slug}`, title: slug }, { status: 403 }),
+        HttpResponse.json({ type: `https://rahdar.dev/problems/${slug}`, title: slug }, { status: 403 }),
       ),
     );
     const user = userEvent.setup();

@@ -123,7 +123,7 @@ function Disconnected({ onRunAgain }: Readonly<{ onRunAgain: () => void }>) {
         </Button>
       }
     >
-      Studio does not silently reopen it: this query fans out across brokers and is audited, and reconnecting would run
+      Rahdar does not silently reopen it: this query fans out across brokers and is audited, and reconnecting would run
       it a second time without you asking.
     </Notice>
   );
@@ -207,7 +207,7 @@ function EmptyResult({ result, tailing }: Readonly<{ result: SqlResultView; tail
       <EmptyState
         kind="empty"
         title="Nothing matched yet"
-        description="Every target answered and none of them held a matching message when the tail started. Anything that arrives from now on appears here — but only if it is still on the queue when Studio next reads it."
+        description="Every target answered and none of them held a matching message when the tail started. Anything that arrives from now on appears here — but only if it is still on the queue when Rahdar next reads it."
       />
     );
   }

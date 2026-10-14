@@ -36,7 +36,7 @@ export function EmptyState(props: EmptyStateProps) {
       );
       break;
     case 'unreachable':
-      description = props.description ?? 'Studio could not reach these nodes, so this may not be everything.';
+      description = props.description ?? 'Rahdar could not reach these nodes, so this may not be everything.';
       break;
   }
   return (

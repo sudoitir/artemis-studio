@@ -16,10 +16,10 @@ describe('ErrorState', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
-  it('says Studio could not be reached for a network failure, and offers retry', async () => {
+  it('says Rahdar could not be reached for a network failure, and offers retry', async () => {
     const onRetry = vi.fn();
     renderWithProviders(<ErrorState error={new TypeError('Failed to fetch')} onRetry={onRetry} />);
-    expect(screen.getByText('Studio could not be reached')).toBeInTheDocument();
+    expect(screen.getByText('Rahdar could not be reached')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledOnce();
   });
@@ -29,7 +29,7 @@ describe('ErrorState', () => {
     renderWithProviders(
       <ErrorState error={new TypeError("Cannot read properties of undefined (reading 'name')")} onRetry={onRetry} />,
     );
-    expect(screen.queryByText('Studio could not be reached')).not.toBeInTheDocument();
+    expect(screen.queryByText('Rahdar could not be reached')).not.toBeInTheDocument();
     expect(screen.getByText('An unexpected error occurred in the console')).toBeInTheDocument();
     expect(screen.getByText("Cannot read properties of undefined (reading 'name')")).toBeInTheDocument();
     expect(screen.getByText(/reload the page/)).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe('ErrorState', () => {
 
   it('treats status 0 as the network', () => {
     renderWithProviders(<ErrorState error={apiError(0)} />);
-    expect(screen.getByText('Studio could not be reached')).toBeInTheDocument();
+    expect(screen.getByText('Rahdar could not be reached')).toBeInTheDocument();
   });
 
   it('asks the operator to sign in again on 401', () => {
@@ -133,7 +133,7 @@ describe('ErrorState', () => {
 
   it('quotes the request id on a server error', () => {
     renderWithProviders(<ErrorState error={apiError(500, { requestId: 'req-42' })} onRetry={() => undefined} />);
-    expect(screen.getByText('Studio failed to complete the request')).toBeInTheDocument();
+    expect(screen.getByText('Rahdar failed to complete the request')).toBeInTheDocument();
     expect(screen.getByText('Request id: req-42')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
@@ -146,7 +146,7 @@ describe('ErrorState', () => {
 
   it.each([
     ['UNREACHABLE', 'The broker is unreachable', 502, true],
-    ['THROTTLED', 'Studio is throttling calls to this broker', 503, true],
+    ['THROTTLED', 'Rahdar is throttling calls to this broker', 503, true],
     ['CREDENTIALS_REJECTED', 'The broker rejected the credentials', 422, false],
     ['NOT_ARTEMIS', 'There is no Artemis broker at this agent', 422, false],
     ['WRONG_PATH', 'There is no Jolokia agent at this address', 422, false],
@@ -180,7 +180,7 @@ describe('ErrorState', () => {
         onRetry={() => undefined}
       />,
     );
-    expect(screen.getByText('The broker refused the Core account Studio holds for it.')).toBeInTheDocument();
+    expect(screen.getByText('The broker refused the Core account Rahdar holds for it.')).toBeInTheDocument();
     expect(screen.getByText(/Connection settings/)).toBeInTheDocument();
   });
 
@@ -237,7 +237,7 @@ describe('ErrorState', () => {
     ['approver-quorum', 409, 'Too few approvers', 'This would leave one approver.'],
   ])('reads the gate refusal %s by its type, saying nothing was changed', (slug, status, title, detail) => {
     renderWithProviders(
-      <ErrorState error={apiError(status, { detail }, { type: `https://artemis-studio.dev/problems/${slug}` })} />,
+      <ErrorState error={apiError(status, { detail }, { type: `https://rahdar.dev/problems/${slug}` })} />,
     );
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent(title);

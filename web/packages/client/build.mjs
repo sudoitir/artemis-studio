@@ -14,7 +14,7 @@ if (!/^\d{4}\.\d{2}\.\d+$/.test(calver ?? '')) {
   console.error('usage: node packages/client/build.mjs <YYYY.MM.PATCH>');
   process.exit(2);
 }
-// npm versions are semver, which forbids a leading zero: Studio 2026.09.0 is the client 2026.9.0.
+// npm versions are semver, which forbids a leading zero: Rahdar 2026.09.0 is the client 2026.9.0.
 const version = calver
   .split('.')
   .map((part) => String(Number(part)))
@@ -43,4 +43,4 @@ writeFileSync(
   join(dist, 'package.json'),
   JSON.stringify({ ...source, version, dependencies: { 'openapi-fetch': fetchVersion } }, null, 2) + '\n',
 );
-console.log(`@artemis-studio/client ${version} built in ${dist}`);
+console.log(`@rahdar/client ${version} built in ${dist}`);

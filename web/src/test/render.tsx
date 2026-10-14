@@ -6,7 +6,7 @@ import { createMemoryHistory, RouterProvider } from '@tanstack/react-router';
 
 import { FEATURES } from '../app/features.ts';
 import { createAppRouter } from '../app/router.ts';
-import type { StudioFeature } from '../kernel/feature.ts';
+import type { RahdarFeature } from '../kernel/feature.ts';
 import { ActionHostProvider } from '../kernel/actions/ActionHost.tsx';
 import { FeatureProvider } from '../kernel/FeatureProvider.tsx';
 import { theme } from '../theme.ts';
@@ -55,7 +55,7 @@ export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {
  * in-memory history. For what only the real router shows — which view an address reaches, a
  * redirect, a disabled feature's deep link — where a mocked router would assert the mock.
  */
-export function renderAppAt(path: string, features: StudioFeature[] = FEATURES) {
+export function renderAppAt(path: string, features: RahdarFeature[] = FEATURES) {
   const router = createAppRouter(makeClient(), features, createMemoryHistory({ initialEntries: [path] }));
   const result = render(<RouterProvider router={router} />, { wrapper: Providers });
   return { ...result, router };

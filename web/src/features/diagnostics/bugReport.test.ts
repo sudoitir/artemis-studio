@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { environmentMarkdown, issueBody, issueUrl, MAX_ISSUE_URL } from './bugReport.ts';
 
 const summary = {
-  studioVersion: '2026.09.4',
+  rahdarVersion: '2026.09.4',
   contractVersion: 6,
   java: '25.0.4+7 (Eclipse Adoptium)',
   os: 'Linux 6.8 (amd64)',
@@ -18,7 +18,7 @@ describe('bug report', () => {
       plugins: [{ id: 'acme-x', version: '1.2.0', status: 'ACTIVE' }],
       browser: 'Firefox | 140',
     });
-    expect(md).toContain('| Studio | unknown |');
+    expect(md).toContain('| Rahdar | unknown |');
     expect(md).toContain('| Plugins | acme-x 1.2.0 (active) |');
     expect(md).toContain('| Browser | Firefox \\| 140 |');
   });
@@ -35,7 +35,7 @@ describe('bug report', () => {
     );
     expect(body.indexOf('It froze')).toBeLessThan(body.indexOf('### Environment'));
     expect(body).toContain('### What I expected\n\n_Not given._');
-    expect(body).toContain('| Studio | 2026.09.4 (plugin contract 6) |');
+    expect(body).toContain('| Rahdar | 2026.09.4 (plugin contract 6) |');
   });
 
   it('keeps the body in the link while it fits, and leaves it out when it does not', () => {

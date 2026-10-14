@@ -1,5 +1,5 @@
 /**
- * The RFC 6238 code (SHA-1, 6 digits, 30 s steps) a script gives as an account's second factor. Studio accepts
+ * The RFC 6238 code (SHA-1, 6 digits, 30 s steps) a script gives as an account's second factor. Rahdar accepts
  * the previous, current or next step and refuses a step it has already seen (ADR-0143), so a second sign-in
  * within the same 30 s takes the next step, waiting for the clock when that is still too far ahead.
  */
@@ -34,7 +34,7 @@ export function totpAt(secret: string, step: number): string {
   return String((mac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0');
 }
 
-/** A code Studio has not seen from this process: the first step after the last one given. */
+/** A code Rahdar has not seen from this process: the first step after the last one given. */
 export async function nextTotp(secret: string): Promise<string> {
   const current = () => Math.floor(Date.now() / 1000 / STEP_SECONDS);
   const step = Math.max(current(), lastStep + 1);

@@ -18,7 +18,7 @@ import { InboxView } from './InboxView.tsx';
 function notice(id: number, extra: Partial<InboxItem> = {}): InboxItem {
   return {
     id,
-    source: 'studio',
+    source: 'rahdar',
     kind: 'notice',
     severity: 'info',
     title: `Notice ${id}`,

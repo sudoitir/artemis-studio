@@ -141,7 +141,7 @@ describe('SqlConsoleView', () => {
     renderWithProviders(<SqlConsoleView />);
 
     expect(
-      await screen.findByText('The brokers filter; Studio examines at most 100 messages from 1 queue.'),
+      await screen.findByText('The brokers filter; Rahdar examines at most 100 messages from 1 queue.'),
     ).toBeInTheDocument();
     expect(screen.getByText('Broker-filtered')).toBeInTheDocument();
     expect(screen.getByText(/pushed down:/i)).toBeInTheDocument();
@@ -160,10 +160,10 @@ describe('SqlConsoleView', () => {
     renderWithProviders(<SqlConsoleView />);
 
     expect(
-      await screen.findByText('Studio reads and examines about 12,400 messages on 1 queue across 1 node.'),
+      await screen.findByText('Rahdar reads and examines about 12,400 messages on 1 queue across 1 node.'),
     ).toBeInTheDocument();
     expect(screen.getByText('Scan')).toBeInTheDocument();
-    expect(screen.getByText(/scanned by studio:/i)).toBeInTheDocument();
+    expect(screen.getByText(/scanned by rahdar:/i)).toBeInTheDocument();
   });
 
   it('reports a rejected query on its offending token, and in words, instead of a generic failure', async () => {
@@ -808,12 +808,12 @@ describe('SqlConsoleView history', () => {
     await vi.waitFor(() => expect(screen.queryAllByRole('menuitem')).toHaveLength(0));
     await user.click(screen.getByRole('button', { name: 'History' }));
     expect(await screen.findByText(/Nothing yet/)).toBeInTheDocument();
-    expect(window.localStorage.getItem('artemis-studio.sql.history')).toBeNull();
+    expect(window.localStorage.getItem('rahdar.sql.history')).toBeNull();
   });
 
   it('names an index run as such, and a single row in the singular', async () => {
     window.localStorage.setItem(
-      'artemis-studio.sql.history',
+      'rahdar.sql.history',
       JSON.stringify([{ sql: 'SELECT 1', at: '2026-09-01T10:00:00Z', rowCount: 1, source: 'INDEX' }]),
     );
     mockCluster();
@@ -884,8 +884,8 @@ describe('SqlConsoleView result columns and export', () => {
   });
 
   it('neither reads nor writes the console’s old storage keys', async () => {
-    window.localStorage.setItem('artemis-studio.sql.columns', JSON.stringify(['body']));
-    window.localStorage.setItem('artemis-studio.sql.editorFraction', '0.7');
+    window.localStorage.setItem('rahdar.sql.columns', JSON.stringify(['body']));
+    window.localStorage.setItem('rahdar.sql.editorFraction', '0.7');
     await withRows();
 
     expect(screen.getByRole('columnheader', { name: /Prio/ })).toBeInTheDocument();
@@ -894,8 +894,8 @@ describe('SqlConsoleView result columns and export', () => {
       'aria-valuenow',
       '28',
     );
-    expect(window.localStorage.getItem('artemis-studio.sql.columns')).toBe('["body"]');
-    expect(window.localStorage.getItem('artemis-studio.sql.editorFraction')).toBe('0.7');
+    expect(window.localStorage.getItem('rahdar.sql.columns')).toBe('["body"]');
+    expect(window.localStorage.getItem('rahdar.sql.editorFraction')).toBe('0.7');
   });
 
   it('exports exactly the rows in view as CSV and JSON, saying they may be a prefix', async () => {
@@ -1136,7 +1136,7 @@ describe('SqlConsoleView cancelling, Escape and the cost line', () => {
     mockPlan();
     renderWithProviders(<SqlConsoleView />);
 
-    const cost = await screen.findByText('The brokers filter; Studio examines at most 100 messages from 1 queue.');
+    const cost = await screen.findByText('The brokers filter; Rahdar examines at most 100 messages from 1 queue.');
     const line = cost.closest('[id]') as HTMLElement;
     expect(screen.getByRole('textbox', { name: 'Query' })).toHaveAttribute('aria-describedby', line.id);
     expect(screen.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-describedby', line.id);
@@ -1148,7 +1148,7 @@ describe('SqlConsoleView cancelling, Escape and the cost line', () => {
     mockPlan();
     const user = userEvent.setup();
     renderWithProviders(<SqlConsoleView />);
-    await screen.findByText('The brokers filter; Studio examines at most 100 messages from 1 queue.');
+    await screen.findByText('The brokers filter; Rahdar examines at most 100 messages from 1 queue.');
 
     await user.click(screen.getByRole('textbox', { name: 'Query' }));
     await user.keyboard('{Control>}a{/Control}{Backspace}');
@@ -1173,7 +1173,7 @@ describe('SqlConsoleView cancelling, Escape and the cost line', () => {
     emit('done', doneFrame());
 
     await vi.waitFor(() => {
-      const stored = JSON.parse(window.localStorage.getItem('artemis-studio.sql.history') ?? '[]');
+      const stored = JSON.parse(window.localStorage.getItem('rahdar.sql.history') ?? '[]');
       expect(stored.map((entry: { sql: string }) => entry.sql)).toEqual([STARTER]);
     });
   });

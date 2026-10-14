@@ -52,7 +52,7 @@ export function SyntaxHelp({
         <Section title="What a predicate costs" headingLevel={3}>
           <Text size="sm">
             This is the one thing worth knowing before running anything. A predicate over a header or an application
-            property becomes a JMS selector, so the broker filters and Studio never sees the messages that did not
+            property becomes a JMS selector, so the broker filters and Rahdar never sees the messages that did not
             match. A predicate over the body cannot be pushed down at all: every message the broker returns has to be
             read and examined. The cost line under the editor says which of the two your query is, before it runs.
           </Text>

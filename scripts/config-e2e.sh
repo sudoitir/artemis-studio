@@ -7,11 +7,11 @@
 # The apply engine's contract is about a real broker: what `addAddressSettings`
 # replaces, what a read-back reports, what a second apply converges to, and what
 # happens when the canary refuses. `BrokerConfigApplyServiceTest` mocks the broker
-# layer, so it can only prove Studio's half of every one of those sentences.
+# layer, so it can only prove Rahdar's half of every one of those sentences.
 #
 #   ADMIN_PASSWORD=... ADMIN_TOTP_SECRET=... ./scripts/config-e2e.sh
 #
-# Everything goes through the product's own surfaces — Studio's REST API and the
+# Everything goes through the product's own surfaces — Rahdar's REST API and the
 # Artemis CLI inside the broker image. The only direct reads are the two
 # measurements at the end, which ask the broker what it reports back, because
 # that is the question.
@@ -21,7 +21,7 @@
 # than short.
 set -uo pipefail
 
-STUDIO=${STUDIO:-http://localhost:8080}
+RAHDAR=${RAHDAR:-http://localhost:8080}
 ADMIN_USER=${ADMIN_USER:-admin}
 ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD to the password just dev-up printed}
 # Once the admin has two-step verification (the first run enrols it), the secret that run printed.
@@ -48,7 +48,7 @@ die() { printf '\n\033[31mABORT: %s\033[0m\n' "$*" >&2; exit 99; }
 status() {
   local method=$1 path=$2
   shift 2
-  curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIES" -c "$COOKIES" -X "$method" "$STUDIO/api/v1$path" \
+  curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIES" -c "$COOKIES" -X "$method" "$RAHDAR/api/v1$path" \
     -H 'Content-Type: application/json' -H "X-XSRF-TOKEN: $(csrf)" "$@"
 }
 
@@ -56,11 +56,11 @@ status() {
 # api()'s JSON one — sending both is how this script first read every import as a 415.
 # xml_import PATH FILE_OR_- → body; xml_import_status PATH FILE_OR_- → HTTP status
 xml_import() {
-  curl -sS -b "$COOKIES" -c "$COOKIES" -X POST "$STUDIO/api/v1$1" \
+  curl -sS -b "$COOKIES" -c "$COOKIES" -X POST "$RAHDAR/api/v1$1" \
     -H 'Content-Type: application/xml' -H "X-XSRF-TOKEN: $(csrf)" --data-binary "@$2"
 }
 xml_import_status() {
-  curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIES" -c "$COOKIES" -X POST "$STUDIO/api/v1$1" \
+  curl -sS -o /dev/null -w '%{http_code}' -b "$COOKIES" -c "$COOKIES" -X POST "$RAHDAR/api/v1$1" \
     -H 'Content-Type: application/xml' -H "X-XSRF-TOKEN: $(csrf)" --data-binary "@$2"
 }
 
@@ -101,15 +101,15 @@ expect() { # expect LABEL EXPECTED ACTUAL
 
 # ── 0. sign in ────────────────────────────────────────────────────────────────
 
-say "waiting for Studio"
+say "waiting for Rahdar"
 for _ in $(seq 1 60); do
-  curl -fsS "$STUDIO/actuator/health" >/dev/null 2>&1 && break
+  curl -fsS "$RAHDAR/actuator/health" >/dev/null 2>&1 && break
   sleep 3
 done
-curl -fsS "$STUDIO/actuator/health" >/dev/null 2>&1 || die "Studio never became healthy at $STUDIO"
+curl -fsS "$RAHDAR/actuator/health" >/dev/null 2>&1 || die "Rahdar never became healthy at $RAHDAR"
 
 say "signing in"
-studio_sign_in "$NEW_PASSWORD" || die "could not sign in to Studio"
+rahdar_sign_in "$NEW_PASSWORD" || die "could not sign in to Rahdar"
 pass "signed in as $ADMIN_USER"
 
 # The run applies to the catch-all address setting, and addAddressSettings replaces
@@ -134,7 +134,7 @@ check=$(api POST '/clusters?dryRun=true' -d "{
 note "connection check: $(py "json.dumps(d)[:200]" <<<"$check" 2>/dev/null || echo unparsed)"
 # The check is where a first-launch operator meets their capability gaps.
 if py "any(r['appliable'] for r in d['recommendations']['recommendations'])" <<<"$check" 2>/dev/null | grep -q True; then
-  pass "P-9 the connection check offers recommended configuration Studio can apply"
+  pass "P-9 the connection check offers recommended configuration Rahdar can apply"
   note "     seeded from: $(py "d['recommendations']['seededFrom']" <<<"$check")"
   note "     appliable:   $(py "', '.join(r['capability'] for r in d['recommendations']['recommendations'] if r['appliable'])" <<<"$check")"
   note "     manual:      $(py "', '.join(r['capability'] for r in d['recommendations']['recommendations'] if not r['appliable'])" <<<"$check")"
@@ -237,7 +237,7 @@ say "applying for real"
 # from these frames, and they are published while the transaction is still open,
 # which no unit test can prove.
 STREAM_LOG=$(mktemp)
-curl -sN -b "$COOKIES" "$STUDIO/api/v1/stream?clusterId=$CLUSTER&topics=config" >"$STREAM_LOG" &
+curl -sN -b "$COOKIES" "$RAHDAR/api/v1/stream?clusterId=$CLUSTER&topics=config" >"$STREAM_LOG" &
 STREAM_PID=$!
 sleep 1
 outcome=$(api POST "/clusters/$CLUSTER/config/apply?dryRun=false" \
@@ -366,7 +366,7 @@ else
   fail "P-5 a config-managed cluster applied over HTTP anyway ($code) — only the UI gates it"
 fi
 api PATCH "/clusters/$CLUSTER/config/mode" \
-  -d '{"applyMode": "STUDIO_MANAGED", "reportUndeclared": false, "undeclaredExclusions": []}' >/dev/null
+  -d '{"applyMode": "RAHDAR_MANAGED", "reportUndeclared": false, "undeclaredExclusions": []}' >/dev/null
 
 # ── 6. import hardening ───────────────────────────────────────────────────────
 
@@ -414,7 +414,7 @@ rm -f "$bigfile"
 
 say "export → import round-trips"
 roundtrip=$(mktemp)
-curl -sS -b "$COOKIES" -c "$COOKIES" "$STUDIO/api/v1/clusters/$CLUSTER/config/export-xml" >"$roundtrip"
+curl -sS -b "$COOKIES" -c "$COOKIES" "$RAHDAR/api/v1/clusters/$CLUSTER/config/export-xml" >"$roundtrip"
 body=$(xml_import "/clusters/$CLUSTER/config/import-xml" "$roundtrip")
 # An error body carries neither key, so assert the parse actually happened.
 if ! py "'sections' in d or 'document' in d or 'unsupported' in d" <<<"$body" | grep -q True; then
@@ -422,7 +422,7 @@ if ! py "'sections' in d or 'document' in d or 'unsupported' in d" <<<"$body" | 
 fi
 unsupported=$(py "len(d.get('unsupported', []))" <<<"$body" 2>/dev/null || echo '?')
 violations=$(py "len(d.get('errors', []))" <<<"$body" 2>/dev/null || echo '?')
-expect "Studio's own export imports without violations" "0" "$violations"
+expect "Rahdar's own export imports without violations" "0" "$violations"
 rm -f "$roundtrip"
 note "round-trip reported $unsupported unsupported element(s)"
 

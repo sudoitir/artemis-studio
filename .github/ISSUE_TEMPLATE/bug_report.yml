@@ -1,12 +1,12 @@
 name: Bug report
-description: Something in Artemis Studio is broken or wrong
+description: Something in Rahdar is broken or wrong
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for taking the time. A security problem does not belong here: see
-        [SECURITY.md](https://github.com/sudoitir/artemis-studio/security/policy).
+        [SECURITY.md](https://github.com/sudoitir/rahdar/security/policy).
   - type: textarea
     id: what-happened
     attributes:
@@ -32,7 +32,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Artemis Studio version
+      label: Rahdar version
       description: Shown in the About dialog, or the image tag you run.
       placeholder: 2026.09.57
     validations:
@@ -55,5 +55,5 @@ body:
     id: logs
     attributes:
       label: Logs and screenshots
-      description: Studio's log around the failure. Remove secrets and message contents you cannot share.
+      description: Rahdar's log around the failure. Remove secrets and message contents you cannot share.
       render: text
