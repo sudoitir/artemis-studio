@@ -26,7 +26,6 @@ _Others_
 * `i.g.s.a.p.s.ScrapeCycle`
 * `i.g.s.a.p.s.ScrapeSettings`
 * `i.g.s.a.p.s.StreamSignals`
-* `i.g.s.a.p.s.SweepCursor`
 |Bean references
 |* `i.g.s.a.k.l.partition.PartitionDrops` (in Data lifecycle)
 * `i.g.s.a.k.c.PartitionProvisioner` (in Core)
