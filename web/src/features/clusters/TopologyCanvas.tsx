@@ -154,7 +154,6 @@ function BrokerNode({ id, data }: NodeProps) {
           data-kind={d.kind}
           data-selected={selected || undefined}
           tabIndex={tabStop === id ? 0 : -1}
-          aria-label={d.sentence}
           aria-pressed={selected}
           title={d.sentence}
           onFocus={(event) => focus(id, isKeyboardFocus(event))}

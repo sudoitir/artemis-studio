@@ -65,7 +65,7 @@ describe('DeclaredTab', () => {
     await user.click(screen.getByRole('button', { name: 'Edit address setting orders.#' }));
     expect(onEdit).toHaveBeenCalledWith('addressSettings', 'orders.#');
 
-    await user.click(screen.getByRole('button', { name: 'Apply address setting orders.#' }));
+    await user.click(screen.getByRole('button', { name: 'Apply this address setting orders.#' }));
     expect(onApply).toHaveBeenCalledWith(
       expect.objectContaining({
         label: 'address setting orders.#',
@@ -106,7 +106,7 @@ describe('DeclaredTab', () => {
       applyGate: { kind: 'blocked', reason: 'Nothing can be applied while the file owns the configuration.' },
     });
 
-    expect(screen.getByRole('button', { name: 'Apply address setting orders.#' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Apply this address setting orders.#' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Why applying address setting orders.# is unavailable' }));
     expect(await screen.findByText(/while the file owns the configuration/)).toBeInTheDocument();
     expect(onApply).not.toHaveBeenCalled();

@@ -224,7 +224,7 @@ describe('the Settings page', () => {
       /A duration, such as 30s, 5m or 72h\./,
     );
     expect(screen.getByText('Modified · default 30s')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reset Tier B interval to its default, 30s' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reset to default: Tier B interval, 30s' })).toBeInTheDocument();
   });
 
   it('opens the tab the address names, and keeps a chosen tab in the address', async () => {
@@ -545,7 +545,7 @@ describe('the Settings page', () => {
     renderAppAt('/settings-under-test?tab=scrape', features);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Reset Tier B interval to its default, 30s' }));
+    await user.click(await screen.findByRole('button', { name: 'Reset to default: Tier B interval, 30s' }));
     expect(screen.getByLabelText('Tier B interval')).toHaveValue('30s');
     expect(screen.getByText('Resets to its default')).toBeInTheDocument();
 

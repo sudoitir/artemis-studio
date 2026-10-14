@@ -91,7 +91,7 @@ function Frame({
       data-dimmed={data.dimmed || undefined}
       role="button"
       tabIndex={0}
-      aria-label={nodeSentence(data.view)}
+      aria-description={nodeSentence(data.view)}
       onClick={() => select(id, false)}
       onContextMenu={(event) => {
         event.preventDefault();

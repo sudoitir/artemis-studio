@@ -282,7 +282,7 @@ describe('closing every consumer on an address', () => {
     const user = userEvent.setup();
     renderWithProviders(<CloseAddressConsumersAction clusterId="c1" address="orders" />);
 
-    await user.click(await screen.findByRole('button', { name: 'Close every consumer on orders' }));
+    await user.click(await screen.findByRole('button', { name: 'Close consumers on orders' }));
     const confirmation = await screen.findByRole('dialog', { name: 'Close every consumer on orders' });
     expect(await within(confirmation).findByText('would close 5 consumers')).toBeInTheDocument();
 

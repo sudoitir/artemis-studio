@@ -213,7 +213,9 @@ describe('ClusterSwitcher', () => {
     mockApi();
     renderAppAt('/clusters/c1/queues', [QUEUES]);
 
-    const trigger = await screen.findByRole('button', { name: 'Switch cluster, now prod-emea, Production, Degraded' });
+    const trigger = await screen.findByRole('button', {
+      name: 'PR, Switch cluster, now prod-emea, Production, Degraded',
+    });
     expect(trigger).toHaveTextContent(/^PR$/);
   });
 });

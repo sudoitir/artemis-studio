@@ -146,7 +146,7 @@ describe('ConfigurationView', () => {
     // The queue hangs off the address's row, so the row must carry the queue's
     // drift and name it — an address "in sync" while one of its queues is gone
     // is the reading this screen must never produce.
-    const row = (await screen.findByRole('button', { name: 'Apply address orders.request' })).closest('tr')!;
+    const row = (await screen.findByRole('button', { name: 'Apply this address orders.request' })).closest('tr')!;
     expect(within(row).getByText(/queue orders\.audit missing on broker-2/)).toBeInTheDocument();
     expect(within(row).queryByText(/in sync on 2\/2/)).not.toBeInTheDocument();
   });
@@ -202,7 +202,7 @@ describe('ConfigurationView', () => {
     );
     renderWithProviders(<ConfigurationView />);
     // The item's own row carries what differs and where — no second tab.
-    const row = (await screen.findByRole('button', { name: 'Apply address setting orders.#' })).closest('tr')!;
+    const row = (await screen.findByRole('button', { name: 'Apply this address setting orders.#' })).closest('tr')!;
     expect(within(row).getByText(/differs on broker-2/)).toBeInTheDocument();
     // The key is shown by its broker.xml element name, from the catalogue, and
     // declared and observed are one row, so the two never fall out of line.
@@ -230,7 +230,7 @@ describe('ConfigurationView', () => {
     );
     renderWithProviders(<ConfigurationView />);
 
-    const row = (await screen.findByRole('button', { name: 'Apply address orders.request' })).closest('tr')!;
+    const row = (await screen.findByRole('button', { name: 'Apply this address orders.request' })).closest('tr')!;
     const state = within(row).getByText(/missing on/);
     expect(state.textContent).toBe('missing on broker-2');
     // None of the declared keys are reprinted against an em dash.

@@ -278,7 +278,7 @@ export function CloseAddressConsumersAction({ clusterId, address }: Readonly<{ c
         size="compact-xs"
         variant="default"
         disabled={gate.kind === 'blocked'}
-        aria-label={`Close every consumer on ${address}`}
+        aria-label={`Close consumers on ${address}`}
         onClick={(e) =>
           host.open(CloseAddressConsumers, { clusterId, address }, { restoreFocus: focusBack(e.currentTarget) })
         }

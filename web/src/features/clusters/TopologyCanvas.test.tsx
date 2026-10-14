@@ -85,10 +85,10 @@ const TOPOLOGY: TopologyView = {
 
 const model = layout(TOPOLOGY, HEALTH);
 const names = {
-  a1: /^alpha: Primary\. Live, serving\./,
-  a2: /^alpha-backup: Backup\. Backup, replicating, in sync\./,
-  b1: /^bravo: Primary\./,
-  b2: /^bravo:61616: Primary\. Not polled: no management URL\./,
+  a1: /^alpha\s*2\.44\.0\s*Live, serving/,
+  a2: /^alpha-backup\s*2\.44\.0\s*Backup, replicating, in sync/,
+  b1: /^bravo\s*2\.44\.0\s*Live, serving/,
+  b2: /^bravo:61616\s*2\.44\.0\s*Not polled/,
 };
 
 function draw(props: Partial<React.ComponentProps<typeof TopologyCanvas>> = {}) {
@@ -107,7 +107,7 @@ beforeEach(() => {
 });
 
 describe('TopologyCanvas boxes', () => {
-  it('are buttons named by one sentence of words, and an unmanaged box holds no second button', async () => {
+  it('are buttons named by their lines, and an unmanaged box holds no second button', async () => {
     draw();
     for (const name of Object.values(names)) expect(await box(name)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Add a management URL/ })).toBeNull();
@@ -268,7 +268,7 @@ describe('TopologyCanvas level of detail', () => {
 
   it('draws each pair as one box that chooses its serving endpoint', async () => {
     const { onSelect } = draw({ model: layout(many, HEALTH) });
-    const first = await screen.findByRole('button', { name: /^Node N000: serving · 1 standby\. 2 endpoints\.$/ });
+    const first = (await screen.findAllByRole('button', { name: /serving · 1 standby\s*2 endpoints/ }))[0];
     // A bare click: jsdom's pointer events carry no window, which the pane's pan handler reads.
     fireEvent.click(first);
     expect(onSelect).toHaveBeenCalledWith('N000-p');
@@ -276,7 +276,7 @@ describe('TopologyCanvas level of detail', () => {
 
   it('draws no notice at the bound', async () => {
     draw({ model: layout({ ...many, nodes: many.nodes.slice(0, DENSE_THRESHOLD) }, HEALTH) });
-    await box(/^N000-primary:/);
+    await box(/^N000-primary/);
     expect(screen.queryByText('One box per pair')).toBeNull();
   });
 });

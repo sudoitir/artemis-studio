@@ -211,7 +211,7 @@ function SettingState({
           leftSection={<IconRestore size={14} aria-hidden />}
           onClick={onReset}
           disabled={!canWrite}
-          aria-label={`Reset ${setting.label} to its default, ${setting.defaultValue}`}
+          aria-label={`Reset to default: ${setting.label}, ${setting.defaultValue}`}
         >
           Reset to default
         </Button>
