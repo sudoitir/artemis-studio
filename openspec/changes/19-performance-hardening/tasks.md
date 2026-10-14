@@ -70,13 +70,13 @@
 
 ## 10. U10 Load test and sizing (performance-sizing)
 
-- [ ] 10.1 Gatling project in `load/`, `just load`, `workflow_dispatch` workflow
-- [ ] 10.2 Run it on the reference profile; write `docs/sizing.md`
-- [ ] 10.3 README hardware section (minimum and recommended, single and HA)
-- [ ] 10.4 ADR: the Gatling load test
+- [x] 10.1 Gatling project in `load/`, `just load`, `workflow_dispatch` workflow
+- [x] 10.2 Run it on the reference profile; write `docs/sizing.md`
+- [x] 10.3 README hardware section (minimum and recommended, single and HA)
+- [x] 10.4 ADR: the Gatling load test
 
 ## 11. Finish
 
-- [ ] 11.1 `openspec validate 19-performance-hardening --strict`
+- [x] 11.1 `openspec validate 19-performance-hardening --strict`
 - [ ] 11.2 Narrow tests per unit green; push; CI `ci-ok` and Sonar gate green; PR merged
 - [ ] 11.3 `/opsx:archive`; tick `ROADMAP.md`; worktrees and branches removed
