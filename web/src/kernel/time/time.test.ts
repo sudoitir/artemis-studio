@@ -13,18 +13,26 @@ async function fresh() {
 }
 
 /**
- * Drive the round trip. `syncServerTime` reads `performance.now()` once before the
- * request and once after, so a pair of values per probe is exactly one round trip.
+ * Drive the round trip. The monotonic clock stands still and moves on only when the server answers, by
+ * that probe's round trip, so `syncServerTime`'s before and after readings are exactly one round trip
+ * apart however many other callers (the mock server itself) read `performance.now()` in between.
  */
+let mono = 0;
+let roundTrips: number[] = [];
 function withRoundTrips(...rttsMs: number[]) {
-  const readings = rttsMs.flatMap((rtt) => [0, rtt]);
-  let i = 0;
-  vi.spyOn(performance, 'now').mockImplementation(() => readings[i++] ?? 0);
+  mono = 0;
+  roundTrips = rttsMs;
+  vi.spyOn(performance, 'now').mockImplementation(() => mono);
 }
 
-/** Serve a clock that is `aheadMs` ahead of the browser's. */
+/** Serve a clock that is `aheadMs` ahead of the browser's, answering after the next round trip. */
 function serverAheadBy(aheadMs: number) {
-  server.use(http.get('/api/v1/time', () => HttpResponse.json({ nowMs: Date.now() + aheadMs })));
+  server.use(
+    http.get('/api/v1/time', () => {
+      mono += roundTrips.shift() ?? 0;
+      return HttpResponse.json({ nowMs: Date.now() + aheadMs });
+    }),
+  );
 }
 
 describe('server time', () => {
