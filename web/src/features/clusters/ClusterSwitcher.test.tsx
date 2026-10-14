@@ -81,8 +81,10 @@ describe('ClusterSwitcher', () => {
     mockApi();
     renderAppAt('/clusters/c1/queues', [QUEUES]);
 
-    const trigger = await screen.findByRole('button', { name: /prod-emea/ });
-    expect(trigger).toHaveTextContent('Production');
+    // The clusters and the environments are two requests, answered in either order: the trigger shows the cluster
+    // as soon as the clusters arrive, and its environment once the environments do.
+    await waitFor(() => expect(screen.getByRole('button', { name: /prod-emea/ })).toHaveTextContent('Production'));
+    const trigger = screen.getByRole('button', { name: /prod-emea/ });
     expect(trigger).toHaveTextContent('Degraded');
     expect(trigger).toHaveTextContent('2 nodes');
   });
