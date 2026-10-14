@@ -22,7 +22,9 @@ class ChannelConfigValidatorTest {
 
     @Test
     void anEmailChannelWithoutRecipientsNamesTheField() {
-        assertThatThrownBy(() -> validator.validate("EMAIL", EMAIL.formatted("[]"), null, false))
+        String config = EMAIL.formatted("[]");
+
+        assertThatThrownBy(() -> validator.validate("EMAIL", config, null, false))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageStartingWith("to:");
     }

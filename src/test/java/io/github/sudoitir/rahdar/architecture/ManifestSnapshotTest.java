@@ -1,5 +1,7 @@
 package io.github.sudoitir.rahdar.architecture;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.sudoitir.rahdar.app.RahdarFeatures;
 import io.github.sudoitir.rahdar.kernel.plugin.FeatureDescriptor;
 import java.nio.charset.StandardCharsets;
@@ -38,5 +40,6 @@ class ManifestSnapshotTest {
         if (!pretty.equals(existing)) {
             Files.writeString(SNAPSHOT, pretty, StandardCharsets.UTF_8);
         }
+        assertThat(Files.readString(SNAPSHOT, StandardCharsets.UTF_8)).isEqualTo(pretty);
     }
 }

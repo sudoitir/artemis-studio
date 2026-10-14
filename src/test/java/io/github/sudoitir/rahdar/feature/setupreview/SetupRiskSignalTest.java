@@ -54,6 +54,6 @@ class SetupRiskSignalTest {
         assertThat(evaluation.universe())
                 .containsExactlyInAnyOrder("setup:OPEN:cluster", "setup:ACCEPTED:cluster", "setup:EXPIRED:cluster");
         assertThat(evaluation.active()).containsOnlyKeys("setup:OPEN:cluster", "setup:EXPIRED:cluster");
-        assertThat(evaluation.active().get("setup:OPEN:cluster")).isEqualTo(2.0);
+        assertThat(evaluation.active()).containsEntry("setup:OPEN:cluster", 2.0);
     }
 }

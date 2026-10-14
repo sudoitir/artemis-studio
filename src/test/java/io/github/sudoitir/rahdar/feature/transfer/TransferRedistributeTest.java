@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 class TransferRedistributeTest extends TransferTestSupport {
 
     @Test
-    void messagesChosenByIdOnOneNodeLandOnTheOtherNodesOwnQueue() throws Exception {
+    void messagesChosenByIdOnOneNodeLandOnTheOtherNodesOwnQueue() {
         List<Broker> pair = ArtemisBrokers.clusterPair();
         Broker node1 = pair.get(0);
         Broker node2 = pair.get(1);

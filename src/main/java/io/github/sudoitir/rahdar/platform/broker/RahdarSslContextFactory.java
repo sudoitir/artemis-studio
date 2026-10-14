@@ -2,6 +2,7 @@ package io.github.sudoitir.rahdar.platform.broker;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.net.ssl.SSLContext;
 import org.apache.activemq.artemis.core.remoting.impl.netty.TransportConstants;
 import org.apache.activemq.artemis.core.remoting.impl.ssl.DefaultSSLContextFactory;
@@ -29,14 +30,14 @@ public class RahdarSslContextFactory implements SSLContextFactory {
     /** Above Artemis's default (5) and its caching variant (10). */
     static final int PRIORITY = 100;
 
-    private static volatile SslBundles bundles;
+    private static final AtomicReference<SslBundles> BUNDLES = new AtomicReference<>();
     private static final Map<String, SSLContext> CONTEXTS = new ConcurrentHashMap<>();
 
     private final SSLContextFactory fallback = new DefaultSSLContextFactory();
 
     /** Point every Core connection at the application's bundles. Replaces any earlier holder and its contexts. */
     static void use(SslBundles sslBundles) {
-        bundles = sslBundles;
+        BUNDLES.set(sslBundles);
         CONTEXTS.clear();
     }
 
@@ -50,7 +51,7 @@ public class RahdarSslContextFactory implements SSLContextFactory {
     }
 
     static SSLContext contextFor(String bundleName) {
-        SslBundles current = bundles;
+        SslBundles current = BUNDLES.get();
         if (current == null) {
             throw new IllegalStateException("The Core connection names SSL bundle '" + bundleName
                     + "', but Rahdar's SSL bundles are not available yet.");

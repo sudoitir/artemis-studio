@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.feature.rr;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import io.github.sudoitir.rahdar.feature.rr.internal.persistence.RrExpectationEntity;
 import io.github.sudoitir.rahdar.feature.rr.internal.persistence.RrExpectationRepository;
@@ -74,7 +75,7 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
 
     @Test
     void unrelatedConsumerActivityIsIgnored() {
-        UUID clusterId = cluster();
+        cluster();
         // No expectation declared for "some.other.address" — must not be tracked.
         observer.accept(event(clusterId, "CONSUMER_CREATED", "some.other.address", "some.other.address", Map.of()));
 
@@ -84,7 +85,7 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
 
     @Test
     void responderDropOnAnUntracedAddressIsIgnored() {
-        UUID clusterId = cluster();
+        cluster();
         Instant t0 = Instant.now();
         correlator.accept(new Observation.RequestSeen(
                 clusterId, null, t0, "rr.request", "m1", "corr-1", null, 0L, null, Map.of()));
@@ -100,7 +101,7 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
 
     @Test
     void responderDropOnATracedAddressDropsTheFlow() {
-        UUID clusterId = cluster();
+        cluster();
         expectations.save(new RrExpectationEntity(clusterId, "rr.traced", List.of(), null, null, 10, false));
         Instant t0 = Instant.now();
         correlator.accept(new Observation.RequestSeen(
@@ -115,7 +116,7 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
 
     @Test
     void messageDeliveredOnAResolvedReplyAddressIsForwardedAsAReply() {
-        UUID clusterId = cluster();
+        cluster();
         expectations.save(
                 new RrExpectationEntity(clusterId, "rr.traced", List.of("rr.traced.reply"), null, null, 10, false));
         Instant t0 = Instant.now();
@@ -137,7 +138,7 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
 
     @Test
     void messageDeliveredOnAnUntracedAddressIsNotForwarded() {
-        UUID clusterId = cluster();
+        cluster();
         expectations.save(
                 new RrExpectationEntity(clusterId, "rr.traced", List.of("rr.traced.reply"), null, null, 10, false));
 
@@ -153,7 +154,7 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
 
     @Test
     void aGlobReplyPatternIsRecognisedWithoutTheAddressBeingScrapedYet() {
-        UUID clusterId = cluster();
+        cluster();
         expectations.save(
                 new RrExpectationEntity(clusterId, "rr.traced", List.of("rr.traced.reply.*"), null, null, 10, false));
 
@@ -167,7 +168,7 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
 
     @Test
     void messageDeliveredOnAKnownOpenTempQueueCompletesTheFlow() {
-        UUID clusterId = cluster();
+        cluster();
         Instant t0 = Instant.now();
         correlator.accept(new Observation.RequestSeen(
                 clusterId, null, t0, "rr.request", "m1", "corr-2", "temp-queue-xyz", 0L, null, Map.of()));
@@ -182,7 +183,7 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
 
     @Test
     void messageDeliveredOnAnUnrelatedAddressCreatesNoFlow() {
-        UUID clusterId = cluster();
+        cluster();
         observer.accept(event(
                 clusterId, "MESSAGE_DELIVERED", "unrelated.queue", "unrelated.queue", Map.of("_AMQ_Message_ID", "99")));
 
@@ -193,8 +194,10 @@ class RrNotificationObserverTest extends PostgresIntegrationTest {
 
     @Test
     void notificationsAboutTheNotificationAddressItselfAreIgnored() {
-        UUID clusterId = cluster();
-        observer.accept(event(clusterId, "CONSUMER_CREATED", "activemq.notifications", "some-uuid", Map.of()));
-        // No exception, no side effect — nothing to assert beyond "did not throw".
+        cluster();
+
+        assertThatCode(() -> observer.accept(
+                        event(clusterId, "CONSUMER_CREATED", "activemq.notifications", "some-uuid", Map.of())))
+                .doesNotThrowAnyException();
     }
 }

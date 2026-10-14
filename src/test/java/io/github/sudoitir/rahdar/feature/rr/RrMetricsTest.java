@@ -47,7 +47,7 @@ class RrMetricsTest extends PostgresIntegrationTest {
 
     @Test
     void coverageIsUnknownBeforeTheFirstBaselineReading() {
-        UUID clusterId = cluster();
+        cluster();
         Instant t0 = Instant.now();
         correlator.accept(new Observation.RequestSeen(
                 clusterId, null, t0, "rr.request", "m1", "corr-1", null, 0L, null, Map.of()));
@@ -68,7 +68,7 @@ class RrMetricsTest extends PostgresIntegrationTest {
 
     @Test
     void inFlightAndOldestInFlightAreReported() {
-        UUID clusterId = cluster();
+        cluster();
         Instant t0 = Instant.now().minusSeconds(10);
         correlator.accept(new Observation.RequestSeen(
                 clusterId, null, t0, "rr.pending", "m1", "corr-1", null, 0L, null, Map.of()));

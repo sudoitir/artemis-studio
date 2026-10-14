@@ -117,8 +117,7 @@ class DlqControllerTest extends PostgresIntegrationTest {
 
     @Test
     void listsTheDlaFromSettingsWithItsQueuesAndPerNodeDepth() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL)))
-                .thenReturn(client(SEARCH, fixture("address-settings.json")));
+        when(connections.forCluster(clusterId, URL)).thenReturn(client(SEARCH, fixture("address-settings.json")));
 
         mvc.perform(get("/api/v1/clusters/{c}/dlq", clusterId))
                 .andExpect(status().isOk())

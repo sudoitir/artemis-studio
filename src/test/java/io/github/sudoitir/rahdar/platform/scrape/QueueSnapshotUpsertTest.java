@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.platform.scrape;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import io.github.sudoitir.rahdar.platform.broker.QueueRow;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity;
@@ -10,6 +11,7 @@ import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterR
 import io.github.sudoitir.rahdar.platform.scrape.internal.persistence.QueueSnapshotEntity;
 import io.github.sudoitir.rahdar.platform.scrape.internal.persistence.QueueSnapshotRepository;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -79,9 +81,10 @@ class QueueSnapshotUpsertTest extends PostgresIntegrationTest {
         givenClusterAndNode();
 
         upsert.upsertBatch(List.of(row("OLD", 1)));
-        Thread.sleep(15);
+        Instant afterOld = Instant.now();
+        await().pollInterval(Duration.ofMillis(1)).until(() -> Instant.now().isAfter(afterOld));
         Instant sweepStart = Instant.now();
-        Thread.sleep(15);
+        await().pollInterval(Duration.ofMillis(1)).until(() -> Instant.now().isAfter(sweepStart));
         upsert.upsertBatch(List.of(row("FRESH", 2)));
 
         int reaped = upsert.reapStale(nodeId, sweepStart);

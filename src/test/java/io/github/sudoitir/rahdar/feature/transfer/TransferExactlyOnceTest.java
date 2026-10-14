@@ -27,7 +27,7 @@ class TransferExactlyOnceTest extends TransferTestSupport {
     }
 
     @Test
-    void aCopyByFilterLeavesTheSourceAndAResumeAfterAFaultStillCopiesEachMessageOnce() throws Exception {
+    void aCopyByFilterLeavesTheSourceAndAResumeAfterAFaultStillCopiesEachMessageOnce() {
         String src = queue(p, "copy.src");
         String dst = queue(d, "copy.dst");
         p.produce(src, 60, (session, i) -> {
@@ -55,7 +55,7 @@ class TransferExactlyOnceTest extends TransferTestSupport {
     }
 
     @Test
-    void aMoveInterruptedBetweenTheTwoCommitsDeliversEachMessageOnceWhenResumed() throws Exception {
+    void aMoveInterruptedBetweenTheTwoCommitsDeliversEachMessageOnceWhenResumed() {
         String src = queue(p, "crash.src");
         String dst = queue(d, "crash.dst");
         p.produce(src, 35);

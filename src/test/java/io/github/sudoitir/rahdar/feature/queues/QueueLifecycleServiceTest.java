@@ -726,11 +726,9 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
                 .thenReturn(
                         new JolokiaResponse(404, null, "No MBean", "javax.management.InstanceNotFoundException", null));
 
-        assertThatThrownBy(() -> lifecycle.updateQueue(
-                        clusterId,
-                        "ghost",
-                        new LifecycleRequests.UpdateQueueRequest(null, 1, null, null, null, null),
-                        false))
+        var update = new LifecycleRequests.UpdateQueueRequest(null, 1, null, null, null, null);
+
+        assertThatThrownBy(() -> lifecycle.updateQueue(clusterId, "ghost", update, false))
                 .isInstanceOf(NotFoundException.class);
     }
 

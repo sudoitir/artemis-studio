@@ -80,8 +80,8 @@ class IdentitySchemaIntegrationTest extends PostgresIntegrationTest {
         String name = "Case-" + UUID.randomUUID();
         AppUserEntity first = users.saveAndFlush(AppUserEntity.local(name, null, "{noop}x"));
         assertThat(users.existsByUsernameIgnoreCase(name.toLowerCase())).isTrue();
-        Assertions.assertThatThrownBy(
-                        () -> users.saveAndFlush(AppUserEntity.local(name.toUpperCase(), null, "{noop}x")))
+        AppUserEntity duplicate = AppUserEntity.local(name.toUpperCase(), null, "{noop}x");
+        Assertions.assertThatThrownBy(() -> users.saveAndFlush(duplicate))
                 .isInstanceOf(DataIntegrityViolationException.class);
         users.delete(first);
     }

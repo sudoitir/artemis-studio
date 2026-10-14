@@ -215,10 +215,13 @@ class AccessGatingIntegrationTest extends GatedAccessTestBase {
         setUp();
         arm();
 
-        assertThatThrownBy(() -> userService.disable(UUID.randomUUID())).isInstanceOf(NotFoundException.class);
-        assertThatThrownBy(() -> userService.resetSecondFactors(alice.id())).isInstanceOf(ConflictException.class);
+        UUID unknownUser = UUID.randomUUID();
+        UUID aliceId = alice.id();
+
+        assertThatThrownBy(() -> userService.disable(unknownUser)).isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> userService.resetSecondFactors(aliceId)).isInstanceOf(ConflictException.class);
         assertThat(jdbc.queryForObject(
-                        "SELECT count(*) FROM held_operation WHERE requester_id = ?", Long.class, alice.id()))
+                        "SELECT count(*) FROM held_operation WHERE requester_id = ?", Long.class, aliceId))
                 .isZero();
     }
 
@@ -470,7 +473,9 @@ class AccessGatingIntegrationTest extends GatedAccessTestBase {
         arm();
         provider.decide = request -> new GateDecision.Deny("Not today");
 
-        assertThatThrownBy(() -> userService.disable(user.getId())).isInstanceOf(OperationDeniedException.class);
-        assertThat(disabled(user.getId())).isFalse();
+        UUID userId = user.getId();
+
+        assertThatThrownBy(() -> userService.disable(userId)).isInstanceOf(OperationDeniedException.class);
+        assertThat(disabled(userId)).isFalse();
     }
 }

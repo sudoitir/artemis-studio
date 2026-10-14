@@ -134,9 +134,9 @@ class ClusterResourceControllerTest extends PostgresIntegrationTest {
 
     @Test
     void consumersFansOutLiveAndTagsEachRowWithItsNode() throws Exception {
-        when(connections.forCluster(eq(clusterId), eq(URL_A)))
+        when(connections.forCluster(clusterId, URL_A))
                 .thenReturn(client(URL_A, "search-broker.json", "list-consumers.json"));
-        when(connections.forCluster(eq(clusterId), eq(URL_B)))
+        when(connections.forCluster(clusterId, URL_B))
                 .thenReturn(client(URL_B, "search-broker.json", "list-consumers.json"));
 
         mvc.perform(get("/api/v1/clusters/{id}/consumers", clusterId))

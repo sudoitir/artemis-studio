@@ -3,7 +3,6 @@ package io.github.sudoitir.rahdar.platform.governance;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -20,7 +19,7 @@ class GovernanceAuditParamsFilterTest {
     @BeforeEach
     void classifyCustomerEmail() {
         when(policy.classifies(any(), anyString())).thenReturn(false);
-        when(policy.classifies(eq(Location.PROPERTY), eq("customerEmail"))).thenReturn(true);
+        when(policy.classifies(Location.PROPERTY, "customerEmail")).thenReturn(true);
         when(policy.governText(anyString())).thenAnswer(call -> call.getArgument(0));
     }
 
@@ -44,12 +43,12 @@ class GovernanceAuditParamsFilterTest {
 
     @Test
     void nestedParametersAreWalkedAndKeysKept() {
-        Map<String, ?> out = filter.filter(
+        Map<String, Object> out = filter.filter(
                 Map.of("filter", "customerEmail <> 'x'", "ids", List.of("customerEmail = 'y'"), "count", 3));
 
         assertThat(out.keySet()).containsExactlyInAnyOrder("filter", "ids", "count");
-        assertThat(out.get("filter")).isEqualTo("customerEmail <> '[redacted]'");
-        assertThat(out.get("ids")).isEqualTo(List.of("customerEmail = '[redacted]'"));
-        assertThat(out.get("count")).isEqualTo(3);
+        assertThat(out).containsEntry("filter", "customerEmail <> '[redacted]'");
+        assertThat(out).containsEntry("ids", List.of("customerEmail = '[redacted]'"));
+        assertThat(out).containsEntry("count", 3);
     }
 }

@@ -60,10 +60,7 @@ class CoreEventClientTest extends ArtemisIntegrationTest {
             Topic notifications = listenerSession.createTopic(NOTIF_ADDRESS);
             MessageConsumer notifConsumer = listenerSession.createConsumer(notifications);
 
-            Thread provoker = new Thread(() -> quietly(() -> {
-                TimeUnit.MILLISECONDS.sleep(1_500);
-                provoke(factory);
-            }));
+            Thread provoker = new Thread(() -> quietly(() -> provoke(factory)));
             provoker.setDaemon(true);
             provoker.start();
 
@@ -140,7 +137,7 @@ class CoreEventClientTest extends ArtemisIntegrationTest {
     private static void closeQuietly(AutoCloseable c) {
         try {
             c.close();
-        } catch (Exception ignored) {
+        } catch (Exception _) {
             // teardown
         }
     }

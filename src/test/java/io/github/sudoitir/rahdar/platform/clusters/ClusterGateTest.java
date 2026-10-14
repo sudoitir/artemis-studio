@@ -231,8 +231,9 @@ class ClusterGateTest extends PostgresIntegrationTest {
         allows();
         environmentService.delete(env.id());
 
-        assertThatThrownBy(() -> environmentDeleteOperation.estimate(new EnvironmentDeleteParams(env.id())))
-                .isInstanceOf(NotFoundException.class);
+        var params = new EnvironmentDeleteParams(env.id());
+
+        assertThatThrownBy(() -> environmentDeleteOperation.estimate(params)).isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -291,8 +292,9 @@ class ClusterGateTest extends PostgresIntegrationTest {
     void aClusterDeletedAfterTheRequestCannotBeEstimatedSoItIsRefusedWhenItWouldRun() {
         clusters.deleteById(clusterId);
 
-        assertThatThrownBy(() -> clusterDeleteOperation.estimate(new ClusterDeleteParams(clusterId)))
-                .isInstanceOf(NotFoundException.class);
+        var params = new ClusterDeleteParams(clusterId);
+
+        assertThatThrownBy(() -> clusterDeleteOperation.estimate(params)).isInstanceOf(NotFoundException.class);
         clusterId = clusters.save(new ClusterEntity("c-" + UUID.randomUUID(), null, null))
                 .getId();
     }

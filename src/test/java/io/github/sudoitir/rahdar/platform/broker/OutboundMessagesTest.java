@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.platform.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatObject;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -42,9 +43,8 @@ class OutboundMessagesTest {
                 source(Message.TEXT_TYPE, b -> TextMessageUtil.writeBodyText(b, SimpleString.of("hello")));
         try (Outbound out = OutboundMessages.from(source, COPY)) {
             assertSameBody(source, out.message());
-            assertThat(TextMessageUtil.readBodyText(out.message().getReadOnlyBodyBuffer())
-                            .toString())
-                    .isEqualTo("hello");
+            assertThatObject(TextMessageUtil.readBodyText(out.message().getReadOnlyBodyBuffer()))
+                    .hasToString("hello");
         }
     }
 

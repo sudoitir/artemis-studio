@@ -52,7 +52,7 @@ class RequestReplyServiceTest extends PostgresIntegrationTest {
 
     @Test
     void createIsAuditedAndEnabledByDefault() {
-        UUID clusterId = cluster();
+        cluster();
         ExpectationView created = service.create(
                 clusterId, new CreateExpectationRequest("rr.request", List.of("rr.reply"), null, 30_000, 10, false));
 
@@ -68,12 +68,12 @@ class RequestReplyServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aSecondExpectationForTheSameAddressConflictsRatherThanBreakingTheTransaction() {
-        UUID clusterId = cluster();
+        cluster();
         service.create(clusterId, new CreateExpectationRequest("rr.request", null, null, null, 10, false));
 
-        assertThatThrownBy(() -> service.create(
-                        clusterId,
-                        new CreateExpectationRequest("rr.request", List.of("rr.other"), null, null, 10, false)))
+        var duplicate = new CreateExpectationRequest("rr.request", List.of("rr.other"), null, null, 10, false);
+
+        assertThatThrownBy(() -> service.create(clusterId, duplicate))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("rr.request")
                 .extracting(e -> ((ConflictException) e).slug())
@@ -86,7 +86,7 @@ class RequestReplyServiceTest extends PostgresIntegrationTest {
 
     @Test
     void disablingRetainsConfiguration() {
-        UUID clusterId = cluster();
+        cluster();
         ExpectationView created =
                 service.create(clusterId, new CreateExpectationRequest("rr.request", null, null, null, 5, true));
 
@@ -113,7 +113,7 @@ class RequestReplyServiceTest extends PostgresIntegrationTest {
 
     @Test
     void replyAddressesRoundTripWithBlanksAndDuplicatesRemoved() {
-        UUID clusterId = cluster();
+        cluster();
         ExpectationView created = service.create(
                 clusterId,
                 new CreateExpectationRequest(
@@ -134,7 +134,7 @@ class RequestReplyServiceTest extends PostgresIntegrationTest {
 
     @Test
     void anEmptyReplyAddressSetIsStoredRatherThanRejected() {
-        UUID clusterId = cluster();
+        cluster();
         // An empty set is the temporary-reply-queue pattern (design.md D3), not an omission.
         ExpectationView created =
                 service.create(clusterId, new CreateExpectationRequest("rr.temp", List.of(), null, null, 10, false));
@@ -146,15 +146,15 @@ class RequestReplyServiceTest extends PostgresIntegrationTest {
 
     @Test
     void deleteRemovesTheExpectation() {
-        UUID clusterId = cluster();
+        cluster();
         ExpectationView created =
                 service.create(clusterId, new CreateExpectationRequest("rr.request", null, null, null, 10, false));
 
         service.delete(clusterId, created.id());
 
         assertThat(service.list(clusterId)).isEmpty();
-        assertThatThrownBy(() -> service.update(
-                        clusterId, created.id(), new UpdateExpectationRequest(null, null, null, 10, false, true)))
-                .isInstanceOf(NotFoundException.class);
+        UUID createdId = created.id();
+        var update = new UpdateExpectationRequest(null, null, null, 10, false, true);
+        assertThatThrownBy(() -> service.update(clusterId, createdId, update)).isInstanceOf(NotFoundException.class);
     }
 }

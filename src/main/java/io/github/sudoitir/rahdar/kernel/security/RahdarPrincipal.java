@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.kernel.security;
 import io.github.sudoitir.rahdar.kernel.plugin.PluginApi;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
@@ -99,5 +100,16 @@ public class RahdarPrincipal extends User {
 
     public boolean mustChangePassword() {
         return mustChangePassword;
+    }
+
+    /** Two principals are the same when they are the same user: the superclass's username, and the user id. */
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof RahdarPrincipal that && super.equals(that) && Objects.equals(userId, that.userId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), userId);
     }
 }

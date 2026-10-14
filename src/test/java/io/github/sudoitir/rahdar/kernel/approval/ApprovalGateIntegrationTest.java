@@ -766,8 +766,10 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
                 .when(sessions)
                 .current();
 
-        assertThatThrownBy(() ->
-                        approvals.decide(id, Vote.APPROVE, null, detail.view().paramsHash(), detail.version()))
+        String paramsHash = detail.view().paramsHash();
+        int version = detail.version();
+
+        assertThatThrownBy(() -> approvals.decide(id, Vote.APPROVE, null, paramsHash, version))
                 .isInstanceOf(ReauthenticationRequiredException.class);
 
         assertThat(stateOf(id)).isEqualTo(HeldState.HELD);

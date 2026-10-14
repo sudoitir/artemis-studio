@@ -31,7 +31,7 @@ class WebhookSignerTest {
     }
 
     @Test
-    void signatureAcceptsAnUnprefixedBase64Secret() throws Exception {
+    void signatureAcceptsAnUnprefixedBase64Secret() {
         String bareSecret = SECRET.substring("whsec_".length());
         String signature = WebhookSigner.sign(ID, TIMESTAMP, BODY, bareSecret);
 

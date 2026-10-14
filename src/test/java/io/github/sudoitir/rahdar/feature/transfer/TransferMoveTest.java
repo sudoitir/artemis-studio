@@ -9,18 +9,21 @@ import jakarta.jms.JMSException;
 import jakarta.jms.Message;
 import jakarta.jms.MessageProducer;
 import jakarta.jms.Session;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 import java.util.stream.IntStream;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 
 /** A move from a queue on one cluster to a queue on another, by ids, by filter and whole (5.2), frozen at t0 (5.9). */
 class TransferMoveTest extends TransferTestSupport {
 
     @Test
-    void aMoveByIdsTakesExactlyThoseMessagesAndRemovesItsStagingQueue() throws Exception {
+    void aMoveByIdsTakesExactlyThoseMessagesAndRemovesItsStagingQueue() {
         String src = queue(p, "move.ids.src");
         String dst = queue(d, "move.ids.dst");
         p.produce(src, 12);
@@ -40,7 +43,7 @@ class TransferMoveTest extends TransferTestSupport {
     }
 
     @Test
-    void aMoveByFilterTakesOnlyTheMatchingMessages() throws Exception {
+    void aMoveByFilterTakesOnlyTheMatchingMessages() {
         String src = queue(p, "move.filter.src");
         String dst = queue(d, "move.filter.dst");
         p.produce(src, 30, (session, i) -> {
@@ -64,7 +67,7 @@ class TransferMoveTest extends TransferTestSupport {
     }
 
     @Test
-    void aWholeQueueMoveEmptiesTheSourceInOrder() throws Exception {
+    void aWholeQueueMoveEmptiesTheSourceInOrder() {
         String src = queue(p, "move.all.src");
         String dst = queue(d, "move.all.dst");
         p.produce(src, 45);
@@ -91,9 +94,7 @@ class TransferMoveTest extends TransferTestSupport {
         AtomicInteger sent = new AtomicInteger();
         Thread producer = Thread.ofVirtual().start(() -> keepSending(src, producing, sent));
         try {
-            while (sent.get() < 5) {
-                Thread.sleep(10);
-            }
+            Awaitility.await().atMost(Duration.ofSeconds(10)).until(() -> sent.get() >= 5);
             TransferRunView preview = preview(TransferMode.MOVE, src, all(), dst);
             TransferRunView run = awaitEnded(execute(preview));
             producing.set(false);
@@ -123,9 +124,9 @@ class TransferMoveTest extends TransferTestSupport {
             while (producing.get()) {
                 producer.send(session.createTextMessage("live-" + sent.get()));
                 sent.incrementAndGet();
-                Thread.sleep(5);
+                LockSupport.parkNanos(Duration.ofMillis(5).toNanos());
             }
-        } catch (JMSException | InterruptedException e) {
+        } catch (JMSException e) {
             throw new IllegalStateException(e);
         }
     }

@@ -56,15 +56,20 @@ class QueueLifecycleOperationsTest {
 
     @Test
     void aQueueNamesReadThatFailsIsNotTakenAsAbsence() {
-        assertThatThrownBy(() -> read(failed("java.lang.SecurityException", "denied"), ok("ConsumerCount", 0)))
+        JolokiaResponse names = failed("java.lang.SecurityException", "denied");
+        JolokiaResponse consumers = ok("ConsumerCount", 0);
+
+        assertThatThrownBy(() -> read(names, consumers))
                 .isInstanceOf(BrokerConnectionException.class)
                 .hasMessageContaining("QueueNames");
     }
 
     @Test
     void aConsumerCountReadThatFailsIsNotTakenAsZero() {
-        assertThatThrownBy(() ->
-                        read(ok("QueueNames", List.of("orders")), failed("java.lang.RuntimeException", "timeout")))
+        JolokiaResponse names = ok("QueueNames", List.of("orders"));
+        JolokiaResponse consumers = failed("java.lang.RuntimeException", "timeout");
+
+        assertThatThrownBy(() -> read(names, consumers))
                 .isInstanceOf(BrokerConnectionException.class)
                 .hasMessageContaining("ConsumerCount");
     }
