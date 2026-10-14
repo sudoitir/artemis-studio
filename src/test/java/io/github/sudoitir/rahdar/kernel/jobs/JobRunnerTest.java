@@ -6,6 +6,7 @@ import static org.awaitility.Awaitility.await;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import io.github.sudoitir.rahdar.kernel.replica.ReplicaSignal;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.micrometer.observation.ObservationRegistry;
 import java.time.Duration;
@@ -332,5 +333,43 @@ class JobRunnerTest {
 
         assertThat(runs.get()).isLessThanOrEqualTo(after + 1);
         assertThat(statuses.all()).isEmpty();
+    }
+
+    @Test
+    void aScheduleMovedSoonerTakesEffectWhenTheSettingChangesNotAfterTheOldRun() {
+        AtomicReference<String> cron = new AtomicReference<>("0 0 3 * * *");
+        AtomicInteger runs = new AtomicInteger();
+        runner.schedule(
+                ScheduledJob.cron("moved", "test", ScheduledJob.Scope.INSTANCE, cron::get, runs::incrementAndGet));
+        Instant planned = status("moved").nextRun();
+
+        cron.set("* * * * * *");
+        runner.onSettingsChanged(new ReplicaSignal("settings", ""));
+
+        assertThat(status("moved").nextRun()).isBefore(planned);
+        await().atMost(LONG).until(() -> runs.get() >= 1);
+    }
+
+    @Test
+    void anUnrelatedSettingChangeDoesNotPostponeAJobThatHasNotRunYet() {
+        runner.schedule(every("waiting", Duration.ofHours(1), ScheduledJob.Scope.INSTANCE, () -> {}));
+        Instant planned = status("waiting").nextRun();
+
+        runner.onSettingsChanged(new ReplicaSignal("settings", ""));
+
+        assertThat(status("waiting").nextRun()).isEqualTo(planned);
+    }
+
+    @Test
+    void aScheduleMadeUnreadableBySettingChangesKeepsItsPlannedRunUntilThatRunReportsIt() {
+        AtomicReference<String> cron = new AtomicReference<>("0 0 3 * * *");
+        runner.schedule(ScheduledJob.cron("broken", "test", ScheduledJob.Scope.INSTANCE, cron::get, () -> {}));
+        Instant planned = status("broken").nextRun();
+
+        cron.set("not a schedule");
+        runner.onSettingsChanged(new ReplicaSignal("settings", ""));
+
+        assertThat(status("broken").nextRun()).isEqualTo(planned);
+        assertThat(status("broken").invalidSchedule()).isNull();
     }
 }
