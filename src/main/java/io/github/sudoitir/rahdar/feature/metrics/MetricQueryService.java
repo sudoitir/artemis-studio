@@ -282,7 +282,7 @@ public class MetricQueryService {
     }
 
     private MetricSeries buildSeries(
-            java.util.UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
+            UUID clusterId, String metric, String subjectName, Instant from, Instant to, Duration step) {
         boolean isGauge = GAUGE_METRICS.contains(metric);
         List<Bucket> buckets = isGauge
                 ? repository.gaugeSeries(clusterId, metric, subjectName, from, to, step)

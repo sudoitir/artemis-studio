@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.platform.broker;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -39,7 +40,7 @@ public final class SendNames {
 
     private static void validateProperty(String name) {
         if (!isIdentifier(name)
-                || SELECTOR_KEYWORDS.contains(name.toUpperCase(java.util.Locale.ROOT))
+                || SELECTOR_KEYWORDS.contains(name.toUpperCase(Locale.ROOT))
                 || (name.startsWith("JMS") && !SETTABLE_JMS.contains(name))) {
             throw new IllegalArgumentException("Invalid property name '" + name
                     + "'. A property name must be a Java identifier (letters, digits, '_' or '$', not starting"

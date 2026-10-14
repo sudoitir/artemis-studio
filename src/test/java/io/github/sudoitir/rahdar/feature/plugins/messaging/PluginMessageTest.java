@@ -2,6 +2,7 @@ package io.github.sudoitir.rahdar.feature.plugins.messaging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -17,9 +18,7 @@ class PluginMessageTest {
 
     @Test
     void bodyTextDecodesUtf8() {
-        assertThat(message("héllo".getBytes(java.nio.charset.StandardCharsets.UTF_8))
-                        .bodyText())
-                .isEqualTo("héllo");
+        assertThat(message("héllo".getBytes(StandardCharsets.UTF_8)).bodyText()).isEqualTo("héllo");
     }
 
     @Test
@@ -59,8 +58,7 @@ class PluginMessageTest {
 
     @Test
     void toStringReportsBodyLengthNeverContent() {
-        assertThat(message("secret".getBytes(java.nio.charset.StandardCharsets.UTF_8))
-                        .toString())
+        assertThat(message("secret".getBytes(StandardCharsets.UTF_8)).toString())
                 .contains("body=6 bytes")
                 .doesNotContain("secret");
         assertThat(message(null).toString()).contains("body=null");

@@ -10,6 +10,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.net.HttpCookie;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 
 /**
  * Event-stream subscribers that stop reading. Gatling's own client always drains the socket, so these are plain
@@ -18,7 +22,7 @@ import java.util.stream.Collectors;
  */
 final class StalledStreams {
 
-    private static final List<java.net.Socket> SOCKETS = new ArrayList<>();
+    private static final List<Socket> SOCKETS = new ArrayList<>();
     private static int opened;
     private static long unreadBytes;
 
@@ -30,9 +34,9 @@ final class StalledStreams {
             Login user = users.get(i % users.size());
             String cluster = clusterIds.get(i % clusterIds.size());
             String cookie = signIn(base, user);
-            var socket = new java.net.Socket();
+            var socket = new Socket();
             socket.setReceiveBufferSize(1024);
-            socket.connect(new java.net.InetSocketAddress(base.getHost(), base.getPort()), 5000);
+            socket.connect(new InetSocketAddress(base.getHost(), base.getPort()), 5000);
             String request = "GET /api/v1/stream?clusterId=" + cluster + "&topics=topology,health,queues,events HTTP/1.1\r\n"
                     + "Host: " + base.getHost() + ":" + base.getPort() + "\r\n"
                     + "Accept: text/event-stream\r\nCookie: " + cookie + "\r\n\r\n";
@@ -68,7 +72,7 @@ final class StalledStreams {
                 if (read < 0) {
                     closed++;
                 }
-            } catch (java.net.SocketTimeoutException stillOpen) {
+            } catch (SocketTimeoutException stillOpen) {
                 // not closed
             } catch (IOException reset) {
                 closed++;
@@ -113,7 +117,7 @@ final class StalledStreams {
     private static String cookieValue(CookieManager cookies, String name) {
         return cookies.getCookieStore().getCookies().stream()
                 .filter(c -> c.getName().equals(name))
-                .map(java.net.HttpCookie::getValue)
+                .map(HttpCookie::getValue)
                 .findFirst()
                 .orElseThrow();
     }

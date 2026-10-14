@@ -10,12 +10,14 @@ import io.github.sudoitir.rahdar.feature.queues.BridgeRow;
 import io.github.sudoitir.rahdar.feature.queues.DivertOperations;
 import io.github.sudoitir.rahdar.feature.queues.DivertRow;
 import io.github.sudoitir.rahdar.feature.queues.QueueLifecycleOperations;
+import io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.rahdar.platform.broker.BrokerMBeans;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaRequest;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaResponse;
 import io.github.sudoitir.rahdar.platform.broker.ManagementRefusal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -623,14 +625,14 @@ public class BrokerConfigOperations {
             }
         }
         Map<PermissionType, Set<String>> frozen = new EnumMap<>(PermissionType.class);
-        out.forEach((t, s) -> frozen.put(t, java.util.Collections.unmodifiableSortedSet((TreeSet<String>) s)));
+        out.forEach((t, s) -> frozen.put(t, Collections.unmodifiableSortedSet((TreeSet<String>) s)));
         return frozen;
     }
 
     private static void requireCount(List<JolokiaResponse> responses, List<JolokiaRequest> requests) {
         if (responses.size() != requests.size()) {
-            throw new io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException(
-                    io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException.Kind.BAD_RESPONSE,
+            throw new BrokerConnectionException(
+                    BrokerConnectionException.Kind.BAD_RESPONSE,
                     "The node answered " + responses.size() + " of " + requests.size() + " batched requests.");
         }
     }

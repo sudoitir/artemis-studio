@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -254,7 +255,7 @@ class DivertLifecycleRealBrokerTest extends PostgresIntegrationTest {
         mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"name":"rahdar.capture.x","address":"A","forwardingAddress":"B"}"""))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("reserved")));
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("reserved")));
     }
 
     @Test

@@ -15,6 +15,7 @@ import io.github.sudoitir.rahdar.kernel.security.ClusterAccessGuard.Requirement;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.context.ApplicationEventPublisher;
 
 /**
@@ -248,6 +249,6 @@ class ClusterAccessGuardTest {
 
         guard.requireResource(cluster, ORDERS, "queue:purge");
 
-        verify(events, never()).publishEvent(org.mockito.ArgumentMatchers.any(AccessRefused.class));
+        verify(events, never()).publishEvent(ArgumentMatchers.any(AccessRefused.class));
     }
 }

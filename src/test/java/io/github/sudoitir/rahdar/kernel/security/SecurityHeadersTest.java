@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -68,8 +69,7 @@ class SecurityHeadersTest extends PostgresIntegrationTest {
                 .andExpect(
                         header().string("Content-Type", Matchers.startsWith(MediaType.APPLICATION_PROBLEM_JSON_VALUE)))
                 .andExpect(header().string("X-Content-Type-Options", "nosniff"))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string(Matchers.not(Matchers.containsString("<script>"))));
+                .andExpect(MockMvcResultMatchers.content().string(Matchers.not(Matchers.containsString("<script>"))));
         mvc.perform(get("/api/v1/<script>alert(1)</script>"))
                 .andExpect(header().string("Content-Type", Matchers.not(Matchers.containsStringIgnoringCase("html"))));
     }

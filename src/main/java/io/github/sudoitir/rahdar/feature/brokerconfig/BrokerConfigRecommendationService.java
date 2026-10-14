@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -94,9 +95,7 @@ public class BrokerConfigRecommendationService {
                 BrokerConfigRecommendations.merge(base, selected),
                 current.map(BrokerConfigService.CurrentRevision::revision).orElse(null),
                 "Recommended configuration from the capability probe: "
-                        + selected.stream()
-                                .map(Recommendation::title)
-                                .collect(java.util.stream.Collectors.joining("; ")),
+                        + selected.stream().map(Recommendation::title).collect(Collectors.joining("; ")),
                 BrokerConfigService.Source.RECOMMENDED,
                 null);
     }
@@ -106,8 +105,8 @@ public class BrokerConfigRecommendationService {
         if (chosen == null || r.section() != BrokerConfigRecommendations.Section.SECURITY_SETTING) {
             return r;
         }
-        Map<io.github.sudoitir.rahdar.feature.brokerconfig.PermissionType, Set<String>> roles =
-                r.roles().keySet().stream().collect(java.util.stream.Collectors.toMap(t -> t, t -> Set.copyOf(chosen)));
+        Map<PermissionType, Set<String>> roles =
+                r.roles().keySet().stream().collect(Collectors.toMap(t -> t, t -> Set.copyOf(chosen)));
         return new Recommendation(
                 r.capability(),
                 r.title(),

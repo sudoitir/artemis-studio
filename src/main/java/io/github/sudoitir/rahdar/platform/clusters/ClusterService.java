@@ -10,6 +10,7 @@ import io.github.sudoitir.rahdar.kernel.gate.Operation;
 import io.github.sudoitir.rahdar.kernel.gate.OperationGate;
 import io.github.sudoitir.rahdar.kernel.replica.RahdarBus;
 import io.github.sudoitir.rahdar.kernel.replica.ReplicaSignal;
+import io.github.sudoitir.rahdar.kernel.security.ActorResolver;
 import io.github.sudoitir.rahdar.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.rahdar.kernel.security.PermissionResolver;
 import io.github.sudoitir.rahdar.kernel.security.Permissions;
@@ -69,6 +70,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -136,7 +138,7 @@ public class ClusterService {
     private final SecretVault vault;
     private final AuditService audit;
     private final ApplicationEventPublisher eventPublisher;
-    private final io.github.sudoitir.rahdar.kernel.security.ActorResolver actorResolver;
+    private final ActorResolver actorResolver;
     private final ClusterEnvironmentIndex environmentIndex;
     private final ClusterAccessGuard clusterAccess;
     private final TransactionTemplate transactions;
@@ -1209,7 +1211,7 @@ public class ClusterService {
             URI uri = URI.create(url);
             int defaultPort = "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
             int port = uri.getPort() > 0 ? uri.getPort() : defaultPort;
-            return String.valueOf(uri.getHost()).toLowerCase(java.util.Locale.ROOT) + ":" + port;
+            return String.valueOf(uri.getHost()).toLowerCase(Locale.ROOT) + ":" + port;
         } catch (IllegalArgumentException _) {
             return url;
         }

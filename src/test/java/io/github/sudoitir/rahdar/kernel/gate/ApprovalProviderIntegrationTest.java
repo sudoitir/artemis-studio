@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -182,7 +183,7 @@ class ApprovalProviderIntegrationTest extends PostgresIntegrationTest {
             jdbc.update("UPDATE plugin_install SET status = ? WHERE id = ?", status.dbValue(), id);
             assertThat(providers.armedProviderId())
                     .as(status.name())
-                    .isEqualTo(status.desiredActive() ? java.util.Optional.of(id) : java.util.Optional.empty());
+                    .isEqualTo(status.desiredActive() ? Optional.of(id) : Optional.empty());
         }
         assertThat(PluginInstallStatus.DISABLED.desiredActive()).isFalse();
         assertThat(PluginInstallStatus.UNINSTALLED.desiredActive()).isFalse();

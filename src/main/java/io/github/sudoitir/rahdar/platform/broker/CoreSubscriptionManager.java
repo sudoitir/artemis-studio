@@ -2,6 +2,7 @@ package io.github.sudoitir.rahdar.platform.broker;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -156,7 +157,7 @@ public class CoreSubscriptionManager {
 
     /** Each subscribed node's state: connected since when, or its latest failure. Opens nothing. */
     public Map<UUID, CoreEventClient.State> nodeStates() {
-        Map<UUID, CoreEventClient.State> states = new java.util.HashMap<>(lastFailure);
+        Map<UUID, CoreEventClient.State> states = new HashMap<>(lastFailure);
         active.forEach((nodeId, client) -> states.put(nodeId, client.state()));
         return states;
     }

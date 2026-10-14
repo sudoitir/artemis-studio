@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -206,7 +207,7 @@ public class GatedOperationRegistry implements PluginBridge, SmartInitializingSi
             });
         }
 
-        private <T> T inPlugin(java.util.concurrent.Callable<T> call) {
+        private <T> T inPlugin(Callable<T> call) {
             return ApprovalProviderRegistry.inPlugin(handle, call);
         }
     }

@@ -18,6 +18,7 @@ import io.github.sudoitir.rahdar.kernel.security.internal.persistence.RoleReposi
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.rahdar.support.McpFixture;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.lang.management.ManagementFactory;
 import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.time.Duration;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import javax.management.ObjectName;
 import org.awaitility.core.ConditionTimeoutException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -179,9 +181,9 @@ class PluginUnloadIntegrationTest extends PostgresIntegrationTest {
                         return loader.get() == null;
                     });
         } catch (ConditionTimeoutException _) {
-            java.lang.management.ManagementFactory.getPlatformMBeanServer()
+            ManagementFactory.getPlatformMBeanServer()
                     .invoke(
-                            new javax.management.ObjectName("com.sun.management:type=HotSpotDiagnostic"),
+                            new ObjectName("com.sun.management:type=HotSpotDiagnostic"),
                             "dumpHeap",
                             new Object[] {"target/plugin-unload.hprof", true},
                             new String[] {"java.lang.String", "boolean"});

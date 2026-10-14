@@ -12,12 +12,16 @@ import io.github.sudoitir.rahdar.feature.alerting.internal.persistence.Notificat
 import io.github.sudoitir.rahdar.kernel.security.SecretVault;
 import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -56,7 +60,7 @@ class AlertDispatcherTest {
         when(settings.duration(AlertingSettings.MAX_BACKOFF)).thenReturn(Duration.ofMinutes(1));
         dispatcher = new AlertDispatcher(deliveries, channels, List.of(slackSender), vault, settings);
         channel = new NotificationChannelEntity("ops-slack", "SLACK", "{}", new byte[] {1});
-        when(channels.findById(channelId)).thenReturn(java.util.Optional.of(channel));
+        when(channels.findById(channelId)).thenReturn(Optional.of(channel));
         when(vault.open(any(), any())).thenReturn("https://hooks.slack.com/services/x");
     }
 
@@ -73,8 +77,8 @@ class AlertDispatcherTest {
 
         dispatcher.dispatch();
 
-        var captor = org.mockito.ArgumentCaptor.forClass(AlertDeliveryEntity.class);
-        org.mockito.Mockito.verify(deliveries).save(captor.capture());
+        var captor = ArgumentCaptor.forClass(AlertDeliveryEntity.class);
+        Mockito.verify(deliveries).save(captor.capture());
         assertThat(captor.getValue().getState()).isEqualTo("PENDING");
         assertThat(captor.getValue().getAttempts()).isEqualTo(1);
         assertThat(captor.getValue().getNextAttemptAt())
@@ -88,8 +92,8 @@ class AlertDispatcherTest {
 
         dispatcher.dispatch();
 
-        var captor = org.mockito.ArgumentCaptor.forClass(AlertDeliveryEntity.class);
-        org.mockito.Mockito.verify(deliveries).save(captor.capture());
+        var captor = ArgumentCaptor.forClass(AlertDeliveryEntity.class);
+        Mockito.verify(deliveries).save(captor.capture());
         assertThat(captor.getValue().getState()).isEqualTo("DEAD");
         assertThat(captor.getValue().getAttempts()).isEqualTo(1);
     }
@@ -102,8 +106,8 @@ class AlertDispatcherTest {
 
         dispatcher.dispatch();
 
-        var captor = org.mockito.ArgumentCaptor.forClass(AlertDeliveryEntity.class);
-        org.mockito.Mockito.verify(deliveries).save(captor.capture());
+        var captor = ArgumentCaptor.forClass(AlertDeliveryEntity.class);
+        Mockito.verify(deliveries).save(captor.capture());
         Duration untilNext = Duration.between(
                 captor.getValue().getCreatedAt(), captor.getValue().getNextAttemptAt());
         assertThat(untilNext).isGreaterThanOrEqualTo(Duration.ofSeconds(29));
@@ -113,7 +117,7 @@ class AlertDispatcherTest {
     void reachingMaxAttemptsEndsDead() {
         AlertDeliveryEntity delivery = pending();
         for (int i = 0; i < 2; i++) {
-            delivery.recordFailure(java.time.Instant.now(), "err", Duration.ofMillis(1), 3);
+            delivery.recordFailure(Instant.now(), "err", Duration.ofMillis(1), 3);
         }
         when(slackSender.send(any(Long.class), any(), any(), any())).thenReturn(Result.retryable("still failing"));
         when(deliveries.claimDue(20)).thenReturn(List.of(delivery));

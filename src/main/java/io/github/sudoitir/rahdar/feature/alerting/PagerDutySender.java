@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
@@ -109,7 +110,7 @@ public class PagerDutySender implements NotificationSender {
         if (line.fired()) {
             event.put("payload", payload(m, line));
             if (m.rahdarUrl() != null) {
-                event.put("links", java.util.List.of(Map.of("href", m.rahdarUrl(), "text", "Open in Rahdar")));
+                event.put("links", List.of(Map.of("href", m.rahdarUrl(), "text", "Open in Rahdar")));
             }
             event.put("client", "Rahdar");
             if (m.rahdarUrl() != null) {
@@ -141,7 +142,7 @@ public class PagerDutySender implements NotificationSender {
         event.put("dedup_key", "rahdar|notice|" + deliveryId);
         event.put("payload", payload);
         if (n.url() != null) {
-            event.put("links", java.util.List.of(Map.of("href", n.url(), "text", "Open in Rahdar")));
+            event.put("links", List.of(Map.of("href", n.url(), "text", "Open in Rahdar")));
             event.put("client", "Rahdar");
             event.put("client_url", n.url());
         }

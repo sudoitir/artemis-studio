@@ -15,11 +15,15 @@ import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaRequest;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+import org.springframework.util.unit.DataSize;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -105,7 +109,7 @@ class CaptureTapTest {
 
         tap.install(client, "abc12345", spec);
 
-        var order = org.mockito.Mockito.inOrder(queues, diverts);
+        var order = Mockito.inOrder(queues, diverts);
         order.verify(queues).createAddress(any(), any(), any(), any());
         order.verify(queues).createQueue(any(), any(), any());
         order.verify(diverts).createDivert(any(), any(), any());
@@ -129,8 +133,8 @@ class CaptureTapTest {
 
         tap.install(client, "abc12345", spec);
 
-        org.mockito.ArgumentCaptor<JolokiaRequest> requests = org.mockito.ArgumentCaptor.forClass(JolokiaRequest.class);
-        verify(client, org.mockito.Mockito.atLeastOnce()).single(requests.capture());
+        ArgumentCaptor<JolokiaRequest> requests = ArgumentCaptor.forClass(JolokiaRequest.class);
+        verify(client, Mockito.atLeastOnce()).single(requests.capture());
         JolokiaRequest addressSettings = requests.getAllValues().stream()
                 .filter(r -> String.valueOf(r.operation()).startsWith("addAddressSettings"))
                 .findFirst()
@@ -146,8 +150,8 @@ class CaptureTapTest {
 
         tap.remove(client, "abc12345", "rahdar.capture.abc12345.ORDER.IN." + spec.subscriptionId());
 
-        org.mockito.ArgumentCaptor<JolokiaRequest> requests = org.mockito.ArgumentCaptor.forClass(JolokiaRequest.class);
-        verify(client, org.mockito.Mockito.atLeastOnce()).single(requests.capture());
+        ArgumentCaptor<JolokiaRequest> requests = ArgumentCaptor.forClass(JolokiaRequest.class);
+        verify(client, Mockito.atLeastOnce()).single(requests.capture());
         List<String> removals = requests.getAllValues().stream()
                 .filter(r -> String.valueOf(r.operation()).startsWith("remove"))
                 .map(r -> String.valueOf(r.arguments()))
@@ -159,8 +163,8 @@ class CaptureTapTest {
     void theLegacySharedMatchGoesOnlyWhenNoCaptureOfAnyInstanceIsLeft() {
         tap.remove(client, "abc12345", "rahdar.capture.abc12345.ORDER.IN." + spec.subscriptionId());
 
-        org.mockito.ArgumentCaptor<JolokiaRequest> requests = org.mockito.ArgumentCaptor.forClass(JolokiaRequest.class);
-        verify(client, org.mockito.Mockito.atLeastOnce()).single(requests.capture());
+        ArgumentCaptor<JolokiaRequest> requests = ArgumentCaptor.forClass(JolokiaRequest.class);
+        verify(client, Mockito.atLeastOnce()).single(requests.capture());
         assertThat(requests.getAllValues().stream().map(r -> String.valueOf(r.arguments())))
                 .anySatisfy(r -> assertThat(r).contains("rahdar.capture.#"));
     }
@@ -174,7 +178,7 @@ class CaptureTapTest {
                         null,
                         Duration.ofSeconds(30),
                         Duration.ofHours(24),
-                        org.springframework.util.unit.DataSize.ofMegabytes(64),
+                        DataSize.ofMegabytes(64),
                         Duration.ofSeconds(1)),
                 new ObjectMapper());
 
@@ -187,11 +191,11 @@ class CaptureTapTest {
     // ---- fixtures --------------------------------------------------------
 
     /** The broker's divert list, as the tap sees it — mutated by a successful create. */
-    private final List<DivertRow> deployed = new java.util.ArrayList<>();
+    private final List<DivertRow> deployed = new ArrayList<>();
 
     /** Make {@code listDiverts} answer the way a broker that actually deployed it would. */
     private void installOnCreate() {
-        org.mockito.Mockito.doAnswer(invocation -> {
+        Mockito.doAnswer(invocation -> {
                     Map<String, Object> config = invocation.getArgument(2);
                     deployed.add(divert(String.valueOf(config.get("name")), spec.address(), "x", false));
                     return null;
@@ -205,7 +209,7 @@ class CaptureTapTest {
                 "rahdar",
                 Duration.ofSeconds(30),
                 Duration.ofHours(24),
-                org.springframework.util.unit.DataSize.ofMegabytes(64),
+                DataSize.ofMegabytes(64),
                 Duration.ofSeconds(1));
     }
 

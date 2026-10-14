@@ -57,9 +57,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -359,7 +361,7 @@ class TransferRunnerTest {
         verify(limiter, times(3)).acquire("http://src", 1, "transfer");
         verify(limiter, times(3)).acquire("http://tgt", 1, "transfer");
         ArgumentCaptor<TransferProgress> progress = ArgumentCaptor.forClass(TransferProgress.class);
-        verify(sse, org.mockito.Mockito.atLeastOnce())
+        verify(sse, Mockito.atLeastOnce())
                 .publishAbout(eq(SRC_CLUSTER), eq("transfer"), progress.capture(), anyCollection(), anyCollection());
         assertThat(progress.getAllValues().getLast().delivered()).isEqualTo(5);
         verify(sse).publishAbout(eq(SRC_CLUSTER), eq("queues"), anyCollection(), anyCollection());
@@ -609,7 +611,7 @@ class TransferRunnerTest {
         assertThat(run.getState()).isEqualTo(TransferState.SUCCEEDED);
         verify(probe, times(2)).read(any(), any(), any(), any());
         ArgumentCaptor<TransferProgress> progress = ArgumentCaptor.forClass(TransferProgress.class);
-        verify(sse, org.mockito.Mockito.atLeastOnce())
+        verify(sse, Mockito.atLeastOnce())
                 .publishAbout(eq(SRC_CLUSTER), eq("transfer"), progress.capture(), anyCollection(), anyCollection());
         assertThat(progress.getAllValues())
                 .extracting(TransferProgress::state)
@@ -835,7 +837,7 @@ class TransferRunnerTest {
         when(messages.messageCount(any(), anyString())).thenReturn(0L);
         when(ledger.known(RUN, List.of(1L, 2L))).thenReturn(Set.of(1L));
         when(staging.destroyIfEmpty(any(), anyString())).thenReturn(true);
-        java.util.concurrent.atomic.AtomicBoolean first = new java.util.concurrent.atomic.AtomicBoolean(true);
+        AtomicBoolean first = new AtomicBoolean(true);
         when(link.relay(anyInt(), any())).thenAnswer(call -> {
             Hooks hooks = call.getArgument(1);
             if (first.compareAndSet(true, false)) {
@@ -976,7 +978,7 @@ class TransferRunnerTest {
         execute();
 
         assertThat(run.getState()).isEqualTo(TransferState.SUCCEEDED);
-        verify(probe, org.mockito.Mockito.atLeast(2)).read(any(), any(), any(), any());
+        verify(probe, Mockito.atLeast(2)).read(any(), any(), any(), any());
     }
 
     // ---- return to source ------------------------------------------------------------

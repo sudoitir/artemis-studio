@@ -8,17 +8,23 @@ import io.github.sudoitir.rahdar.feature.rr.internal.persistence.RrExpectationEn
 import io.github.sudoitir.rahdar.feature.rr.internal.persistence.RrExpectationRepository;
 import io.github.sudoitir.rahdar.feature.rr.internal.persistence.RrFlowEntity;
 import io.github.sudoitir.rahdar.feature.rr.internal.persistence.RrFlowRepository;
+import io.github.sudoitir.rahdar.platform.broker.ClockOffsetRegistry;
 import io.github.sudoitir.rahdar.platform.broker.ClockOffsetService;
+import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 
 /** {@link RrCorrelator} against a real Postgres: the full observation-to-flow lifecycle. */
 class RrCorrelatorTest extends PostgresIntegrationTest {
@@ -39,10 +45,10 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
     ClusterRepository clusters;
 
     @Autowired
-    io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeRepository nodes;
+    BrokerNodeRepository nodes;
 
     @Autowired
-    io.github.sudoitir.rahdar.platform.broker.ClockOffsetRegistry clockOffsets;
+    ClockOffsetRegistry clockOffsets;
 
     @Autowired
     ClockOffsetService clocks;
@@ -73,8 +79,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
     void aDeadlineFromAFastClockIsNormalisedOntoRahdarsTimeline() {
         cluster();
         String jolokiaUrl = "http://broker-1:8161/console/jolokia/" + UUID.randomUUID();
-        var node = io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity.fromSeed(
-                clusterId, "broker-1", "PRIMARY", null);
+        var node = BrokerNodeEntity.fromSeed(clusterId, "broker-1", "PRIMARY", null);
         node.applyManualUrl(jolokiaUrl);
         UUID nodeId = nodes.save(node).getId();
 
@@ -94,8 +99,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
         RrFlowEntity flow = flows.findByClusterIdAndRequestAddressAndRequestMessageId(clusterId, "rr.skewed", "m-skew")
                 .orElseThrow();
         // Thirty seconds from now, not ten and a half minutes.
-        assertThat(flow.getDeadlineAt())
-                .isCloseTo(seenAt.plusSeconds(30), within(2, java.time.temporal.ChronoUnit.SECONDS));
+        assertThat(flow.getDeadlineAt()).isCloseTo(seenAt.plusSeconds(30), within(2, ChronoUnit.SECONDS));
 
         clockOffsets.invalidate();
         clocks.refresh();
@@ -120,7 +124,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
         RrFlowEntity flow = flows.findById(created.getFirst().getId()).orElseThrow();
         assertThat(flow.getState()).isEqualTo(RrState.COMPLETED.name());
         // Postgres timestamptz round-trips can lose sub-millisecond precision.
-        assertThat(flow.getLatencyMs()).isCloseTo(2000L, org.assertj.core.data.Offset.offset(2L));
+        assertThat(flow.getLatencyMs()).isCloseTo(2000L, Offset.offset(2L));
         assertThat(events.findByFlowIdOrderByTsAsc(flow.getId())).hasSize(2);
     }
 
@@ -181,7 +185,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
                 .getFirst();
         assertThat(flow.getReplyKind()).isEqualTo("TEMP_QUEUE");
         // Postgres timestamptz round-trips can lose sub-millisecond precision.
-        assertThat(flow.getLatencyMs()).isCloseTo(500L, org.assertj.core.data.Offset.offset(2L));
+        assertThat(flow.getLatencyMs()).isCloseTo(500L, Offset.offset(2L));
     }
 
     @Test
@@ -199,7 +203,7 @@ class RrCorrelatorTest extends PostgresIntegrationTest {
                         null,
                         Instant.EPOCH,
                         Instant.parse("9999-12-31T23:59:59Z"),
-                        org.springframework.data.domain.PageRequest.of(0, 10))
+                        PageRequest.of(0, 10))
                 .getContent();
         assertThat(all).hasSize(1);
         assertThat(all.getFirst().getRequestAddress()).isNull();

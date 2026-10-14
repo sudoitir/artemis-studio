@@ -5,6 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.context.WebApplicationContext;
@@ -58,7 +60,7 @@ class EndpointProtectionTest extends PostgresIntegrationTest {
                 .apply(springSecurity())
                 .build();
 
-        List<String> unprotected = new java.util.ArrayList<>();
+        List<String> unprotected = new ArrayList<>();
         for (var entry : handlerMapping.getHandlerMethods().entrySet()) {
             RequestMappingInfo info = entry.getKey();
             var patterns = info.getPatternValues();
@@ -76,8 +78,7 @@ class EndpointProtectionTest extends PostgresIntegrationTest {
                 String concretePath = pattern.replaceAll("\\{[^}]+}", "00000000-0000-0000-0000-000000000000");
                 // A valid CSRF token is attached so CsrfFilter's 403 never masks what
                 // this test actually checks: whether the endpoint requires authentication.
-                int status = mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request(
-                                        method, concretePath)
+                int status = mvc.perform(MockMvcRequestBuilders.request(method, concretePath)
                                 .with(csrf()))
                         .andReturn()
                         .getResponse()
@@ -107,8 +108,7 @@ class EndpointProtectionTest extends PostgresIntegrationTest {
                 .build();
 
         int status = mvc.perform(
-                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/actuator/refresh")
-                                .with(csrf()))
+                        MockMvcRequestBuilders.post("/actuator/refresh").with(csrf()))
                 .andReturn()
                 .getResponse()
                 .getStatus();

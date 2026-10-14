@@ -4,6 +4,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaEnumConstant;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -47,9 +48,9 @@ class KeyGenerationRulesTest {
     @Test
     void noEntityIdUsesTheRandomUuidStrategy() {
         classes()
-                .should(new ArchCondition<com.tngtech.archunit.core.domain.JavaClass>("not use GenerationType.UUID") {
+                .should(new ArchCondition<JavaClass>("not use GenerationType.UUID") {
                     @Override
-                    public void check(com.tngtech.archunit.core.domain.JavaClass item, ConditionEvents events) {
+                    public void check(JavaClass item, ConditionEvents events) {
                         item.getFields().stream()
                                 .filter(f -> f.isAnnotatedWith(GeneratedValue.class))
                                 .filter(f -> f.getAnnotationOfType(GeneratedValue.class.getName())
@@ -68,9 +69,9 @@ class KeyGenerationRulesTest {
     @Test
     void randomUuidsAreOnlyCalledWhereAKeyIsNotMade() {
         noClasses()
-                .that(new DescribedPredicate<com.tngtech.archunit.core.domain.JavaClass>("are not allow-listed") {
+                .that(new DescribedPredicate<JavaClass>("are not allow-listed") {
                     @Override
-                    public boolean test(com.tngtech.archunit.core.domain.JavaClass c) {
+                    public boolean test(JavaClass c) {
                         return !RANDOM_UUID_ALLOWED.contains(c.getName());
                     }
                 })

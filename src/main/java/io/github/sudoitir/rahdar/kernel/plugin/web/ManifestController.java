@@ -21,6 +21,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.web.ManifestViews.ManifestView;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -78,8 +79,8 @@ public class ManifestController {
                 .toList();
         List<ManifestFeatureView> plugins =
                 installs.findAll().stream().map(this::pluginView).toList();
-        List<ManifestFeatureView> features = java.util.stream.Stream.concat(builtins.stream(), plugins.stream())
-                .toList();
+        List<ManifestFeatureView> features =
+                Stream.concat(builtins.stream(), plugins.stream()).toList();
 
         List<ManifestPermissionView> catalogue = registry.catalogue().stream()
                 .map(e -> new ManifestPermissionView(e.action(), e.description(), e.featureId()))

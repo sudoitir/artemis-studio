@@ -12,6 +12,7 @@ import io.github.sudoitir.rahdar.platform.broker.MessageBrowser.BrowsedMessage;
 import jakarta.jms.JMSException;
 import jakarta.jms.Message;
 import jakarta.jms.MessageConsumer;
+import jakarta.jms.MessageListener;
 import jakarta.jms.Session;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,6 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -128,7 +130,7 @@ public class CaptureConsumer {
         return running.keySet().stream()
                 .filter(k -> k.startsWith(prefix))
                 .map(k -> k.substring(prefix.length()))
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
     }
 
     /** The causes recorded by this subscription's drains on this node since the last call, reset by taking them. */
@@ -284,7 +286,7 @@ public class CaptureConsumer {
      * delivery. A drain waiting out a backoff waits on its own monitor, so it releases the
      * lock and {@code close} can always get in.
      */
-    final class Drain implements jakarta.jms.MessageListener {
+    final class Drain implements MessageListener {
 
         private final Spec spec;
         private final PooledSession jms;

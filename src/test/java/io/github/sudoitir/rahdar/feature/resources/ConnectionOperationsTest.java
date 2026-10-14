@@ -14,6 +14,8 @@ import io.github.sudoitir.rahdar.platform.broker.JolokiaResponse;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -126,8 +128,8 @@ class ConnectionOperationsTest {
         JolokiaBrokerClient client = clientAnswering(SESSION_ROW);
         ops.connectionIdOfSession(client, "sess-1");
 
-        org.mockito.ArgumentCaptor<JolokiaRequest> captured = org.mockito.ArgumentCaptor.forClass(JolokiaRequest.class);
-        org.mockito.Mockito.verify(client).single(captured.capture());
+        ArgumentCaptor<JolokiaRequest> captured = ArgumentCaptor.forClass(JolokiaRequest.class);
+        Mockito.verify(client).single(captured.capture());
 
         JsonNode filter =
                 mapper.readTree((String) captured.getValue().arguments().get(0));

@@ -8,6 +8,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.internal.descriptor.PluginDescrip
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
+import java.io.OutputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -25,6 +26,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotatedBeanDefinitionReader;
@@ -198,7 +200,7 @@ public class PluginRuntimeFactory {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             try (var in = new DigestInputStream(Files.newInputStream(jarPath), digest)) {
-                in.transferTo(java.io.OutputStream.nullOutputStream());
+                in.transferTo(OutputStream.nullOutputStream());
             }
             return HexFormat.of().formatHex(digest.digest());
         } catch (Exception e) {
@@ -234,8 +236,8 @@ public class PluginRuntimeFactory {
     private void assertSecuredBeansAreProxied(GenericWebApplicationContext ctx) {
         for (String name : ctx.getBeanDefinitionNames()) {
             Object bean = ctx.getBean(name);
-            Class<?> targetClass = org.springframework.aop.support.AopUtils.getTargetClass(bean);
-            if (needsProxy(targetClass) && !org.springframework.aop.support.AopUtils.isAopProxy(bean)) {
+            Class<?> targetClass = AopUtils.getTargetClass(bean);
+            if (needsProxy(targetClass) && !AopUtils.isAopProxy(bean)) {
                 throw new IllegalStateException("Plugin bean '" + name + "' (" + targetClass
                         + ") declares @PreAuthorize/@PostAuthorize/@Transactional/@Validated but is not an AOP proxy.");
             }

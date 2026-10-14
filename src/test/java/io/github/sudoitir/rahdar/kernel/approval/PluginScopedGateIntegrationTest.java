@@ -14,6 +14,7 @@ import io.github.sudoitir.rahdar.kernel.gate.GatedOperationCatalogue;
 import io.github.sudoitir.rahdar.kernel.gate.GatedOperationRegistry;
 import io.github.sudoitir.rahdar.kernel.gate.HeldState;
 import io.github.sudoitir.rahdar.kernel.gate.Operation;
+import io.github.sudoitir.rahdar.kernel.gate.OperationGate;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.host.PluginHost;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.persistence.PluginArtifactRepository;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.runtime.PluginApiContext;
@@ -225,7 +226,7 @@ class PluginScopedGateIntegrationTest extends GatedAccessTestBase {
         Record thing = (Record) params.getDeclaredConstructors()[0].newInstance("a");
         Object other = engine.beansFor("someone-else").get(GateEngine.PLUGIN_BEAN_NAME);
 
-        var otherGate = (io.github.sudoitir.rahdar.kernel.gate.OperationGate) other;
+        var otherGate = (OperationGate) other;
         Operation operation = Operation.of(thing);
 
         assertThatThrownBy(() -> otherGate.run(operation, () -> "ran"))

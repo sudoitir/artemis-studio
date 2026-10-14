@@ -7,11 +7,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.rahdar.kernel.plugin.PluginHandle;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 
@@ -86,7 +88,7 @@ class GatedOperationRegistryTest {
     private static PluginHandle plugin(String id, GatedOperation<?>... ops) throws Exception {
         PluginHandle handle = mock(PluginHandle.class);
         when(handle.id()).thenReturn(id);
-        Map<String, GatedOperation> beans = new java.util.LinkedHashMap<>();
+        Map<String, GatedOperation> beans = new LinkedHashMap<>();
         for (GatedOperation<?> op : ops) {
             beans.put(op.type(), op);
         }
@@ -174,6 +176,6 @@ class GatedOperationRegistryTest {
 
         registry.forParams(Rename.class).orElseThrow().estimate(new Rename("x"));
 
-        org.mockito.Mockito.verify(handle).runInPlugin(any());
+        Mockito.verify(handle).runInPlugin(any());
     }
 }

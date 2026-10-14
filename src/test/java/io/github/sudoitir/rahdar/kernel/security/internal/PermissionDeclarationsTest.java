@@ -14,6 +14,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.internal.descriptor.PluginDescrip
 import io.github.sudoitir.rahdar.kernel.security.Permissions;
 import java.util.List;
 import java.util.Set;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.support.GenericApplicationContext;
@@ -70,9 +71,7 @@ class PermissionDeclarationsTest {
     void guardsReadConstantsAndLiteralsAndSkipVariablesAndWildcards() {
         assertThat(GuardPermissions.of(Guarded.class, getClass().getClassLoader()))
                 .extracting(GuardPermissions.GuardRef::permission, GuardPermissions.GuardRef::withCluster)
-                .containsExactlyInAnyOrder(
-                        org.assertj.core.groups.Tuple.tuple(Permissions.USER_ADMIN, false),
-                        org.assertj.core.groups.Tuple.tuple("queue:read", true));
+                .containsExactlyInAnyOrder(Tuple.tuple(Permissions.USER_ADMIN, false), Tuple.tuple("queue:read", true));
     }
 
     @Test

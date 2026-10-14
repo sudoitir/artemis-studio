@@ -37,7 +37,7 @@ public class StateCondition implements AlertCondition {
     private static final String RAHDAR_SUBJECT = "rahdar";
 
     private final ClusterDirectory nodes;
-    private final io.github.sudoitir.rahdar.platform.broker.ClockOffsetService clocks;
+    private final ClockOffsetService clocks;
     private final BrokerNodeMapper nodeMapper;
     private final HaStateEvaluator evaluator;
     private final List<AlertSignalSource> signals;

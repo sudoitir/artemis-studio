@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.kernel.security;
 
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -16,7 +17,7 @@ public record Keyring(SortedMap<Integer, SecretKey> keys) {
         if (keys.isEmpty()) {
             throw new IllegalArgumentException("A keyring needs at least one key.");
         }
-        keys = java.util.Collections.unmodifiableSortedMap(new TreeMap<>(keys));
+        keys = Collections.unmodifiableSortedMap(new TreeMap<>(keys));
     }
 
     public int highest() {

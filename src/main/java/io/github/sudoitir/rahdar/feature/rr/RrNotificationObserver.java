@@ -2,6 +2,7 @@ package io.github.sudoitir.rahdar.feature.rr;
 
 import io.github.sudoitir.rahdar.platform.broker.BrokerEvent;
 import io.github.sudoitir.rahdar.platform.broker.BrokerEventSink;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -88,7 +89,7 @@ public class RrNotificationObserver implements BrokerEventSink {
                             messageId(event),
                             null,
                             null,
-                            java.util.Map.of()));
+                            Map.of()));
                 }
             }
             case "MESSAGE_EXPIRED" ->

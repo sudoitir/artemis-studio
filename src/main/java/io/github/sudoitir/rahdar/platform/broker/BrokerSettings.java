@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.platform.broker;
 import io.github.sudoitir.rahdar.kernel.settings.SettingDef;
 import io.github.sudoitir.rahdar.kernel.settings.SettingDef.Kind;
 import io.github.sudoitir.rahdar.kernel.settings.SettingsContribution;
+import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -76,7 +77,7 @@ public class BrokerSettings implements SettingsContribution {
                         null));
     }
 
-    private void applyTimeouts(io.github.sudoitir.rahdar.kernel.settings.SettingsService s) {
+    private void applyTimeouts(SettingsService s) {
         brokerClients.setTimeouts(s.duration(CONNECT_TIMEOUT), s.duration(READ_TIMEOUT));
     }
 }

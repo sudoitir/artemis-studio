@@ -2,6 +2,7 @@ package io.github.sudoitir.rahdar.platform.governance;
 
 import io.github.sudoitir.rahdar.kernel.audit.AuditEvent;
 import io.github.sudoitir.rahdar.kernel.audit.AuditService;
+import io.github.sudoitir.rahdar.kernel.security.Actor;
 import io.github.sudoitir.rahdar.kernel.security.ActorResolver;
 import java.util.Collection;
 import java.util.Map;
@@ -52,7 +53,7 @@ public class ClearViewAudit {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordClear(
-            io.github.sudoitir.rahdar.kernel.security.Actor actor,
+            Actor actor,
             GovernContext context,
             String targetType,
             String targetName,

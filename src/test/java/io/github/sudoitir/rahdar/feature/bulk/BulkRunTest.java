@@ -25,11 +25,15 @@ import io.github.sudoitir.rahdar.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.rahdar.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.rahdar.platform.clusters.LifecycleOutcome.NodeOutcome;
 import io.github.sudoitir.rahdar.platform.clusters.LifecycleOutcome.NodeStatus;
+import io.github.sudoitir.rahdar.support.OperatorFixture;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -76,7 +80,7 @@ class BulkRunTest extends BulkTestSupport {
     }
 
     private Attempt<LifecycleOutcome> ok(NodeStatus... statuses) {
-        List<NodeOutcome> nodes = new java.util.ArrayList<>();
+        List<NodeOutcome> nodes = new ArrayList<>();
         for (int i = 0; i < statuses.length; i++) {
             UUID node = i == 0 ? nodeA : nodeB;
             nodes.add(new NodeOutcome(
@@ -100,7 +104,7 @@ class BulkRunTest extends BulkTestSupport {
             if (run.run().finishedAt() != null) {
                 return run;
             }
-            java.util.concurrent.locks.LockSupport.parkNanos(20_000_000);
+            LockSupport.parkNanos(20_000_000);
         }
         throw new AssertionError("The run did not finish");
     }
@@ -122,7 +126,7 @@ class BulkRunTest extends BulkTestSupport {
             if (!"PENDING".equals(outcome)) {
                 return outcome;
             }
-            java.util.concurrent.locks.LockSupport.parkNanos(20_000_000);
+            LockSupport.parkNanos(20_000_000);
         } while (Instant.now().isBefore(deadline));
         return outcome;
     }
@@ -229,7 +233,7 @@ class BulkRunTest extends BulkTestSupport {
         fourQueues();
         when(queues.setPaused(eq(clusterId), anyString(), eq(true), eq(false))).thenAnswer(call -> {
             seen.add(call.getArgument(1));
-            io.github.sudoitir.rahdar.support.OperatorFixture.revokeAll(userRoles, accessChanges, userId);
+            OperatorFixture.revokeAll(userRoles, accessChanges, userId);
             return ok(NodeStatus.APPLIED);
         });
 
@@ -410,13 +414,13 @@ class BulkRunTest extends BulkTestSupport {
     }
 
     /** Waits for what another thread has yet to do, such as a signal travelling through the database. */
-    private static void await(java.util.function.BooleanSupplier condition) {
+    private static void await(BooleanSupplier condition) {
         Instant deadline = Instant.now().plus(Duration.ofSeconds(10));
         while (!condition.getAsBoolean()) {
             if (Instant.now().isAfter(deadline)) {
                 throw new AssertionError("The condition was not met in time");
             }
-            java.util.concurrent.locks.LockSupport.parkNanos(10_000_000);
+            LockSupport.parkNanos(10_000_000);
         }
     }
 

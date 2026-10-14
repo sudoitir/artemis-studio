@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -300,7 +301,7 @@ class TransferRunStoreTest extends PostgresIntegrationTest {
                         """)
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.type").value(endsWith("transfer-unacknowledged")))
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("last-value")));
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("last-value")));
     }
 
     @Test

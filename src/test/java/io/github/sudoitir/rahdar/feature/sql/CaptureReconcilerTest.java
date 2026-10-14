@@ -26,9 +26,11 @@ import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNo
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 /**
  * The converge loop's four obligations (ADR-0062 D4, D5): install what is missing,
@@ -137,7 +139,7 @@ class CaptureReconcilerTest {
     void doesNothingWhenNothingHasDrifted() throws Exception {
         when(tap.installedNames(any(), eq(INSTANCE))).thenReturn(List.of(WANTED));
         when(consumers.isDraining(NODE, WANTED)).thenReturn(true);
-        when(consumers.drainingOn(NODE)).thenReturn(java.util.Set.of(WANTED));
+        when(consumers.drainingOn(NODE)).thenReturn(Set.of(WANTED));
 
         reconciler.reconcile();
         reconciler.reconcile();
@@ -298,7 +300,7 @@ class CaptureReconcilerTest {
         reconciler.reinstall(CLUSTER, SUBSCRIPTION);
 
         // The old divert and queue carry the old filter; a divert is never changed in place.
-        var order = org.mockito.Mockito.inOrder(consumers, tap);
+        var order = Mockito.inOrder(consumers, tap);
         order.verify(consumers).stop(NODE, WANTED);
         order.verify(tap).remove(any(), eq(INSTANCE), eq(WANTED));
         order.verify(tap).install(any(), eq(INSTANCE), any());
@@ -317,7 +319,7 @@ class CaptureReconcilerTest {
         when(nodes.nodes(CLUSTER)).thenReturn(List.of(nodeEntity, gone));
         when(tap.installedNames(any(), eq(INSTANCE))).thenReturn(List.of(WANTED));
         when(consumers.isDraining(NODE, WANTED)).thenReturn(true);
-        when(consumers.drainingOn(goneId)).thenReturn(java.util.Set.of(WANTED));
+        when(consumers.drainingOn(goneId)).thenReturn(Set.of(WANTED));
 
         reconciler.reconcileCluster(CLUSTER);
 

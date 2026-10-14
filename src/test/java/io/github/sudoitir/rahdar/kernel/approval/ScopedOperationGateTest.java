@@ -12,6 +12,7 @@ import io.github.sudoitir.rahdar.kernel.gate.Operation;
 import io.github.sudoitir.rahdar.kernel.gate.OperationGate;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 
 class ScopedOperationGateTest {
 
@@ -54,8 +55,7 @@ class ScopedOperationGateTest {
     void theOwnTypeIsHandedToTheEngine() {
         registered("acme:thing");
         Operation operation = Operation.of(new Params("a"));
-        when(engine.run(org.mockito.ArgumentMatchers.eq(operation), org.mockito.ArgumentMatchers.any()))
-                .thenReturn("held");
+        when(engine.run(ArgumentMatchers.eq(operation), ArgumentMatchers.any())).thenReturn("held");
 
         assertThat(new ScopedOperationGate(engine, registry, "acme").run(operation, () -> "ran"))
                 .isEqualTo("held");

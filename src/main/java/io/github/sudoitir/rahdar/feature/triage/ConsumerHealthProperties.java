@@ -1,5 +1,6 @@
 package io.github.sudoitir.rahdar.feature.triage;
 
+import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -29,4 +30,4 @@ public record ConsumerHealthProperties(
          * How far back to look for a broker {@code CONSUMER_SLOW} notification before
          * treating it as history rather than the current state.
          */
-        @DefaultValue("10m") java.time.Duration brokerSlowWindow) {}
+        @DefaultValue("10m") Duration brokerSlowWindow) {}

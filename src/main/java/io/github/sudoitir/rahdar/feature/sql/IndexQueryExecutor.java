@@ -17,10 +17,12 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -83,7 +85,7 @@ public class IndexQueryExecutor {
                 plan.targets().stream().map(Target::queueName).distinct().toList();
         if (!queues.isEmpty()) {
             sql.append(" AND queue_name IN (")
-                    .append(String.join(", ", java.util.Collections.nCopies(queues.size(), "?")))
+                    .append(String.join(", ", Collections.nCopies(queues.size(), "?")))
                     .append(')');
             binds.addAll(queues);
         }
@@ -193,8 +195,7 @@ public class IndexQueryExecutor {
         Sql term = term(in.term());
         List<Object> binds = new ArrayList<>(term.binds());
         in.values().forEach(v -> binds.add(value(v, in.term())));
-        String placeholders =
-                String.join(", ", java.util.Collections.nCopies(in.values().size(), "?"));
+        String placeholders = String.join(", ", Collections.nCopies(in.values().size(), "?"));
         return new Sql(term.text() + (in.negated() ? " NOT IN (" : " IN (") + placeholders + ')', binds);
     }
 
@@ -360,7 +361,7 @@ public class IndexQueryExecutor {
     private static String firstMatch(List<Predicate> parts) {
         return parts.stream()
                 .map(IndexQueryExecutor::matchTerms)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .orElse(null);
     }

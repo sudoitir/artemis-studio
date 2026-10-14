@@ -24,6 +24,7 @@ import io.github.sudoitir.rahdar.platform.broker.Attempt;
 import io.github.sudoitir.rahdar.support.McpFixture;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -86,7 +87,7 @@ class McpApprovalGateTest extends PostgresIntegrationTest {
     }
 
     private JsonNode purge(Map<String, Object> extra) throws Exception {
-        Map<String, Object> arguments = new java.util.HashMap<>(Map.of(
+        Map<String, Object> arguments = new HashMap<>(Map.of(
                 "clusterId",
                 CLUSTER.toString(),
                 "queue",

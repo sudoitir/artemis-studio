@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -344,8 +345,8 @@ public class PluginMessagingReconciler {
                 .findById(new RegistrationNodeEntity(reg.getId(), node.getId()).getId())
                 .orElseGet(() -> new RegistrationNodeEntity(reg.getId(), node.getId()));
         boolean unchanged = row.getState() == result.state()
-                && java.util.Objects.equals(row.getDetail(), result.detail())
-                && java.util.Objects.equals(row.getDroppedCopies(), result.dropped());
+                && Objects.equals(row.getDetail(), result.detail())
+                && Objects.equals(row.getDroppedCopies(), result.dropped());
         if (unchanged) {
             return;
         }

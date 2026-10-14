@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.rahdar.feature.rr.internal.persistence.RrExpectationEntity;
 import io.github.sudoitir.rahdar.feature.rr.internal.persistence.RrExpectationRepository;
+import io.github.sudoitir.rahdar.feature.sql.CaptureCoverage;
 import io.github.sudoitir.rahdar.platform.broker.BodyDecoder.Compression;
 import io.github.sudoitir.rahdar.platform.broker.BrokerTime;
 import io.github.sudoitir.rahdar.platform.broker.ClockOffsetService;
@@ -23,10 +24,13 @@ import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
+import java.lang.reflect.Field;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -82,9 +86,9 @@ class RrSamplerTest {
      */
     private static RrExpectationEntity saved(RrExpectationEntity e) {
         try {
-            java.lang.reflect.Field id = RrExpectationEntity.class.getDeclaredField("id");
+            Field id = RrExpectationEntity.class.getDeclaredField("id");
             id.setAccessible(true);
-            id.set(e, java.util.UUID.randomUUID());
+            id.set(e, UUID.randomUUID());
         } catch (ReflectiveOperationException ex) {
             throw new IllegalStateException(ex);
         }
@@ -126,13 +130,12 @@ class RrSamplerTest {
         // being assumed equal to the address and ANYCAST.
         QueueTargetResolver queueTargets = mock(QueueTargetResolver.class);
         when(queueTargets.resolve(eq(CLUSTER), any(), any()))
-                .thenAnswer(inv ->
-                        java.util.Optional.of(new QueueTargetResolver.QueueTarget(inv.getArgument(2), "ANYCAST")));
+                .thenAnswer(inv -> Optional.of(new QueueTargetResolver.QueueTarget(inv.getArgument(2), "ANYCAST")));
 
-        RrSamplerHealth health = new RrSamplerHealth(java.time.Clock.systemUTC());
+        RrSamplerHealth health = new RrSamplerHealth(Clock.systemUTC());
 
-        ObjectProvider<io.github.sudoitir.rahdar.feature.sql.CaptureCoverage> coverage = mock(ObjectProvider.class);
-        var captureCoverage = mock(io.github.sudoitir.rahdar.feature.sql.CaptureCoverage.class);
+        ObjectProvider<CaptureCoverage> coverage = mock(ObjectProvider.class);
+        var captureCoverage = mock(CaptureCoverage.class);
         when(coverage.getIfAvailable()).thenReturn(captureCoverage);
 
         ClusterOwnership ownership = mock(ClusterOwnership.class);

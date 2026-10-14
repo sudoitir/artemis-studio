@@ -16,6 +16,7 @@ import io.github.sudoitir.rahdar.kernel.security.ActorResolver;
 import io.github.sudoitir.rahdar.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.rahdar.kernel.security.PermissionResolver;
 import io.github.sudoitir.rahdar.kernel.security.Permissions;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -61,7 +62,7 @@ public class AlertRuleService {
     private final ObjectMapper json;
 
     /** Every rule kind's predicate, so validation accepts exactly what evaluation can run. */
-    private final java.util.List<AlertCondition> conditions;
+    private final List<AlertCondition> conditions;
 
     /**
      * The cluster's rules and, for a caller with the global grant, the installation's (ADR-0135),
@@ -86,7 +87,7 @@ public class AlertRuleService {
                         d.metric().description(),
                         d.metric().unit(),
                         d.metric().subject()))
-                .sorted(java.util.Comparator.comparing(PluginMetricView::metric))
+                .sorted(Comparator.comparing(PluginMetricView::metric))
                 .toList();
     }
 

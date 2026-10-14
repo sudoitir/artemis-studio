@@ -25,9 +25,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
@@ -40,7 +42,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.json.JsonMapper;
 
 /** {@code GET .../dlq} — addresses from broker settings, per-node depth from the cache, honest unavailable path. */
-@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+@ExtendWith(AdminAuthenticationExtension.class)
 class DlqControllerTest extends PostgresIntegrationTest {
 
     private static final String URL = "http://a:8161/console/jolokia";
@@ -121,12 +123,10 @@ class DlqControllerTest extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/clusters/{c}/dlq", clusterId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.settingsAvailable").value(true))
-                .andExpect(jsonPath("$.addresses[?(@.address == 'DLQ')].kind")
-                        .value(org.hamcrest.Matchers.hasItem("dead-letter")))
-                .andExpect(jsonPath(
-                        "$.addresses[?(@.address == 'DLQ')].queues[0].queues", org.hamcrest.Matchers.anything()))
+                .andExpect(jsonPath("$.addresses[?(@.address == 'DLQ')].kind").value(Matchers.hasItem("dead-letter")))
+                .andExpect(jsonPath("$.addresses[?(@.address == 'DLQ')].queues[0].queues", Matchers.anything()))
                 .andExpect(jsonPath("$..queues[?(@.queueName == 'DLQ')].totalDepth")
-                        .value(org.hamcrest.Matchers.hasItem(7)));
+                        .value(Matchers.hasItem(7)));
     }
 
     @Test

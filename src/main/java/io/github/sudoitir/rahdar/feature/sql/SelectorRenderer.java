@@ -6,6 +6,7 @@ import io.github.sudoitir.rahdar.feature.sql.QueryAst.Predicate;
 import io.github.sudoitir.rahdar.feature.sql.QueryAst.Term;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
@@ -170,7 +171,7 @@ public class SelectorRenderer {
             case Literal.Str(var value) -> quote(value);
             case Literal.Num(var value, var integral) ->
                 integral ? Long.toString((long) value) : Double.toString(value);
-            case Literal.Bool(var value) -> Boolean.toString(value).toUpperCase(java.util.Locale.ROOT);
+            case Literal.Bool(var value) -> Boolean.toString(value).toUpperCase(Locale.ROOT);
             case Literal.RelativeTime(var before) ->
                 Long.toString(now.minus(before).toEpochMilli());
         };

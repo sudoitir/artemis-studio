@@ -18,6 +18,7 @@ import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.util.List;
 import java.util.UUID;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -124,10 +125,10 @@ class FlowControllerTest extends PostgresIntegrationTest {
                 .andReturn()
                 .getResponse();
         String split = splitResponse.getHeader("ETag");
-        org.assertj.core.api.Assertions.assertThat(splitResponse.getContentAsString())
+        Assertions.assertThat(splitResponse.getContentAsString())
                 .contains("\"byNode\":[{")
                 .contains("\"node\":\"node-a\"");
 
-        org.assertj.core.api.Assertions.assertThat(split).isNotEqualTo(plain);
+        Assertions.assertThat(split).isNotEqualTo(plain);
     }
 }

@@ -23,6 +23,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -240,7 +241,7 @@ public class RahdarHealthController {
                 .orElse(null);
     }
 
-    private java.util.stream.Stream<Double> p95(Timer timer) {
+    private Stream<Double> p95(Timer timer) {
         return Arrays.stream(timer.takeSnapshot().percentileValues())
                 .filter(p -> p.percentile() == MANAGEMENT_PERCENTILE)
                 .map(p -> p.value(TimeUnit.MILLISECONDS))

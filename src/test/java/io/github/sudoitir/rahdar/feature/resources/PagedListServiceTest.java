@@ -27,12 +27,20 @@ import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -121,16 +129,14 @@ class PagedListServiceTest {
     void anAddressRowNamesTheTeamThatOwnsIt() {
         UUID clusterId = oneNodeServing("search-broker.json", "list-addresses.json");
         TeamRef orders = new TeamRef(UUID.randomUUID(), "Orders");
-        when(teams.ownerTeamOf(clusterId, ResourceRef.address("orders.in"))).thenReturn(java.util.Optional.of(orders));
-        when(teams.ownerTeamOf(clusterId, ResourceRef.address("billing.in"))).thenReturn(java.util.Optional.empty());
+        when(teams.ownerTeamOf(clusterId, ResourceRef.address("orders.in"))).thenReturn(Optional.of(orders));
+        when(teams.ownerTeamOf(clusterId, ResourceRef.address("billing.in"))).thenReturn(Optional.empty());
 
         PagedView<AddressView> page = service.addresses(clusterId, ResourceQuery.of(null, 1, 50, null));
 
         assertThat(page.data())
                 .extracting(AddressView::name, AddressView::ownerTeam)
-                .containsExactlyInAnyOrder(
-                        org.assertj.core.groups.Tuple.tuple("orders.in", orders),
-                        org.assertj.core.groups.Tuple.tuple("billing.in", null));
+                .containsExactlyInAnyOrder(Tuple.tuple("orders.in", orders), Tuple.tuple("billing.in", null));
     }
 
     @Test
@@ -195,10 +201,10 @@ class PagedListServiceTest {
         when(connections.forCluster(clusterId, URL_A))
                 .thenReturn(client(URL_A, "search-broker.json", "list-consumers.json"));
 
-        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(10);
+        ExecutorService pool = Executors.newFixedThreadPool(10);
         try {
-            java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
-            List<java.util.concurrent.Future<PagedView<ConsumerView>>> reads = new java.util.ArrayList<>();
+            CountDownLatch start = new CountDownLatch(1);
+            List<Future<PagedView<ConsumerView>>> reads = new ArrayList<>();
             for (int i = 0; i < 10; i++) {
                 reads.add(pool.submit(() -> {
                     start.await();
@@ -213,7 +219,7 @@ class PagedListServiceTest {
             pool.shutdownNow();
         }
 
-        org.mockito.Mockito.verify(connections, org.mockito.Mockito.times(1)).forCluster(clusterId, URL_A);
+        Mockito.verify(connections, Mockito.times(1)).forCluster(clusterId, URL_A);
     }
 
     @Test
@@ -241,7 +247,7 @@ class PagedListServiceTest {
     }
 
     private static ResourceFilter reading(String... names) {
-        ResourceFilter filter = org.mockito.Mockito.mock(ResourceFilter.class);
+        ResourceFilter filter = Mockito.mock(ResourceFilter.class);
         List<String> readable = List.of(names);
         when(filter.readable(any())).thenAnswer(call -> readable.contains(call.<String>getArgument(0)));
         when(filter.allowedActions(any())).thenReturn(List.of());

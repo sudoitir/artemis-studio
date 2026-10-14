@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -121,7 +122,7 @@ class ApiErrorsIntegrationTest extends PostgresIntegrationTest {
                 .andExpect(content().contentTypeCompatibleWith(PROBLEM))
                 .andExpect(jsonPath("$.type").value(TYPE + "internal-error"))
                 .andExpect(jsonPath("$.requestId").isNotEmpty())
-                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("secret"))));
+                .andExpect(content().string(Matchers.not(Matchers.containsString("secret"))));
     }
 
     @RestController

@@ -14,13 +14,16 @@ import io.github.sudoitir.rahdar.feature.alerting.internal.persistence.Notificat
 import io.github.sudoitir.rahdar.kernel.plugin.internal.runtime.PluginApiContext;
 import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.lang.reflect.RecordComponent;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -118,7 +121,7 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void aNoticeOver8KbIsRefused() {
-        List<Fact> facts = java.util.stream.IntStream.range(0, 10)
+        List<Fact> facts = IntStream.range(0, 10)
                 .mapToObj(i -> new Fact("l" + i, "é".repeat(500)))
                 .toList();
         NoticeMessage big = new NoticeMessage("t", "s".repeat(2000), Severity.INFO, facts, null);
@@ -213,7 +216,7 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
         assertThat(summary.kind()).isEqualTo("WEBHOOK");
         assertThat(summary.enabled()).isTrue();
         assertThat(ChannelSummary.class.getRecordComponents())
-                .extracting(java.lang.reflect.RecordComponent::getName)
+                .extracting(RecordComponent::getName)
                 .containsExactly("id", "name", "kind", "enabled");
         assertThat(summary.toString()).doesNotContain("x.example.com");
     }
@@ -236,7 +239,7 @@ class OutboundNoticesIntegrationTest extends PostgresIntegrationTest {
         assertThatThrownBy(() -> jdbc.update(
                         "INSERT INTO alert_delivery (kind, channel_id, payload) VALUES ('alert', ?, '{}'::jsonb)",
                         channelId))
-                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

@@ -10,6 +10,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.PermissionScope;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.descriptor.PluginDescriptorParser;
 import io.github.sudoitir.rahdar.kernel.plugin.support.PluginJarBuilder;
+import io.github.sudoitir.rahdar.kernel.plugin.support.RaceProbeEvent;
 import io.github.sudoitir.rahdar.kernel.security.Grant;
 import io.github.sudoitir.rahdar.kernel.security.RahdarPrincipal;
 import io.github.sudoitir.rahdar.kernel.security.ScopeIds;
@@ -23,9 +24,11 @@ import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import io.github.sudoitir.rahdar.kernel.stream.StreamTopicRegistry;
 import io.github.sudoitir.rahdar.support.McpFixture;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.jar.JarFile;
@@ -34,6 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -124,12 +128,12 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
         return new PluginJarBuilder(id)
                 .descriptorField("basePackage", "com.acme.bridges")
                 .descriptorField("configuration", "com.acme.bridges.PluginConfig")
-                .descriptorField("permissions", List.of(java.util.Map.of("action", id + ":read", "scope", "cluster")))
+                .descriptorField("permissions", List.of(Map.of("action", id + ":read", "scope", "cluster")))
                 .descriptorField("settingKeys", List.of(id + ".limit"))
                 .descriptorField("streamTopics", List.of(id))
                 .descriptorField(
                         "mcpTools",
-                        List.of(java.util.Map.of(
+                        List.of(Map.of(
                                 "name", id.replace('-', '_') + "_ping",
                                 "posture", "read",
                                 "scope", "global",
@@ -232,17 +236,17 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
         var key = McpFixture.mintKey(
                 users, roles, rolePermissions, userRoles, tokens, Grant.ScopeType.GLOBAL, null, Set.of("*"));
         MockMvc mvc = MockMvcBuilders.webAppContextSetup(webContext)
-                .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+                .apply(SecurityMockMvcConfigurers.springSecurity())
                 .build();
         String toolName = id.replace('-', '_') + "_ping";
 
         JsonNode listed = McpFixture.rpc(mvc, key, "tools/list", null);
         assertThat(listed.path("result").path("tools").toString()).contains(toolName);
 
-        JsonNode help = McpFixture.callTool(mvc, key, "rahdar_help", java.util.Map.of());
+        JsonNode help = McpFixture.callTool(mvc, key, "rahdar_help", Map.of());
         assertThat(help.toString()).contains(toolName);
 
-        JsonNode called = McpFixture.callTool(mvc, key, toolName, java.util.Map.of());
+        JsonNode called = McpFixture.callTool(mvc, key, toolName, Map.of());
         assertThat(called.path("result").path("content").get(0).path("text").asString())
                 .isEqualTo("pong");
 
@@ -333,11 +337,11 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
         var key = McpFixture.mintKey(
                 users, roles, rolePermissions, userRoles, tokens, Grant.ScopeType.GLOBAL, null, Set.of("*"));
         MockMvc mvc = MockMvcBuilders.webAppContextSetup(webContext)
-                .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+                .apply(SecurityMockMvcConfigurers.springSecurity())
                 .build();
 
         registry.set(id, new PluginRuntimeRegistry.Updating(7));
-        JsonNode called = McpFixture.callTool(mvc, key, id.replace('-', '_') + "_ping", java.util.Map.of());
+        JsonNode called = McpFixture.callTool(mvc, key, id.replace('-', '_') + "_ping", Map.of());
         assertThat(called.path("result").path("isError").asBoolean(false)).isTrue();
         assertThat(called.path("result").path("content").get(0).path("text").asString())
                 .contains("is updating, retry in 7s");
@@ -353,7 +357,7 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
     @Test
     void instantUpdateRaceLeavesEveryRegistryHoldingOnlyTheNewVersion() throws Exception {
         String id = "acme-race-" + Math.abs(new SecureRandom().nextInt());
-        java.nio.file.Path probeFile = java.nio.file.Files.createTempFile("race-probe-", ".log");
+        Path probeFile = Files.createTempFile("race-probe-", ".log");
         probeFile.toFile().deleteOnExit();
 
         Path v1Jar = raceJar(id, "1.0.0", "5", "pong-v1").build();
@@ -379,7 +383,7 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
         assertThat(coreEventBridge.ownerOf(id)).isEqualTo(v2.handle());
 
         MockMvc mvc = MockMvcBuilders.webAppContextSetup(webContext)
-                .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity())
+                .apply(SecurityMockMvcConfigurers.springSecurity())
                 .build();
         var key = McpFixture.mintKey(
                 users, roles, rolePermissions, userRoles, tokens, Grant.ScopeType.GLOBAL, null, Set.of("*"));
@@ -397,7 +401,7 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
         assertThat(jobStatuses.all()).extracting(JobStatus::id).contains(id + "-job");
         assertThat(coreEventBridge.ownerOf(id)).isEqualTo(v2.handle());
 
-        JsonNode called = McpFixture.callTool(mvc, key, toolName, java.util.Map.of());
+        JsonNode called = McpFixture.callTool(mvc, key, toolName, Map.of());
         assertThat(called.path("result").path("content").get(0).path("text").asString())
                 .isEqualTo("pong-v2");
 
@@ -406,12 +410,11 @@ class PluginBridgesIntegrationTest extends PostgresIntegrationTest {
         String propertyKey = "race-probe-file-" + id;
         System.setProperty(propertyKey, probeFile.toString());
         try {
-            webContext.publishEvent(new io.github.sudoitir.rahdar.kernel.plugin.support.RaceProbeEvent(
-                    probeFile.toString(), "received"));
+            webContext.publishEvent(new RaceProbeEvent(probeFile.toString(), "received"));
         } finally {
             System.clearProperty(propertyKey);
         }
-        String probed = java.nio.file.Files.readString(probeFile);
+        String probed = Files.readString(probeFile);
         assertThat(probed).contains("received");
 
         v2.close();

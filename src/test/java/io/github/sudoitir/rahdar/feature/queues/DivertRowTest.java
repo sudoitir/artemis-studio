@@ -3,8 +3,13 @@ package io.github.sudoitir.rahdar.feature.queues;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.rahdar.platform.broker.BrokerXmlSnippets;
+import java.io.StringReader;
 import java.util.UUID;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.junit.jupiter.api.Test;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.xml.sax.InputSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -86,10 +91,9 @@ class DivertRowTest {
 
         String xml = BrokerXmlSnippets.forDivert("d", null, "A", "B", false, filter, null);
 
-        org.w3c.dom.Document doc = javax.xml.parsers.DocumentBuilderFactory.newInstance()
-                .newDocumentBuilder()
-                .parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)));
-        assertThat(((org.w3c.dom.Element) doc.getElementsByTagName("filter").item(0)).getAttribute("string"))
+        Document doc =
+                DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
+        assertThat(((Element) doc.getElementsByTagName("filter").item(0)).getAttribute("string"))
                 .isEqualTo(filter);
     }
 }

@@ -24,11 +24,13 @@ import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
@@ -41,7 +43,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.json.JsonMapper;
 
 /** {@code GET .../queues/{q}/messages} — page shape, single-message detail + 404, node echo, bad filter, capability path. */
-@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+@ExtendWith(AdminAuthenticationExtension.class)
 class MessageBrowseControllerTest extends PostgresIntegrationTest {
 
     private static final String URL_A = "http://a:8161/console/jolokia";
@@ -175,14 +177,12 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
     void withNoNodeAskedForTheBrowseOpensTheLiveNodeHoldingTheMessages() throws Exception {
         String urlB = "http://b:8161/console/jolokia";
         BrokerNodeEntity a = nodes.findById(nodeAId).orElseThrow();
-        a.applyHaState(
-                new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, java.time.Instant.now());
+        a.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         nodes.save(a);
         BrokerNodeEntity b = BrokerNodeEntity.fromSeed(
                 clusterId, "node-b", "PRIMARY", UUID.randomUUID().toString());
         b.attachSeedUrl(urlB);
-        b.applyHaState(
-                new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, java.time.Instant.now());
+        b.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         UUID nodeBId = nodes.save(b).getId();
         upsert.upsertBatch(List.of(
                 new QueueRow(clusterId, nodeAId, "SPLIT", "SPLIT", "ANYCAST", true, 0, 0, 0, 0, 0, 0, 0, false),
@@ -210,8 +210,7 @@ class MessageBrowseControllerTest extends PostgresIntegrationTest {
     @Test
     void aQueueTheScrapeHasNotReachedIsFoundOnTheLiveNodeAndBrowsed() throws Exception {
         BrokerNodeEntity a = nodes.findById(nodeAId).orElseThrow();
-        a.applyHaState(
-                new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, java.time.Instant.now());
+        a.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         nodes.save(a);
         String located = "{\"status\":200,\"value\":{"
                 + "\"org.apache.activemq.artemis:address=\\\"FRESH.ADDR\\\",broker=\\\"primary\\\",component=addresses,"

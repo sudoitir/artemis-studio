@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -508,9 +509,9 @@ class IndexQueryExecutorTest extends PostgresIntegrationTest {
         assertThat(result.nodes())
                 .extracting(NodeOutcome::queueName, NodeOutcome::matched, NodeOutcome::status)
                 .containsExactly(
-                        org.assertj.core.api.Assertions.tuple("ORDER.IN", 2L, NodeOutcome.Status.ANSWERED),
-                        org.assertj.core.api.Assertions.tuple("ORDER.OUT", 1L, NodeOutcome.Status.ANSWERED),
-                        org.assertj.core.api.Assertions.tuple("ORDER.EMPTY", 0L, NodeOutcome.Status.ANSWERED));
+                        Assertions.tuple("ORDER.IN", 2L, NodeOutcome.Status.ANSWERED),
+                        Assertions.tuple("ORDER.OUT", 1L, NodeOutcome.Status.ANSWERED),
+                        Assertions.tuple("ORDER.EMPTY", 0L, NodeOutcome.Status.ANSWERED));
         assertThat(result.boundsReached()).isEmpty();
     }
 }

@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -179,9 +180,9 @@ public class MessageIndexCoverage {
     }
 
     /** How far back a relative time predicate asks the index to look, if it does. */
-    private java.util.Optional<Duration> reach(Predicate predicate) {
+    private Optional<Duration> reach(Predicate predicate) {
         if (predicate == null) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
         return switch (predicate) {
             case Predicate.And(var parts) -> widest(parts);
@@ -189,24 +190,21 @@ public class MessageIndexCoverage {
             case Predicate.Not(var inner) -> reach(inner);
             case Predicate.Compare compare ->
                 isTimeTerm(compare.term()) && compare.value() instanceof Literal.RelativeTime(var before)
-                        ? java.util.Optional.of(before)
-                        : java.util.Optional.empty();
+                        ? Optional.of(before)
+                        : Optional.empty();
             case Predicate.Between between ->
                 isTimeTerm(between.term()) && between.low() instanceof Literal.RelativeTime(var before)
-                        ? java.util.Optional.of(before)
-                        : java.util.Optional.empty();
-            case Predicate.In _ -> java.util.Optional.empty();
-            case Predicate.IsNull _ -> java.util.Optional.empty();
-            case Predicate.Like _ -> java.util.Optional.empty();
-            case Predicate.Match _ -> java.util.Optional.empty();
+                        ? Optional.of(before)
+                        : Optional.empty();
+            case Predicate.In _ -> Optional.empty();
+            case Predicate.IsNull _ -> Optional.empty();
+            case Predicate.Like _ -> Optional.empty();
+            case Predicate.Match _ -> Optional.empty();
         };
     }
 
-    private java.util.Optional<Duration> widest(List<Predicate> parts) {
-        return parts.stream()
-                .map(this::reach)
-                .flatMap(java.util.Optional::stream)
-                .max(Duration::compareTo);
+    private Optional<Duration> widest(List<Predicate> parts) {
+        return parts.stream().map(this::reach).flatMap(Optional::stream).max(Duration::compareTo);
     }
 
     private boolean isTimeTerm(Term term) {

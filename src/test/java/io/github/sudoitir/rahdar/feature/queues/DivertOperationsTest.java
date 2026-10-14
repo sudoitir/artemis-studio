@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.rahdar.platform.broker.JolokiaRequest;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaResponse;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -49,7 +50,7 @@ class DivertOperationsTest {
     @Test
     void aMissingOrDifferentTransformerIsADifference() {
         Map<String, Object> withTransformer =
-                new java.util.LinkedHashMap<>(DivertOperations.divertConfig("d", null, "A", "B", false, null, null));
+                new LinkedHashMap<>(DivertOperations.divertConfig("d", null, "A", "B", false, null, null));
         withTransformer.put(
                 "transformer-configuration", Map.of("class-name", "com.example.T", "properties", Map.of("k", "v")));
         DivertRow bare = divert("d", "A", "B");
@@ -89,7 +90,7 @@ class DivertOperationsTest {
         assertThat(filtered.arguments()).containsExactly("d", "r", "A", "B", false, "p = 1", "", Map.of(), "ANYCAST");
 
         Map<String, Object> transformed =
-                new java.util.LinkedHashMap<>(DivertOperations.divertConfig("d", null, "A", "B", false, null, null));
+                new LinkedHashMap<>(DivertOperations.divertConfig("d", null, "A", "B", false, null, null));
         transformed.put("transformer-configuration", Map.of("class-name", "T", "properties", Map.of("k", "v")));
         assertThat(ops.positionalCreate("b", transformed).arguments())
                 .containsExactly("d", "d", "A", "B", false, "", "T", Map.of("k", "v"), "STRIP");

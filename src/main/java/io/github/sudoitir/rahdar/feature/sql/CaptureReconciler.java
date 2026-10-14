@@ -17,6 +17,7 @@ import io.github.sudoitir.rahdar.platform.clusters.ClusterLock;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterNode;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.rahdar.platform.clusters.ServingNodes;
+import jakarta.jms.JMSException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -29,6 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
@@ -97,7 +100,7 @@ public class CaptureReconciler {
      * is precisely the kind of harm Rahdar must never do to a broker. One bounded pass
      * at startup closes that, and costs one divert listing per node, once.
      */
-    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @EventListener(ApplicationReadyEvent.class)
     public void sweepOnStartup() {
         for (ClusterNode node : nodes.allNodes()) {
             installedOn.add(node.getClusterId());
@@ -106,7 +109,7 @@ public class CaptureReconciler {
     }
 
     /** A cluster this replica no longer owns: close its drains so the new owner's can start. */
-    @org.springframework.context.event.EventListener
+    @EventListener
     void onDutyReleased(ClusterDutyReleased released) {
         Thread.startVirtualThread(() -> consumers.stopCluster(released.clusterId()));
     }
@@ -394,7 +397,7 @@ public class CaptureReconciler {
                 state(desired, node, CaptureState.PENDING, reason(e), false);
                 audit.fail(event, reason(e));
             }
-        } catch (RuntimeException | jakarta.jms.JMSException e) {
+        } catch (RuntimeException | JMSException e) {
             state(desired, node, CaptureState.PENDING, reason(e), false);
             audit.fail(event, reason(e));
         }
@@ -417,7 +420,7 @@ public class CaptureReconciler {
                 + node.getCoreUrl() + "|" + node.getJolokiaUrl();
     }
 
-    private void startDraining(UUID clusterId, ClusterNode node, Desired desired) throws jakarta.jms.JMSException {
+    private void startDraining(UUID clusterId, ClusterNode node, Desired desired) throws JMSException {
         consumers.start(new CaptureConsumer.Spec(
                 clusterId,
                 node.getId(),

@@ -20,6 +20,7 @@ import java.security.SecureRandom;
 import java.util.Set;
 import java.util.UUID;
 import java.util.jar.JarFile;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -126,7 +127,7 @@ class PluginAssetControllerIntegrationTest extends PostgresIntegrationTest {
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.content().contentTypeCompatibleWith("image/svg+xml"))
                 .andExpect(MockMvcResultMatchers.header().string("Content-Security-Policy", "sandbox"))
-                .andExpect(MockMvcResultMatchers.content().string(org.hamcrest.Matchers.containsString("<svg")));
+                .andExpect(MockMvcResultMatchers.content().string(Matchers.containsString("<svg")));
 
         // Every other SVG is sandboxed too, so an SVG opened directly can never run script.
         mvc.perform(MockMvcRequestBuilders.get("/plugin-ui/{id}/{sha8}/logo.svg", id, sha8)
@@ -138,9 +139,7 @@ class PluginAssetControllerIntegrationTest extends PostgresIntegrationTest {
         mvc.perform(MockMvcRequestBuilders.get("/plugin-ui/{id}/{sha8}/remoteEntry.js", id, sha8)
                         .with(authentication(admin())))
                 .andExpect(MockMvcResultMatchers.header()
-                        .string(
-                                "Content-Security-Policy",
-                                org.hamcrest.Matchers.containsString("frame-ancestors 'none'")));
+                        .string("Content-Security-Policy", Matchers.containsString("frame-ancestors 'none'")));
 
         // Wrong sha8: 404, not the file.
         mvc.perform(MockMvcRequestBuilders.get("/plugin-ui/{id}/{sha8}/remoteEntry.js", id, "deadbeef")

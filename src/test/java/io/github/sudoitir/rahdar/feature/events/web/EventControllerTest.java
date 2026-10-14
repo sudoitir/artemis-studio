@@ -16,6 +16,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -24,7 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
 /** {@code GET .../events} — filtered, newest-first paging over {@code broker_event}. */
-@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+@ExtendWith(AdminAuthenticationExtension.class)
 class EventControllerTest extends PostgresIntegrationTest {
 
     MockMvc mvc;

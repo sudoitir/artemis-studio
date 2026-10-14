@@ -24,11 +24,13 @@ import io.github.sudoitir.rahdar.kernel.security.web.TeamViews.MemberRequest;
 import io.github.sudoitir.rahdar.kernel.security.web.TeamViews.PrincipalType;
 import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -107,7 +109,7 @@ class ExternalIdentityProviderTest extends PostgresIntegrationTest {
     @Autowired
     TeamService teamService;
 
-    final List<UUID> teams = new java.util.ArrayList<>();
+    final List<UUID> teams = new ArrayList<>();
 
     MockMvc mvc;
 
@@ -205,7 +207,7 @@ class ExternalIdentityProviderTest extends PostgresIntegrationTest {
     private Set<String> groupsOf(AppUserEntity user) {
         return userGroups.findByIdUserId(user.getId()).stream()
                 .map(g -> g.getProviderId() + "/" + g.getGroupName())
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
     }
 
     @Test

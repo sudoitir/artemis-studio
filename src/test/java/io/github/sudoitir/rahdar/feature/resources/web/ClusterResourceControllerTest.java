@@ -25,9 +25,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
@@ -40,7 +42,7 @@ import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.json.JsonMapper;
 
 /** {@code /api/v1/clusters/{id}/{queues,consumers,...}} — one endpoint per resource, plus the capability-gated path. */
-@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+@ExtendWith(AdminAuthenticationExtension.class)
 class ClusterResourceControllerTest extends PostgresIntegrationTest {
 
     private static final String URL_A = "http://a:8161/console/jolokia";
@@ -140,7 +142,7 @@ class ClusterResourceControllerTest extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/clusters/{id}/consumers", clusterId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(2))
-                .andExpect(jsonPath("$.data[0].nodeName").value(org.hamcrest.Matchers.startsWith("node-")))
+                .andExpect(jsonPath("$.data[0].nodeName").value(Matchers.startsWith("node-")))
                 .andExpect(jsonPath("$.data[0].queueName").value("SPIKE.A.q000"));
     }
 

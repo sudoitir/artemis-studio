@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.github.sudoitir.rahdar.kernel.security.AdministrationAudit;
 import io.github.sudoitir.rahdar.kernel.security.SessionAuthentication;
 import io.github.sudoitir.rahdar.kernel.security.SessionFacts;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.rahdar.kernel.security.web.SessionViews.AccountSessionView;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -30,7 +32,7 @@ class SessionServiceListTest {
             mock(SessionTerminator.class),
             mock(LoginService.class),
             mock(AppUserRepository.class),
-            mock(io.github.sudoitir.rahdar.kernel.security.AdministrationAudit.class));
+            mock(AdministrationAudit.class));
 
     @Test
     void aSessionTheUserLookupReturnsWithoutItsFactsIsStillListed() {
@@ -41,7 +43,7 @@ class SessionServiceListTest {
         when(store.findByPrincipalName("alice")).thenReturn(Map.of("whole", fragment));
         when(store.findById("whole")).thenReturn(whole);
 
-        java.util.List<AccountSessionView> listed = service.listOwn("alice", new MockHttpServletRequest());
+        List<AccountSessionView> listed = service.listOwn("alice", new MockHttpServletRequest());
 
         assertThat(listed).hasSize(1);
         assertThat(listed.getFirst().handle()).isEqualTo(SessionService.handle("whole"));

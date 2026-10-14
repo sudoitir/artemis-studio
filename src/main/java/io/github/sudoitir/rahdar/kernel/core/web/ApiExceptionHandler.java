@@ -6,6 +6,7 @@ import io.github.sudoitir.rahdar.kernel.core.HeavyTimeoutException;
 import io.github.sudoitir.rahdar.kernel.core.NotFoundException;
 import io.github.sudoitir.rahdar.kernel.core.Problems;
 import io.github.sudoitir.rahdar.kernel.core.ResourceForbiddenException;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -130,7 +131,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             problem = er.getBody();
         }
         if (problem != null && !String.valueOf(problem.getType()).startsWith(Problems.TYPE_BASE)) {
-            problem.setType(java.net.URI.create(Problems.TYPE_BASE + slugFor(status)));
+            problem.setType(URI.create(Problems.TYPE_BASE + slugFor(status)));
         }
         return super.handleExceptionInternal(e, body, headers, status, request);
     }

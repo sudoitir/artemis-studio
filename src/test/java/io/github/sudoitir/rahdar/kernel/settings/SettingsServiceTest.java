@@ -9,6 +9,7 @@ import io.github.sudoitir.rahdar.feature.identitylocal.IdentityLocalSettings;
 import io.github.sudoitir.rahdar.kernel.approval.ApprovalSettings;
 import io.github.sudoitir.rahdar.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.rahdar.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.rahdar.kernel.gate.GatePreview;
 import io.github.sudoitir.rahdar.kernel.lifecycle.LifecycleSettings;
 import io.github.sudoitir.rahdar.kernel.security.SettingsPermissions;
 import io.github.sudoitir.rahdar.kernel.settings.internal.persistence.RahdarSettingEntity;
@@ -20,6 +21,8 @@ import io.github.sudoitir.rahdar.platform.scrape.ScrapeSettings;
 import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.time.Duration;
+import java.util.Comparator;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -175,7 +178,7 @@ class SettingsServiceTest extends PostgresIntegrationTest {
         // it passes or fails by luck. The id is monotonic, so this still pins that
         // the update was recorded before the reset.
         assertThat(auditEvents.findAll().stream()
-                        .sorted(java.util.Comparator.comparing(AuditEventEntity::getId))
+                        .sorted(Comparator.comparing(AuditEventEntity::getId))
                         .toList())
                 .extracting(AuditEventEntity::getAction, AuditEventEntity::getTargetName)
                 .containsExactly(
@@ -203,7 +206,7 @@ class SettingsServiceTest extends PostgresIntegrationTest {
         SettingDef def = new SettingDef(
                 "acme.retention", "g", "l", "h", SettingDef.Kind.DURATION, () -> "7d", null, "1d", "90d");
 
-        settings.addSettings("acme", java.util.List.of(def), SettingsPermissions.SETTINGS_WRITE);
+        settings.addSettings("acme", List.of(def), SettingsPermissions.SETTINGS_WRITE);
 
         assertThat(settings.value("acme.retention")).isEqualTo("30d");
         settings.removeSettings("acme");
@@ -213,7 +216,7 @@ class SettingsServiceTest extends PostgresIntegrationTest {
     void aChangeSetAppliesSettingsAndResetsTogether() {
         settings.put(BrokerSettings.BULK_CAP, "3");
 
-        settings.apply(java.util.List.of(
+        settings.apply(List.of(
                 SettingChange.reset(BrokerSettings.BULK_CAP), SettingChange.set(BrokerSettings.BULK_QUEUE_CAP, "2")));
 
         assertThat(settings.effective().get(BrokerSettings.BULK_CAP).overridden())
@@ -228,7 +231,7 @@ class SettingsServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aChangeSetWithOneInvalidValueChangesNothingAndNamesTheInvalidSetting() {
-        assertThatThrownBy(() -> settings.apply(java.util.List.of(
+        assertThatThrownBy(() -> settings.apply(List.of(
                         SettingChange.set(BrokerSettings.BULK_CAP, "3"),
                         SettingChange.set(BrokerSettings.BULK_QUEUE_CAP, "0"),
                         SettingChange.set(ScrapeSettings.TIER_A, "soon"))))
@@ -244,8 +247,8 @@ class SettingsServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aSettingAppearingTwiceInAChangeSetIsRefused() {
-        var changes = java.util.List.of(
-                SettingChange.set(BrokerSettings.BULK_CAP, "3"), SettingChange.reset(BrokerSettings.BULK_CAP));
+        var changes =
+                List.of(SettingChange.set(BrokerSettings.BULK_CAP, "3"), SettingChange.reset(BrokerSettings.BULK_CAP));
 
         assertThatThrownBy(() -> settings.apply(changes))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -254,13 +257,12 @@ class SettingsServiceTest extends PostgresIntegrationTest {
 
     @Test
     void withoutAProviderThePreviewSaysRunAndReportsInvalidFields() {
-        assertThat(settings.preview(java.util.List.of(SettingChange.set(BrokerSettings.BULK_CAP, "3"))))
+        assertThat(settings.preview(List.of(SettingChange.set(BrokerSettings.BULK_CAP, "3"))))
                 .satisfies(preview -> {
-                    assertThat(preview.outcome())
-                            .isEqualTo(io.github.sudoitir.rahdar.kernel.gate.GatePreview.Outcome.RUN);
+                    assertThat(preview.outcome()).isEqualTo(GatePreview.Outcome.RUN);
                     assertThat(preview.fieldErrors()).isEmpty();
                 });
-        assertThat(settings.preview(java.util.List.of(SettingChange.set(BrokerSettings.BULK_CAP, "0"))))
+        assertThat(settings.preview(List.of(SettingChange.set(BrokerSettings.BULK_CAP, "0"))))
                 .satisfies(preview -> {
                     assertThat(preview.outcome()).isNull();
                     assertThat(preview.fieldErrors()).containsOnlyKeys(BrokerSettings.BULK_CAP);

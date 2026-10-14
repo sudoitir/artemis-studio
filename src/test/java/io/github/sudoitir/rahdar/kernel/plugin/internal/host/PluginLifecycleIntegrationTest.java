@@ -30,17 +30,21 @@ import io.github.sudoitir.rahdar.support.McpFixture;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.DriverManager;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -102,9 +106,9 @@ class PluginLifecycleIntegrationTest extends PostgresIntegrationTest {
     @Autowired
     ApiTokenService tokens;
 
-    private final List<String> runtimeIds = new java.util.ArrayList<>();
-    private final List<String> seededIds = new java.util.ArrayList<>();
-    private final List<String> uploadedShas = new java.util.ArrayList<>();
+    private final List<String> runtimeIds = new ArrayList<>();
+    private final List<String> seededIds = new ArrayList<>();
+    private final List<String> uploadedShas = new ArrayList<>();
     private MockMvc mvc;
 
     @BeforeEach
@@ -136,9 +140,7 @@ class PluginLifecycleIntegrationTest extends PostgresIntegrationTest {
     private MockMvc mvc() {
         if (mvc == null) {
             mvc = webAppContextSetup(webContext)
-                    .apply(
-                            org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers
-                                    .springSecurity())
+                    .apply(SecurityMockMvcConfigurers.springSecurity())
                     .build();
         }
         return mvc;
@@ -411,7 +413,7 @@ class PluginLifecycleIntegrationTest extends PostgresIntegrationTest {
         assertThat(featureRegistry.manifestVersion()).isNotEqualTo(manifestBeforeDisable);
         http.perform(MockMvcRequestBuilders.get("/api/v1/p/" + id + "/version").with(authentication(callerWith())))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("feature-disabled")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("feature-disabled")));
         assertThat(McpFixture.rpc(http, key, "tools/list", null)
                         .path("result")
                         .path("tools")
@@ -738,8 +740,8 @@ class PluginLifecycleIntegrationTest extends PostgresIntegrationTest {
         awaitStatus(id, PluginInstallStatus.ACTIVE);
 
         // An activation that crashed mid-migration held the plugin's session lock; its connection closing frees it.
-        try (var holder = java.sql.DriverManager.getConnection(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+        try (var holder =
+                DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
             try (var ps = holder.prepareStatement("SELECT pg_advisory_lock(hashtext(?))")) {
                 ps.setString(1, "plugin:" + id);
                 ps.execute();

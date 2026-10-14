@@ -10,6 +10,7 @@ import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +52,7 @@ class SplitBrainPersistenceTest extends PostgresIntegrationTest {
 
     private Map<String, SplitBrainStatus> verdicts() {
         return directory.nodes(clusterId).stream()
-                .collect(java.util.stream.Collectors.toMap(ClusterNode::getName, ClusterNode::getSplitBrain));
+                .collect(Collectors.toMap(ClusterNode::getName, ClusterNode::getSplitBrain));
     }
 
     @Test

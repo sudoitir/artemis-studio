@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
 
+import io.github.sudoitir.rahdar.kernel.core.ConflictException;
+import io.github.sudoitir.rahdar.kernel.core.NotFoundException;
 import io.github.sudoitir.rahdar.kernel.gate.GateDecision;
 import io.github.sudoitir.rahdar.kernel.gate.HeldState;
+import io.github.sudoitir.rahdar.kernel.gate.OperationDeniedException;
 import io.github.sudoitir.rahdar.kernel.gate.Trait;
 import io.github.sudoitir.rahdar.kernel.plugin.IdentityProviderListing;
 import io.github.sudoitir.rahdar.kernel.security.PatternKind;
@@ -212,10 +215,8 @@ class AccessGatingIntegrationTest extends GatedAccessTestBase {
         setUp();
         arm();
 
-        assertThatThrownBy(() -> userService.disable(UUID.randomUUID()))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.core.NotFoundException.class);
-        assertThatThrownBy(() -> userService.resetSecondFactors(alice.id()))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.core.ConflictException.class);
+        assertThatThrownBy(() -> userService.disable(UUID.randomUUID())).isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> userService.resetSecondFactors(alice.id())).isInstanceOf(ConflictException.class);
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM held_operation WHERE requester_id = ?", Long.class, alice.id()))
                 .isZero();
@@ -469,8 +470,7 @@ class AccessGatingIntegrationTest extends GatedAccessTestBase {
         arm();
         provider.decide = request -> new GateDecision.Deny("Not today");
 
-        assertThatThrownBy(() -> userService.disable(user.getId()))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.gate.OperationDeniedException.class);
+        assertThatThrownBy(() -> userService.disable(user.getId())).isInstanceOf(OperationDeniedException.class);
         assertThat(disabled(user.getId())).isFalse();
     }
 }

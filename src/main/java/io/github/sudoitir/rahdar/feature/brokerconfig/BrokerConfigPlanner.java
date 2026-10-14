@@ -169,7 +169,7 @@ public final class BrokerConfigPlanner {
         Set<String> items = nodes.stream()
                 .flatMap(n -> n.steps().stream())
                 .map(s -> s.section() + ":" + s.key())
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         List<Hazard> hazards = plan.hazards().stream()
                 .filter(h -> items.contains(h.section() + ":" + h.key()))
                 .toList();

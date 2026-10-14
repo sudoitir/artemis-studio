@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.sudoitir.rahdar.platform.clusters.SeedExpander.Seed;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 /** The resolver is stubbed, so the tests need no DNS. */
@@ -22,8 +24,8 @@ class SeedExpanderTest {
     }
 
     private static SeedExpander resolvingTo(String... addresses) {
-        return new SeedExpander(host ->
-                java.util.Arrays.stream(addresses).map(SeedExpanderTest::ip).toArray(InetAddress[]::new));
+        return new SeedExpander(
+                host -> Arrays.stream(addresses).map(SeedExpanderTest::ip).toArray(InetAddress[]::new));
     }
 
     @Test
@@ -56,9 +58,8 @@ class SeedExpanderTest {
 
     @Test
     void aNameWithMoreAddressesThanAClusterHasBrokersIsCutAtSixteen() {
-        String[] many = java.util.stream.IntStream.rangeClosed(1, 40)
-                .mapToObj(i -> "10.0.0." + i)
-                .toArray(String[]::new);
+        String[] many =
+                IntStream.rangeClosed(1, 40).mapToObj(i -> "10.0.0." + i).toArray(String[]::new);
 
         List<Seed> seeds = resolvingTo(many).expand("http://brokers.example" + PATH);
 

@@ -11,6 +11,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,7 +74,7 @@ class TransferLargeQueueTest extends TransferTestSupport {
         TransferRunView executing = execute(preview, true);
         // Paced: the run saves its counts once per batch, and an unpaced loop would compete with it.
         Thread sampler = Thread.ofVirtual()
-                .start(() -> org.awaitility.Awaitility.await()
+                .start(() -> Awaitility.await()
                         .pollInSameThread()
                         .pollInterval(Duration.ofMillis(5))
                         .forever()

@@ -17,6 +17,9 @@ import io.github.sudoitir.rahdar.platform.broker.CoreObservations;
 import io.github.sudoitir.rahdar.platform.broker.CorePool;
 import io.github.sudoitir.rahdar.support.ArtemisIntegrationTest;
 import jakarta.jms.Connection;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.MessageConsumer;
 import jakarta.jms.MessageProducer;
 import jakarta.jms.Session;
 import java.time.Duration;
@@ -33,6 +36,7 @@ import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.boot.ssl.SslBundles;
 import org.springframework.dao.DataAccessResourceFailureException;
 
@@ -213,7 +217,7 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
         consumer.start(spec);
         assertThat(consumer.isDraining(nodeId, spec.name())).isTrue();
 
-        consumer.connectionFailed(clusterId, nodeId, new jakarta.jms.JMSException("AMQ219016: connection failure"));
+        consumer.connectionFailed(clusterId, nodeId, new JMSException("AMQ219016: connection failure"));
 
         // The reconciler installs a tap again whenever its node is not draining it.
         assertThat(consumer.isDraining(nodeId, spec.name())).isFalse();
@@ -243,24 +247,24 @@ class CaptureConsumerTest extends ArtemisIntegrationTest {
 
     @Test
     void aPoisonMessageIsRetriedThenCountedAsLostAndAcknowledged() throws Exception {
-        jakarta.jms.Session session = mock(jakarta.jms.Session.class);
-        jakarta.jms.Message poison = mock(jakarta.jms.Message.class);
+        Session session = mock(Session.class);
+        Message poison = mock(Message.class);
         when(poison.getJMSMessageID()).thenReturn("ID:poison");
-        when(poison.getPropertyNames()).thenThrow(new jakarta.jms.JMSException("unreadable property"));
+        when(poison.getPropertyNames()).thenThrow(new JMSException("unreadable property"));
         CaptureConsumer.Drain drain = consumer
         .new Drain(
                 spec("capture.poison", "ORDER.IN"),
                 new CorePool.PooledSession(mock(Connection.class), session),
-                mock(jakarta.jms.MessageConsumer.class));
+                mock(MessageConsumer.class));
 
         // The broker redelivers after each recover; here the redeliveries are the calls themselves.
         drain.onMessage(poison);
         drain.onMessage(poison);
-        org.mockito.Mockito.verify(poison, org.mockito.Mockito.never()).acknowledge();
+        Mockito.verify(poison, Mockito.never()).acknowledge();
         drain.onMessage(poison);
 
-        org.mockito.Mockito.verify(session, org.mockito.Mockito.times(2)).recover();
-        org.mockito.Mockito.verify(poison).acknowledge();
+        Mockito.verify(session, Mockito.times(2)).recover();
+        Mockito.verify(poison).acknowledge();
         assertThat(drain.takeShortfall().unreadable()).isEqualTo(1);
     }
 

@@ -30,6 +30,7 @@ import io.github.sudoitir.rahdar.platform.clusters.RegisteredCluster;
 import io.github.sudoitir.rahdar.platform.clusters.RegistrationAdoption;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshots;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -750,7 +751,7 @@ public class BrokerConfigService {
             return a == b;
         }
         if (a instanceof Number x && b instanceof Number y) {
-            return new java.math.BigDecimal(x.toString()).compareTo(new java.math.BigDecimal(y.toString())) == 0;
+            return new BigDecimal(x.toString()).compareTo(new BigDecimal(y.toString())) == 0;
         }
         return a.toString().equalsIgnoreCase(b.toString());
     }

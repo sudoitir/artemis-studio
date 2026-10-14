@@ -10,6 +10,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.internal.persistence.PluginArtifa
 import io.github.sudoitir.rahdar.kernel.plugin.internal.persistence.PluginInstallEntity;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.persistence.PluginInstallRepository;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.runtime.PluginRuntimeRegistry;
+import io.github.sudoitir.rahdar.kernel.plugin.internal.store.PluginStore;
 import io.github.sudoitir.rahdar.kernel.plugin.support.PluginJarBuilder;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.nio.file.Files;
@@ -37,7 +38,7 @@ class PluginHostStartTimeoutIntegrationTest extends PostgresIntegrationTest {
     PluginHost host;
 
     @Autowired
-    io.github.sudoitir.rahdar.kernel.plugin.internal.store.PluginStore store;
+    PluginStore store;
 
     @Autowired
     PluginRuntimeRegistry registry;

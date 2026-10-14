@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -94,7 +95,7 @@ class BrokerXmlMarkupRoundTripTest extends PostgresIntegrationTest {
         return UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities());
     }
 
-    private String body(org.springframework.test.web.servlet.RequestBuilder request, int status) throws Exception {
+    private String body(RequestBuilder request, int status) throws Exception {
         var response = mvc.perform(request).andReturn().getResponse();
         assertThat(response.getStatus()).as(response.getContentAsString()).isEqualTo(status);
         return response.getContentAsString(StandardCharsets.UTF_8);

@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -88,7 +89,7 @@ class PermissionResolverTest {
         when(features.catalogue()).thenAnswer(i -> List.copyOf(catalogue.values()));
         when(patterns.findAll()).thenAnswer(i -> List.copyOf(ownedRows));
         when(shares.findAll()).thenAnswer(i -> List.copyOf(shareRows));
-        when(rolePermissions.findByIdRoleId(org.mockito.ArgumentMatchers.any()))
+        when(rolePermissions.findByIdRoleId(ArgumentMatchers.any()))
                 .thenAnswer(i -> rolePermissionRows.getOrDefault(i.<UUID>getArgument(0), Set.of()).stream()
                         .map(action -> new RolePermissionEntity(i.getArgument(0), action))
                         .toList());

@@ -12,6 +12,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -55,7 +56,7 @@ class ApiDeprecationIntegrationTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().exists("Deprecation"))
                 .andExpect(header().exists("Sunset"))
-                .andExpect(header().string("Link", org.hamcrest.Matchers.containsString("rel=\"deprecation\"")));
+                .andExpect(header().string("Link", Matchers.containsString("rel=\"deprecation\"")));
         mvc.perform(get("/api/v1/manifest").with(user("nobody"))).andExpect(header().doesNotExist("Deprecation"));
     }
 

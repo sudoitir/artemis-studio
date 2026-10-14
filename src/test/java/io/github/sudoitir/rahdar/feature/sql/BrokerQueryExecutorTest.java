@@ -22,6 +22,7 @@ import io.github.sudoitir.rahdar.platform.broker.MessageTransport.Channel;
 import io.github.sudoitir.rahdar.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.rahdar.platform.scrape.QueueLocator;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshots;
 import java.lang.reflect.Field;
@@ -88,7 +89,7 @@ class BrokerQueryExecutorTest {
     private QueryPlanner planner(SqlProperties properties) {
         return new QueryPlanner(
                 snapshots,
-                mock(io.github.sudoitir.rahdar.platform.scrape.QueueLocator.class),
+                mock(QueueLocator.class),
                 nodes,
                 splitter,
                 renderer,

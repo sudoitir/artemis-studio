@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.kernel.stream;
 import io.github.sudoitir.rahdar.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.rahdar.kernel.plugin.TopicDef;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -90,7 +91,7 @@ public class StreamTopicRegistry {
     }
 
     private void recompute() {
-        Set<String> nextKnown = new java.util.LinkedHashSet<>(builtinTopics);
+        Set<String> nextKnown = new LinkedHashSet<>(builtinTopics);
         pluginTopics.values().forEach(nextKnown::addAll);
         Map<String, EventReplay> nextReplays = new LinkedHashMap<>(builtinReplays);
         pluginReplays.values().stream()

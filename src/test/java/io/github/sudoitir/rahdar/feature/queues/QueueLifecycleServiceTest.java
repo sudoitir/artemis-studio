@@ -18,11 +18,13 @@ import static org.mockito.Mockito.when;
 import io.github.sudoitir.rahdar.feature.queues.LifecycleRequests.CreateQueueRequest;
 import io.github.sudoitir.rahdar.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.rahdar.kernel.audit.internal.persistence.AuditEventRepository;
+import io.github.sudoitir.rahdar.kernel.core.NotFoundException;
 import io.github.sudoitir.rahdar.platform.broker.Attempt;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
 import io.github.sudoitir.rahdar.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.rahdar.platform.broker.JolokiaResponse;
 import io.github.sudoitir.rahdar.platform.broker.ManagementRefusal;
 import io.github.sudoitir.rahdar.platform.broker.QueueRow;
 import io.github.sudoitir.rahdar.platform.clusters.LifecycleOutcome;
@@ -34,17 +36,23 @@ import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNo
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshotUpsert;
+import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshots;
 import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -77,7 +85,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
     QueueSnapshotUpsert upsert;
 
     @Autowired
-    io.github.sudoitir.rahdar.platform.scrape.QueueSnapshots snapshots;
+    QueueSnapshots snapshots;
 
     @Autowired
     AuditEventRepository auditEvents;
@@ -455,7 +463,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
         seedQueue();
         onTheNode(0, QUEUE);
         diverts(divert("feed", "incoming", ADDRESS));
-        when(declaredDiverts.names(clusterId)).thenReturn(java.util.Set.of("feed"));
+        when(declaredDiverts.names(clusterId)).thenReturn(Set.of("feed"));
 
         NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
 
@@ -516,10 +524,9 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
                 + "\",subcomponent=queues,routing-type=\"anycast\",queue=\"" + QUEUE + "\"";
         tools.jackson.databind.node.ObjectNode value = new tools.jackson.databind.json.JsonMapper().createObjectNode();
         value.putObject(mbean).put("MessageCount", 0);
-        when(client.single(org.mockito.ArgumentMatchers.argThat(
+        when(client.single(ArgumentMatchers.argThat(
                         r -> r != null && "read".equals(r.type()) && r.mbean().contains("queue=\"" + QUEUE + "\""))))
-                .thenReturn(
-                        new io.github.sudoitir.rahdar.platform.broker.JolokiaResponse(200, value, null, null, null));
+                .thenReturn(new JolokiaResponse(200, value, null, null, null));
         onTheNode(0, QUEUE);
 
         NodeOutcome preview = live(ok(lifecycle.deleteQueue(clusterId, QUEUE, true, false, false)));
@@ -530,11 +537,11 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
     @Test
     void aQueueNoNodeHasIsNotFound() {
         // What a broker answers a pattern read that matches nothing.
-        when(client.single(org.mockito.ArgumentMatchers.any()))
-                .thenReturn(new io.github.sudoitir.rahdar.platform.broker.JolokiaResponse(
+        when(client.single(ArgumentMatchers.any()))
+                .thenReturn(new JolokiaResponse(
                         404, null, "No MBean with pattern found", "javax.management.InstanceNotFoundException", null));
         assertThatThrownBy(() -> lifecycle.deleteQueue(clusterId, QUEUE, true, false, false))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.core.NotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
     }
 
     // ---- create queue: the ALREADY comparison ------------------------------
@@ -591,7 +598,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
                 "non-destructive",
                 "ring-size",
                 "durable")) {
-            java.util.HashMap<String, Object> existing = new java.util.HashMap<>(fullConfig());
+            HashMap<String, Object> existing = new HashMap<>(fullConfig());
             existing.put(
                     key,
                     switch (key) {
@@ -622,7 +629,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
 
     @Test
     void aDifferenceInAnAttributeThatIsNotDescribedStillFailsWithAGenericReason() {
-        java.util.HashMap<String, Object> existing = new java.util.HashMap<>(fullConfig());
+        HashMap<String, Object> existing = new HashMap<>(fullConfig());
         existing.put("ring-size", 1);
         alreadyExists(existing);
 
@@ -658,7 +665,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
         lifecycle.createQueue(clusterId, fullRequest(), false);
 
         @SuppressWarnings("unchecked")
-        org.mockito.ArgumentCaptor<Map<String, Object>> config = org.mockito.ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, Object>> config = ArgumentCaptor.forClass(Map.class);
         verify(ops).createQueue(any(), anyString(), config.capture());
         assertThat(config.getValue())
                 .containsEntry("name", QUEUE)
@@ -673,7 +680,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
                 .containsEntry("non-destructive", true)
                 .containsEntry("ring-size", 100L);
 
-        org.mockito.Mockito.clearInvocations(ops);
+        Mockito.clearInvocations(ops);
         lifecycle.createQueue(clusterId, createRequest(), false);
         verify(ops).createQueue(any(), anyString(), config.capture());
         assertThat(config.getValue()).doesNotContainKeys("filter-string", "max-consumers", "ring-size");
@@ -690,7 +697,7 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
 
         assertThat(status(outcome, liveId)).isEqualTo(NodeStatus.APPLIED);
         @SuppressWarnings("unchecked")
-        org.mockito.ArgumentCaptor<Map<String, Object>> patch = org.mockito.ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, Object>> patch = ArgumentCaptor.forClass(Map.class);
         verify(ops).updateQueue(any(), anyString(), anyString(), patch.capture());
         assertThat(patch.getValue())
                 .containsEntry("filter-string", "")
@@ -716,15 +723,15 @@ class QueueLifecycleServiceTest extends PostgresIntegrationTest {
     @Test
     void anUpdateOfAQueueNoNodeHasIsNotFound() {
         when(client.single(any()))
-                .thenReturn(new io.github.sudoitir.rahdar.platform.broker.JolokiaResponse(
-                        404, null, "No MBean", "javax.management.InstanceNotFoundException", null));
+                .thenReturn(
+                        new JolokiaResponse(404, null, "No MBean", "javax.management.InstanceNotFoundException", null));
 
         assertThatThrownBy(() -> lifecycle.updateQueue(
                         clusterId,
                         "ghost",
                         new LifecycleRequests.UpdateQueueRequest(null, 1, null, null, null, null),
                         false))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.core.NotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test

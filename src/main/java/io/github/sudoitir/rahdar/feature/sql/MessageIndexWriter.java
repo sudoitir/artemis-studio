@@ -6,6 +6,7 @@ import io.github.sudoitir.rahdar.platform.governance.ContentSealer;
 import io.github.sudoitir.rahdar.platform.governance.GovernedMessage;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +62,7 @@ public class MessageIndexWriter {
      * within seconds, so the window is four orders of magnitude wider than the case
      * it covers.
      */
-    private static final java.time.Duration REDELIVERY_WINDOW = java.time.Duration.ofMinutes(10);
+    private static final Duration REDELIVERY_WINDOW = Duration.ofMinutes(10);
 
     private final JdbcTemplate jdbc;
     private final SqlGovernance governance;

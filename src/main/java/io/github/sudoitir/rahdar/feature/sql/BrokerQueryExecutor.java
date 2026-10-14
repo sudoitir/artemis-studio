@@ -20,6 +20,7 @@ import io.github.sudoitir.rahdar.platform.broker.NodeCallLimiter;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterNode;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,9 +28,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -130,9 +135,9 @@ public class BrokerQueryExecutor {
 
         // Shared across the fan-out: rows and the examined counter are what the
         // bounds are measured against, so every node has to see the same ones.
-        private final List<Row> rows = java.util.Collections.synchronizedList(new ArrayList<>());
-        private final List<NodeOutcome> outcomes = java.util.Collections.synchronizedList(new ArrayList<>());
-        private final List<Bound> bounds = java.util.Collections.synchronizedList(new ArrayList<>());
+        private final List<Row> rows = Collections.synchronizedList(new ArrayList<>());
+        private final List<NodeOutcome> outcomes = Collections.synchronizedList(new ArrayList<>());
+        private final List<Bound> bounds = Collections.synchronizedList(new ArrayList<>());
         private final List<Notice> notices;
         private final AtomicLong examined = new AtomicLong();
         private final AtomicBoolean truncationSeen = new AtomicBoolean();
@@ -170,9 +175,9 @@ public class BrokerQueryExecutor {
                     .forEach(target -> byNode.computeIfAbsent(target.nodeId(), k -> new ArrayList<>())
                             .add(target));
 
-            try (var scope = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
-                List<java.util.concurrent.Future<?>> running = byNode.values().stream()
-                        .<java.util.concurrent.Future<?>>map(nodeTargets -> scope.submit(() -> readNode(nodeTargets)))
+            try (var scope = Executors.newVirtualThreadPerTaskExecutor()) {
+                List<Future<?>> running = byNode.values().stream()
+                        .<Future<?>>map(nodeTargets -> scope.submit(() -> readNode(nodeTargets)))
                         .toList();
                 awaitAll(running);
             }
@@ -199,15 +204,15 @@ public class BrokerQueryExecutor {
                     List.copyOf(capped), List.copyOf(outcomes), List.copyOf(bounds), List.copyOf(notices));
         }
 
-        private void awaitAll(List<java.util.concurrent.Future<?>> running) {
-            for (java.util.concurrent.Future<?> future : running) {
+        private void awaitAll(List<Future<?>> running) {
+            for (Future<?> future : running) {
                 try {
                     future.get();
                 } catch (InterruptedException _) {
                     Thread.currentThread().interrupt();
                     recordBound(new Bound(Bound.Kind.TIMEOUT, limits.timeout().toSeconds()));
                     return;
-                } catch (java.util.concurrent.ExecutionException e) {
+                } catch (ExecutionException e) {
                     log.debug("SQL console fan-out task failed", e.getCause());
                 }
             }
@@ -427,7 +432,7 @@ public class BrokerQueryExecutor {
         private final Target target;
         private final TransportTarget transportTarget;
         private final String selector;
-        private final java.util.function.Predicate<BrowsedMessage> residual;
+        private final Predicate<BrowsedMessage> residual;
         private long matched;
         private long examinedHere;
         private Channel servedBy;
@@ -437,7 +442,7 @@ public class BrokerQueryExecutor {
                 Target target,
                 TransportTarget transportTarget,
                 String selector,
-                java.util.function.Predicate<BrowsedMessage> residual) {
+                Predicate<BrowsedMessage> residual) {
             this.node = node;
             this.target = target;
             this.transportTarget = transportTarget;

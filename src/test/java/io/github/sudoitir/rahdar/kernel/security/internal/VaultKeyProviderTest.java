@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.sudoitir.rahdar.kernel.security.SecretProviderProperties;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Map;
@@ -31,7 +32,7 @@ class VaultKeyProviderTest {
     @BeforeAll
     static void connect() {
         var template = new VaultTemplate(
-                VaultEndpoint.from(java.net.URI.create(VAULT.getHttpHostAddress())), new TokenAuthentication(TOKEN));
+                VaultEndpoint.from(URI.create(VAULT.getHttpHostAddress())), new TokenAuthentication(TOKEN));
         kv = new VaultVersionedKeyValueTemplate(template, "secret");
     }
 

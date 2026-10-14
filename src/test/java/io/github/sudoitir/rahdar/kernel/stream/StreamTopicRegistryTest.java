@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.kernel.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.rahdar.kernel.plugin.FeatureDescriptor;
+import io.github.sudoitir.rahdar.kernel.plugin.FeatureRegistry;
 import io.github.sudoitir.rahdar.kernel.plugin.InstalledFeatures;
 import io.github.sudoitir.rahdar.kernel.plugin.TopicDef;
 import java.util.List;
@@ -13,16 +14,15 @@ import org.springframework.mock.env.MockEnvironment;
 /** {@link StreamTopicRegistry#addPlugin} / {@link StreamTopicRegistry#removePlugin} (design.md, task 6.4). */
 class StreamTopicRegistryTest {
 
-    private static final io.github.sudoitir.rahdar.kernel.plugin.FeatureRegistry BUILTIN_FEATURES =
-            new io.github.sudoitir.rahdar.kernel.plugin.FeatureRegistry(
-                    new InstalledFeatures(List.of(FeatureDescriptor.builder()
-                            .id("queues")
-                            .title("Queues")
-                            .kind(FeatureDescriptor.Kind.FEATURE)
-                            .streamTopic(TopicDef.signal("queues"))
-                            .build())),
-                    new MockEnvironment(),
-                    event -> {});
+    private static final FeatureRegistry BUILTIN_FEATURES = new FeatureRegistry(
+            new InstalledFeatures(List.of(FeatureDescriptor.builder()
+                    .id("queues")
+                    .title("Queues")
+                    .kind(FeatureDescriptor.Kind.FEATURE)
+                    .streamTopic(TopicDef.signal("queues"))
+                    .build())),
+            new MockEnvironment(),
+            event -> {});
 
     private record FixedReplay(String topic) implements EventReplay {
         @Override

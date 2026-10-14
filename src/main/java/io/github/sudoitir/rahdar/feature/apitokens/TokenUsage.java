@@ -1,5 +1,6 @@
 package io.github.sudoitir.rahdar.feature.apitokens;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -68,7 +69,7 @@ public class TokenUsage {
                                 denied = api_token_usage.denied + EXCLUDED.denied,
                                 limited = api_token_usage.limited + EXCLUDED.limited,
                                 errors = api_token_usage.errors + EXCLUDED.errors""")
-                    .params(java.sql.Timestamp.from(key.hour()), c[0], c[1], c[2], c[3], key.tokenId(), key.tokenId())
+                    .params(Timestamp.from(key.hour()), c[0], c[1], c[2], c[3], key.tokenId(), key.tokenId())
                     .update();
         }
     }
@@ -84,7 +85,7 @@ public class TokenUsage {
                                sum(denied) AS denied, sum(limited) AS limited, sum(errors) AS errors
                         FROM api_token_usage WHERE token_id = ? AND hour >= ?
                         GROUP BY 1 ORDER BY 1""")
-                .params(tokenId, java.sql.Timestamp.from(from))
+                .params(tokenId, Timestamp.from(from))
                 .query((rs, n) -> new Day(
                         rs.getObject("day", LocalDate.class),
                         rs.getLong("requests"),

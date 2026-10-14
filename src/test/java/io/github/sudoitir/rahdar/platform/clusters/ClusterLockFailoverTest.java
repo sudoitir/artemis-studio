@@ -7,6 +7,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -61,7 +62,7 @@ class ClusterLockFailoverTest {
             });
             interruptLeftOnTheCaller.set(Thread.currentThread().isInterrupted());
         });
-        assertThat(holding.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        assertThat(holding.await(10, TimeUnit.SECONDS)).isTrue();
 
         jdbc.queryForList("""
                 SELECT pg_terminate_backend(pid) FROM pg_locks

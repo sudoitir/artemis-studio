@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.rahdar.feature.triage.ConsumerHealth.Source;
 import io.github.sudoitir.rahdar.feature.triage.ConsumerHealth.Verdict;
+import io.github.sudoitir.rahdar.kernel.core.ResourceQuery;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterEntity;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -33,7 +35,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
  * decides what an alert fires on and what an agent reports, so a reordering must fail
  * here rather than in production.
  */
-@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+@ExtendWith(AdminAuthenticationExtension.class)
 class ConsumerHealthServiceTest extends PostgresIntegrationTest {
 
     @Autowired
@@ -211,7 +213,7 @@ class ConsumerHealthServiceTest extends PostgresIntegrationTest {
         queue("unsampled", 1, 10, 0, false);
         sample("unsampled", "messagesAcked", 5, Instant.now().minusSeconds(5));
 
-        var page = service.page(clusterId, io.github.sudoitir.rahdar.kernel.core.ResourceQuery.of(null, 1, 50, null));
+        var page = service.page(clusterId, ResourceQuery.of(null, 1, 50, null));
         var order = page.data().stream().map(ConsumerHealth::queueName).toList();
 
         assertThat(order).containsExactly("broken", "unsampled", "healthy");

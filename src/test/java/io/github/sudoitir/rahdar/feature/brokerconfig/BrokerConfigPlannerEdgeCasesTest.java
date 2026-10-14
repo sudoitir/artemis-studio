@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
 /** The planner's referential checks, hazards, removals and undeclared reporting beyond the main paths. */
@@ -54,7 +55,7 @@ class BrokerConfigPlannerEdgeCasesTest {
         Map<String, ObservedBridge> bridges = new LinkedHashMap<>();
         Map<String, AddressUsage> usage = new LinkedHashMap<>();
 
-        Obs with(java.util.function.Consumer<Obs> change) {
+        Obs with(Consumer<Obs> change) {
             change.accept(this);
             return this;
         }

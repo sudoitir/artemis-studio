@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -81,7 +82,7 @@ public class AccessLoader {
                     member.getRoleId(),
                     role -> rolePermissions.findByIdRoleId(role).stream()
                             .map(RolePermissionEntity::getAction)
-                            .collect(java.util.stream.Collectors.toSet()));
+                            .collect(Collectors.toSet()));
             teams.computeIfAbsent(member.getTeamId(), t -> new HashSet<>()).addAll(permissions);
         }
         return new AccessSnapshot(grants.loadFor(userId), teams);

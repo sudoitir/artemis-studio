@@ -26,6 +26,7 @@ import io.github.sudoitir.rahdar.feature.brokerconfig.internal.persistence.Broke
 import io.github.sudoitir.rahdar.kernel.audit.internal.persistence.AuditEventEntity;
 import io.github.sudoitir.rahdar.kernel.audit.internal.persistence.AuditEventRepository;
 import io.github.sudoitir.rahdar.kernel.core.ConflictException;
+import io.github.sudoitir.rahdar.kernel.stream.SseHub;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.rahdar.platform.broker.ManagementRefusal;
@@ -102,7 +103,7 @@ class BrokerConfigApplyServiceTest extends PostgresIntegrationTest {
     BrokerConfigOperations ops;
 
     @MockitoSpyBean
-    io.github.sudoitir.rahdar.kernel.stream.SseHub sseHub;
+    SseHub sseHub;
 
     private UUID clusterId;
     private UUID firstId;

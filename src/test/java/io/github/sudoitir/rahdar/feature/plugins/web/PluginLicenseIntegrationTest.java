@@ -17,6 +17,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.support.PluginJarBuilder;
 import io.github.sudoitir.rahdar.kernel.plugin.support.TestSigningKeys;
 import io.github.sudoitir.rahdar.kernel.plugin.support.TrustedTestKey;
 import io.github.sudoitir.rahdar.kernel.security.Permissions;
+import io.github.sudoitir.rahdar.kernel.security.ScopeIds;
 import io.github.sudoitir.rahdar.kernel.security.SessionAuthentication;
 import io.github.sudoitir.rahdar.kernel.security.SessionFacts;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserEntity;
@@ -29,11 +30,14 @@ import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleEn
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +47,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.JsonNode;
@@ -139,8 +144,7 @@ class PluginLicenseIntegrationTest extends PostgresIntegrationTest {
         users.save(user);
         RoleEntity role = roles.save(new RoleEntity("role-" + UUID.randomUUID(), false));
         rolePermissions.save(new RolePermissionEntity(role.getId(), Permissions.WILDCARD));
-        userRoles.save(new UserRoleEntity(
-                user.getId(), role.getId(), "GLOBAL", io.github.sudoitir.rahdar.kernel.security.ScopeIds.GLOBAL));
+        userRoles.save(new UserRoleEntity(user.getId(), role.getId(), "GLOBAL", ScopeIds.GLOBAL));
         return user.getId();
     }
 
@@ -204,7 +208,7 @@ class PluginLicenseIntegrationTest extends PostgresIntegrationTest {
                     }
                     """.formatted(pkg, id));
         }
-        return java.nio.file.Files.readAllBytes(builder.build());
+        return Files.readAllBytes(builder.build());
     }
 
     private void install(MockMvc mvc, MockHttpSession session, String id, boolean requiresLicense) throws Exception {
@@ -246,8 +250,8 @@ class PluginLicenseIntegrationTest extends PostgresIntegrationTest {
                 .until(() -> view(mvc, session, id).at("/license/state").asString(), state::equals);
     }
 
-    private org.springframework.test.web.servlet.ResultActions putLicense(
-            MockMvc mvc, MockHttpSession session, String id, byte[] content, MediaType type) throws Exception {
+    private ResultActions putLicense(MockMvc mvc, MockHttpSession session, String id, byte[] content, MediaType type)
+            throws Exception {
         return mvc.perform(put("/api/v1/admin/plugins/{id}/license", id)
                 .session(session)
                 .with(csrf())
@@ -255,7 +259,7 @@ class PluginLicenseIntegrationTest extends PostgresIntegrationTest {
                 .content(content));
     }
 
-    private java.util.Map<String, Object> lastAudit(String action, UUID userId) {
+    private Map<String, Object> lastAudit(String action, UUID userId) {
         return jdbc.queryForMap(
                 "SELECT outcome, error, params::text AS params, target_name FROM audit_event"
                         + " WHERE action = ? AND user_id = ? ORDER BY id DESC LIMIT 1",
@@ -391,7 +395,7 @@ class PluginLicenseIntegrationTest extends PostgresIntegrationTest {
         MockHttpSession admin = signIn(mvc, name);
         putLicense(mvc, admin, id, bytes("valid-other"), MediaType.APPLICATION_OCTET_STREAM)
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("plugin-installer-required")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("plugin-installer-required")));
         mvc.perform(delete("/api/v1/admin/plugins/{id}/license", id)
                         .session(admin)
                         .with(csrf()))
@@ -406,7 +410,7 @@ class PluginLicenseIntegrationTest extends PostgresIntegrationTest {
                 facts.withAuthenticatedAt(Instant.now().minusSeconds(600)));
         putLicense(mvc, installer, id, bytes("valid-other"), MediaType.APPLICATION_OCTET_STREAM)
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("reauthentication-required")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("reauthentication-required")));
         mvc.perform(delete("/api/v1/admin/plugins/{id}/license", id)
                         .session(installer)
                         .with(csrf()))

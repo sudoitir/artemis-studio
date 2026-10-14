@@ -21,6 +21,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -91,8 +92,7 @@ class ApproverQuorumGuard implements AccessChangeGuard {
     }
 
     private static TransactionDefinition requiresNew() {
-        org.springframework.transaction.support.DefaultTransactionDefinition definition =
-                new org.springframework.transaction.support.DefaultTransactionDefinition();
+        DefaultTransactionDefinition definition = new DefaultTransactionDefinition();
         definition.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         definition.setReadOnly(true);
         return definition;

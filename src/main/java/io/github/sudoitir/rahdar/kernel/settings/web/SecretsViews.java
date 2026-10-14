@@ -5,6 +5,7 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 import io.github.sudoitir.rahdar.kernel.security.SecretRotations;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -59,7 +60,7 @@ public final class SecretsViews {
     }
 
     static SecretsStatus of(SecretRotations.Status s) {
-        Map<String, Long> counts = new java.util.LinkedHashMap<>();
+        Map<String, Long> counts = new LinkedHashMap<>();
         s.countsByVersion().forEach((version, n) -> counts.put(String.valueOf(version), n));
         return new SecretsStatus(
                 s.provider(),

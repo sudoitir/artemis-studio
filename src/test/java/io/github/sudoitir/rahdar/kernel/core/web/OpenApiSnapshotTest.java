@@ -9,6 +9,8 @@ import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
@@ -78,7 +80,7 @@ class OpenApiSnapshotTest extends PostgresIntegrationTest {
                         .getContentAsString(StandardCharsets.UTF_8))
                 .path("paths");
 
-        java.util.List<String> bare = new java.util.ArrayList<>();
+        List<String> bare = new ArrayList<>();
         paths.properties().forEach(path -> {
             if (!path.getKey().startsWith("/api/v1/")) {
                 return;

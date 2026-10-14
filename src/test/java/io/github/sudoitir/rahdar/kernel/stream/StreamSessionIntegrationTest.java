@@ -6,6 +6,7 @@ import static org.awaitility.Awaitility.await;
 
 import com.jayway.jsonpath.JsonPath;
 import io.github.sudoitir.rahdar.kernel.security.Permissions;
+import io.github.sudoitir.rahdar.kernel.security.ScopeIds;
 import io.github.sudoitir.rahdar.kernel.security.SessionAuthentication;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserRepository;
@@ -27,10 +28,12 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -134,7 +137,7 @@ class StreamSessionIntegrationTest extends PostgresIntegrationTest {
         }
 
         String currentHandle() throws Exception {
-            java.util.List<String> current =
+            List<String> current =
                     JsonPath.read(send("GET", "/api/v1/auth/sessions").body(), "$.data[?(@.current == true)].handle");
             return current.getFirst();
         }
@@ -150,8 +153,7 @@ class StreamSessionIntegrationTest extends PostgresIntegrationTest {
             UUID role = roles.save(new RoleEntity("admin-" + UUID.randomUUID(), false))
                     .getId();
             rolePermissions.save(new RolePermissionEntity(role, Permissions.WILDCARD));
-            userRoles.save(
-                    new UserRoleEntity(id, role, "GLOBAL", io.github.sudoitir.rahdar.kernel.security.ScopeIds.GLOBAL));
+            userRoles.save(new UserRoleEntity(id, role, "GLOBAL", ScopeIds.GLOBAL));
         }
     }
 
@@ -273,14 +275,12 @@ class StreamSessionIntegrationTest extends PostgresIntegrationTest {
         assertEndsWithin(stream, PROMPT);
     }
 
-    private <S extends Session> void change(String username, java.util.function.Consumer<Session> edit) {
+    private <S extends Session> void change(String username, Consumer<Session> edit) {
         changeIn(store, username, edit);
     }
 
     private static <S extends Session> void changeIn(
-            FindByIndexNameSessionRepository<S> repository,
-            String username,
-            java.util.function.Consumer<Session> edit) {
+            FindByIndexNameSessionRepository<S> repository, String username, Consumer<Session> edit) {
         repository.findByPrincipalName(username).values().forEach(session -> {
             edit.accept(session);
             repository.save(session);

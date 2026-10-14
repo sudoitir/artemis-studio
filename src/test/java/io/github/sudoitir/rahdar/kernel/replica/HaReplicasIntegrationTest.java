@@ -14,6 +14,7 @@ import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.ArtemisIntegrationTest;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -182,7 +183,7 @@ class HaReplicasIntegrationTest {
                 SELECT c.id FROM cluster c
                 WHERE c.id = ANY (?) AND NOT EXISTS (
                     SELECT 1 FROM broker_node n WHERE n.cluster_id = c.id AND n.last_seen_at > ?)
-                """, UUID.class, clusters.toArray(UUID[]::new), java.sql.Timestamp.from(since));
+                """, UUID.class, clusters.toArray(UUID[]::new), Timestamp.from(since));
     }
 
     private static long managementCalls(ConfigurableApplicationContext replica) {

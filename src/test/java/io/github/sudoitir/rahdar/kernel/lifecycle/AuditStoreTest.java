@@ -18,6 +18,8 @@ import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -165,14 +167,14 @@ class AuditStoreTest extends PostgresIntegrationTest {
     @Test
     void aHeldRecordIsLeftAloneWhateverTheRetention() {
         TestHold hold = new TestHold();
-        hold.holds = java.util.List.of(new AuditHold(null, null, null, null, OLD, null, null));
+        hold.holds = List.of(new AuditHold(null, null, null, null, OLD, null, null));
         FakeHandle handle = holder(hold);
         try {
             purgeAll();
 
             assertThat(count(OLD)).isEqualTo(5);
 
-            hold.holds = java.util.List.of();
+            hold.holds = List.of();
             purgeAll();
 
             assertThat(count(OLD)).isZero();
@@ -218,7 +220,7 @@ class AuditStoreTest extends PostgresIntegrationTest {
     @Test
     void aHoldThatNamesTooManyRefusesThePurge() {
         TestHold hold = new TestHold();
-        hold.holds = java.util.Collections.nCopies(201, new AuditHold(null, null, null, null, "NOTHING", null, null));
+        hold.holds = Collections.nCopies(201, new AuditHold(null, null, null, null, "NOTHING", null, null));
         FakeHandle handle = holder(hold);
         try {
             assertThatThrownBy(this::purgeAll)

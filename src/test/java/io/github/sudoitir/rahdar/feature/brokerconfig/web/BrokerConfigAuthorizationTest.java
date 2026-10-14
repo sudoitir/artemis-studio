@@ -22,7 +22,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
@@ -63,7 +65,7 @@ class BrokerConfigAuthorizationTest extends PostgresIntegrationTest {
     private static final String SAVE_BODY = """
             {"document":{"version":1,"addresses":[],"addressSettings":[{"match":"orders.#","values":{"maxSizeBytes":1048576}}],"securitySettings":[],"diverts":[]},"expectedRevision":null,"note":"t"}""";
 
-    private int status(org.springframework.test.web.servlet.RequestBuilder request) throws Exception {
+    private int status(RequestBuilder request) throws Exception {
         return mvc.perform(request).andReturn().getResponse().getStatus();
     }
 
@@ -82,9 +84,8 @@ class BrokerConfigAuthorizationTest extends PostgresIntegrationTest {
     void theDeclarationCarriesTheDriftCadenceItIsEvaluatedOn() throws Exception {
         mvc.perform(MockMvcRequestBuilders.get("/api/v1/clusters/" + clusterId + "/config")
                         .with(authentication(callerWith(Permissions.CLUSTER_READ))))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath(
-                                "$.driftIntervalSeconds")
-                        .value(300));
+                .andExpect(
+                        MockMvcResultMatchers.jsonPath("$.driftIntervalSeconds").value(300));
     }
 
     @Test

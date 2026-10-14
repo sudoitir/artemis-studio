@@ -9,9 +9,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -86,7 +88,7 @@ class TrustedDevices {
                 INSERT INTO local_trusted_device (expires_at, user_agent, client_address, token_hash, user_id)
                 VALUES (:expires, :agent, :address, :hash, :id)
                 """)
-                .param("expires", java.sql.Timestamp.from(expiresAt))
+                .param("expires", Timestamp.from(expiresAt))
                 .param("agent", userAgent)
                 .param("address", clientAddress)
                 .param("hash", hash(token))
@@ -128,7 +130,7 @@ class TrustedDevices {
         Instant now = Instant.now();
         return all(userId).stream()
                 .filter(d -> now.isBefore(effectiveExpiry(d, lifetime)))
-                .sorted(java.util.Comparator.comparing(Device::createdAt).reversed())
+                .sorted(Comparator.comparing(Device::createdAt).reversed())
                 .toList();
     }
 

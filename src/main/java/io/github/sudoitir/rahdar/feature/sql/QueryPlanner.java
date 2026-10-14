@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +53,7 @@ public class QueryPlanner {
     private final Clock clock;
 
     /** Two constructors, so the container is told which one is the injectable one. */
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     public QueryPlanner(
             QueueSnapshots snapshots,
             QueueLocator locator,

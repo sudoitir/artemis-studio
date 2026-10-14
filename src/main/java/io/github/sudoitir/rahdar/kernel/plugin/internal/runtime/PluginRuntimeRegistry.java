@@ -1,7 +1,9 @@
 package io.github.sudoitir.rahdar.kernel.plugin.internal.runtime;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.stereotype.Component;
@@ -46,8 +48,8 @@ public class PluginRuntimeRegistry {
 
     /** Ids whose slot is currently {@link Active} — the host uses this to enumerate every running
      * plugin to close at shutdown (design.md §2, task 6.8). */
-    public java.util.Set<String> activeIds() {
-        java.util.Set<String> ids = new java.util.HashSet<>();
+    public Set<String> activeIds() {
+        Set<String> ids = new HashSet<>();
         slots.forEach((id, ref) -> {
             if (ref.get() instanceof Active) {
                 ids.add(id);

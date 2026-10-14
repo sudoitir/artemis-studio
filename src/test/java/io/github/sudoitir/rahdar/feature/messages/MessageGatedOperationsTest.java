@@ -26,6 +26,7 @@ import io.github.sudoitir.rahdar.platform.clusters.ClusterEnvironmentIndex;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
@@ -104,9 +105,7 @@ class MessageGatedOperationsTest {
         assertThat(move.summary(params)).isEqualTo("Move 2 messages on queue orders.dlq on prod-eu");
         assertThat(move.display(params))
                 .extracting("label", "to")
-                .contains(
-                        org.assertj.core.groups.Tuple.tuple("Queue", "orders.dlq"),
-                        org.assertj.core.groups.Tuple.tuple("Into queue", "orders"));
+                .contains(Tuple.tuple("Queue", "orders.dlq"), Tuple.tuple("Into queue", "orders"));
     }
 
     @Test

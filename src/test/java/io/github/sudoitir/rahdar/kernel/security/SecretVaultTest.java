@@ -5,9 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -64,7 +66,7 @@ class SecretVaultTest {
         }
 
         @Override
-        public Clock withZone(java.time.ZoneId zone) {
+        public Clock withZone(ZoneId zone) {
             return this;
         }
 
@@ -293,7 +295,7 @@ class SecretVaultTest {
 
     @Test
     void aKeyringNeverPrintsKeyMaterial() {
-        Keyring keyring = new Keyring(new TreeMap<>(java.util.Map.of(1, key(7), 2, key(8))));
+        Keyring keyring = new Keyring(new TreeMap<>(Map.of(1, key(7), 2, key(8))));
 
         assertThat(keyring).hasToString("Keyring[1, 2]").hasSameHashCodeAs(new Keyring(new TreeMap<>(keyring.keys())));
     }

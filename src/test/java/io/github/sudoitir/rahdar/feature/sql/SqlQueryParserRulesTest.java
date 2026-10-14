@@ -10,6 +10,7 @@ import io.github.sudoitir.rahdar.feature.sql.QueryAst.Operator;
 import io.github.sudoitir.rahdar.feature.sql.QueryAst.Predicate;
 import io.github.sudoitir.rahdar.feature.sql.QueryAst.Term;
 import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -132,7 +133,7 @@ class SqlQueryParserRulesTest {
     void isNotNullAndNotInAndNotBetweenAndNotLikeAreNegated() {
         assertThat(where("props.a IS NOT NULL")).isEqualTo(new Predicate.IsNull(new Term.PropertyTerm("a"), true));
         assertThat(where("props.a NOT IN ('x')"))
-                .isEqualTo(new Predicate.In(new Term.PropertyTerm("a"), java.util.List.of(new Literal.Str("x")), true));
+                .isEqualTo(new Predicate.In(new Term.PropertyTerm("a"), List.of(new Literal.Str("x")), true));
         assertThat(where("priority NOT BETWEEN 1 AND 3"))
                 .isEqualTo(new Predicate.Between(
                         new Term.ColumnTerm(Column.PRIORITY),

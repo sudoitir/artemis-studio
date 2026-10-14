@@ -14,7 +14,9 @@ import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterE
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +47,7 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
     NamedParameterJdbcTemplate jdbc;
 
     private UUID clusterId;
-    private final List<UUID> createdChannels = new java.util.ArrayList<>();
+    private final List<UUID> createdChannels = new ArrayList<>();
 
     @AfterEach
     void tearDown() {
@@ -108,7 +110,7 @@ class AlertSchemaIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void kindShapeCheckRejectsAThresholdRuleWithAStateCondition() {
-        var params = java.util.Map.of("c", cluster());
+        var params = Map.of("c", cluster());
         assertThatThrownBy(() -> jdbc.update("""
                         INSERT INTO alert_rule (cluster_id, kind, metric, comparator, threshold, state_condition, name)
                         VALUES (:c, 'METRIC_THRESHOLD', 'messageCount', 'GT', 1, 'SPLIT_BRAIN', 'bad')

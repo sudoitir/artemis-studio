@@ -1,9 +1,11 @@
 package io.github.sudoitir.rahdar.platform.broker;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -103,7 +105,7 @@ public class MessageOperations {
     public List<Long> listIds(JolokiaBrokerClient client, String queueMbean, String filter) {
         JolokiaResponse res = client.single(JolokiaRequest.exec(queueMbean, "listMessages(java.lang.String)", filter));
         requireOk(res, "listMessages");
-        List<Long> ids = new java.util.ArrayList<>();
+        List<Long> ids = new ArrayList<>();
         JsonNode listed = client.parsed(res);
         if (listed != null) {
             listed.forEach(m -> ids.add(m.path("messageID").asLong()));
@@ -254,10 +256,7 @@ public class MessageOperations {
      * acted on nothing at all is thrown as it is, because nothing changed.
      */
     private BulkResult eachId(
-            JolokiaBrokerClient client,
-            List<Long> ids,
-            String op,
-            java.util.function.Function<Long, JolokiaRequest> request) {
+            JolokiaBrokerClient client, List<Long> ids, String op, Function<Long, JolokiaRequest> request) {
         long affected = 0;
         for (int from = 0; from < ids.size(); from += BY_ID_BATCH) {
             List<Long> chunk = ids.subList(from, Math.min(ids.size(), from + BY_ID_BATCH));
@@ -277,7 +276,7 @@ public class MessageOperations {
                 if (affected == 0) {
                     throw outcome.firstError();
                 }
-                List<Long> notDone = new java.util.ArrayList<>(outcome.refused());
+                List<Long> notDone = new ArrayList<>(outcome.refused());
                 notDone.addAll(later);
                 return new BulkResult(
                         affected, List.copyOf(notDone), outcome.firstError().getMessage());
@@ -291,7 +290,7 @@ public class MessageOperations {
 
     private static ChunkOutcome countChunk(List<Long> chunk, List<JolokiaResponse> responses, String op) {
         long affected = 0;
-        List<Long> refused = new java.util.ArrayList<>();
+        List<Long> refused = new ArrayList<>();
         RuntimeException firstError = null;
         for (int i = 0; i < chunk.size(); i++) {
             try {

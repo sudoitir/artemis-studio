@@ -18,6 +18,7 @@ import io.github.sudoitir.rahdar.kernel.security.web.TeamViews.MemberRequest;
 import io.github.sudoitir.rahdar.kernel.security.web.TeamViews.PatternRequest;
 import io.github.sudoitir.rahdar.kernel.security.web.TeamViews.PrincipalType;
 import io.github.sudoitir.rahdar.kernel.security.web.TeamViews.ShareRequest;
+import io.github.sudoitir.rahdar.kernel.security.web.UserViews;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterEnvironmentIndex;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterRepository;
@@ -25,6 +26,7 @@ import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.Environm
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.EnvironmentRepository;
 import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -135,8 +137,8 @@ class MyAccessIntegrationTest extends PostgresIntegrationTest {
                 .getId();
         UUID inLive = cluster(live);
         UUID elsewhere = cluster(null);
-        var reader = roleService.create(new io.github.sudoitir.rahdar.kernel.security.web.UserViews.RoleRequest(
-                "env-reader-" + UUID.randomUUID(), java.util.List.of("queue:read", "cluster:read"), false, false));
+        var reader = roleService.create(new UserViews.RoleRequest(
+                "env-reader-" + UUID.randomUUID(), List.of("queue:read", "cluster:read"), false, false));
         UUID someone = user();
         userRoles.save(new UserRoleEntity(someone, reader.id(), Grant.ScopeType.ENVIRONMENT.name(), live));
         accessChanges.changedFor(someone);

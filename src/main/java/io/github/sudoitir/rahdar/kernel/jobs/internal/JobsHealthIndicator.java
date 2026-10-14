@@ -10,6 +10,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.health.contributor.AbstractHealthIndicator;
 import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.stereotype.Component;
 
 /**
@@ -39,10 +40,7 @@ class JobsHealthIndicator extends AbstractHealthIndicator {
                                 + ", interval " + s.interval());
             }
         }
-        builder.status(
-                        stalled.isEmpty()
-                                ? org.springframework.boot.health.contributor.Status.UP
-                                : RahdarHealth.DEGRADED)
+        builder.status(stalled.isEmpty() ? Status.UP : RahdarHealth.DEGRADED)
                 .withDetail("jobs", all.size())
                 .withDetail("stalled", stalled);
     }

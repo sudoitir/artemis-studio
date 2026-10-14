@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
@@ -74,7 +75,7 @@ public final class BodyDecoder {
      */
     public static Decoded decodePrefix(byte[] raw) {
         for (int drop = 0; drop <= 3 && drop <= raw.length; drop++) {
-            Decoded decoded = decode(java.util.Arrays.copyOf(raw, raw.length - drop));
+            Decoded decoded = decode(Arrays.copyOf(raw, raw.length - drop));
             if (!decoded.isBinary()) {
                 return decoded;
             }

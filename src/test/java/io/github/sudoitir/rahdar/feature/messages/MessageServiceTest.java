@@ -44,6 +44,7 @@ import io.github.sudoitir.rahdar.platform.broker.Attempt;
 import io.github.sudoitir.rahdar.platform.broker.BodyDecoder.Compression;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
+import io.github.sudoitir.rahdar.platform.broker.BrokerMBeans;
 import io.github.sudoitir.rahdar.platform.broker.BrokerSettings;
 import io.github.sudoitir.rahdar.platform.broker.BulkCapExceededException;
 import io.github.sudoitir.rahdar.platform.broker.CoreMessageTransport;
@@ -74,12 +75,14 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -301,7 +304,7 @@ class MessageServiceTest {
     @Test
     void aMaskedPropertyIsListedWithTheStringsWhateverItsOriginalType() {
         browses(jolokia, List.of(message(1, "a", BodyEncoding.TEXT)), Channel.JOLOKIA);
-        org.mockito.Mockito.doAnswer(invocation -> {
+        Mockito.doAnswer(invocation -> {
                     Map<String, Object> properties = new LinkedHashMap<>();
                     properties.put("attempt", "[redacted]");
                     properties.put("nothing", null);
@@ -526,7 +529,7 @@ class MessageServiceTest {
     }
 
     private String queueMbean() {
-        return io.github.sudoitir.rahdar.platform.broker.BrokerMBeans.queue(BROKER, "orders.addr", "orders", "ANYCAST");
+        return BrokerMBeans.queue(BROKER, "orders.addr", "orders", "ANYCAST");
     }
 
     @Test
@@ -890,7 +893,7 @@ class MessageServiceTest {
 
     @Test
     void aRetryNeedsMessageSendOnEveryAddressTheDeadLettersCameFrom() {
-        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new java.util.TreeSet<>(List.of("a", "b")));
+        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new TreeSet<>(List.of("a", "b")));
         when(messageOps.messageCount(client, queueMbean())).thenReturn(3L);
 
         service.execute(
@@ -917,7 +920,7 @@ class MessageServiceTest {
 
     @Test
     void aRetryOfEverythingByACallerWhoMayNotSendEverywhereRetriesOnlyTheMessagesFromTheCheckedAddresses() {
-        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new java.util.TreeSet<>(List.of("a", "b")));
+        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new TreeSet<>(List.of("a", "b")));
         when(messageOps.originalAddressFilter("a")).thenReturn("from a");
         when(messageOps.originalAddressFilter("b")).thenReturn("from b");
         when(messageOps.listIds(client, queueMbean(), "from a")).thenReturn(List.of(1L, 2L));
@@ -935,7 +938,7 @@ class MessageServiceTest {
 
     @Test
     void aRetryByIdsLeavesOutAMessageThatDidNotComeFromACheckedAddress() {
-        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new java.util.TreeSet<>(List.of("a")));
+        when(messageOps.originalAddresses(client, queueMbean())).thenReturn(new TreeSet<>(List.of("a")));
         when(messageOps.originalAddressFilter("a")).thenReturn("from a");
         when(messageOps.listIds(client, queueMbean(), "from a")).thenReturn(List.of(1L));
         when(messageOps.retryByIds(client, queueMbean(), List.of(1L)))

@@ -13,8 +13,12 @@ import io.github.sudoitir.rahdar.kernel.plugin.support.RawZip;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;
@@ -129,8 +133,8 @@ class PluginValidatorTest {
     void missingDescriptor() throws Exception {
         // The builder always writes a plugin.json, so a jar with none at all is built by hand.
         Path noDescriptor = Files.createTempFile("no-descriptor", ".jar");
-        try (var out = new java.util.jar.JarOutputStream(Files.newOutputStream(noDescriptor))) {
-            out.putNextEntry(new java.util.jar.JarEntry("com/acme/notes/Marker.txt"));
+        try (var out = new JarOutputStream(Files.newOutputStream(noDescriptor))) {
+            out.putNextEntry(new JarEntry("com/acme/notes/Marker.txt"));
             out.write("x".getBytes());
             out.closeEntry();
         }
@@ -191,13 +195,13 @@ class PluginValidatorTest {
 
     @Test
     void rahdarSinceInvalid() throws Exception {
-        var jar = validPlugin("acme-notes").descriptorField("rahdar", java.util.Map.of("since", "not-a-version"));
+        var jar = validPlugin("acme-notes").descriptorField("rahdar", Map.of("since", "not-a-version"));
         assertThat(has(validate(jar), "rahdar-since-invalid")).isTrue();
     }
 
     @Test
     void rahdarVersionTooOld() throws Exception {
-        var jar = validPlugin("acme-notes").descriptorField("rahdar", java.util.Map.of("since", "2099.01.0"));
+        var jar = validPlugin("acme-notes").descriptorField("rahdar", Map.of("since", "2099.01.0"));
         assertThat(has(validate(jar), "rahdar-too-old")).isTrue();
     }
 
@@ -210,14 +214,14 @@ class PluginValidatorTest {
         assertThat(report.valid()).isTrue();
     }
 
-    private static List<Violation> validatePermission(java.util.Map<String, Object> permission) throws Exception {
+    private static List<Violation> validatePermission(Map<String, Object> permission) throws Exception {
         return validate(validPlugin("acme-notes").descriptorField("permissions", List.of(permission)));
     }
 
     @Test
     void aPermissionDeclaringGlobalOnlyIsRefusedByNameWithTheScopeToUseInstead() throws Exception {
-        var violations = validatePermission(java.util.Map.of(
-                "action", "acme-notes:admin", "description", "x", "scope", "global", "globalOnly", true));
+        var violations = validatePermission(
+                Map.of("action", "acme-notes:admin", "description", "x", "scope", "global", "globalOnly", true));
 
         assertThat(violations)
                 .filteredOn(v -> v.code().equals("permission-global-only"))
@@ -230,24 +234,24 @@ class PluginValidatorTest {
 
     @Test
     void aPermissionWithoutAScopeIsRefused() throws Exception {
-        var violations = validatePermission(java.util.Map.of("action", "acme-notes:read", "description", "x"));
+        var violations = validatePermission(Map.of("action", "acme-notes:read", "description", "x"));
 
         assertThat(has(violations, "permission-scope")).isTrue();
     }
 
     @Test
     void aPermissionWithAnUnknownScopeIsRefused() throws Exception {
-        var violations = validatePermission(
-                java.util.Map.of("action", "acme-notes:read", "description", "x", "scope", "installation"));
+        var violations =
+                validatePermission(Map.of("action", "acme-notes:read", "description", "x", "scope", "installation"));
 
         assertThat(has(violations, "permission-scope")).isTrue();
     }
 
     @Test
     void aResourcePermissionNeedsAtLeastOneKnownKind() throws Exception {
-        var none = validatePermission(java.util.Map.of(
+        var none = validatePermission(Map.of(
                 "action", "acme-notes:read", "description", "x", "scope", "resource", "resourceKinds", List.of()));
-        var unknown = validatePermission(java.util.Map.of(
+        var unknown = validatePermission(Map.of(
                 "action", "acme-notes:read",
                 "description", "x",
                 "scope", "resource",
@@ -259,7 +263,7 @@ class PluginValidatorTest {
 
     @Test
     void aNonResourcePermissionMayNotNameKinds() throws Exception {
-        var violations = validatePermission(java.util.Map.of(
+        var violations = validatePermission(Map.of(
                 "action", "acme-notes:read",
                 "description", "x",
                 "scope", "cluster",
@@ -274,18 +278,18 @@ class PluginValidatorTest {
                 .descriptorField(
                         "permissions",
                         List.of(
-                                java.util.Map.of(
+                                Map.of(
                                         "action", "acme-notes:read",
                                         "description", "x",
                                         "scope", "resource",
                                         "resourceKinds", List.of("queue", "address")),
-                                java.util.Map.of(
+                                Map.of(
                                         "action", "acme-notes:write",
                                         "description", "x",
                                         "scope", "resource",
                                         "resourceKinds", List.of("queue"),
                                         "requires", List.of("acme-notes:read", "queue:read")),
-                                java.util.Map.of("action", "acme-notes:admin", "description", "x", "scope", "global")));
+                                Map.of("action", "acme-notes:admin", "description", "x", "scope", "global")));
 
         assertThat(validate(jar)).noneMatch(v -> v.code().startsWith("permission-"));
     }
@@ -294,8 +298,7 @@ class PluginValidatorTest {
     void permissionNamespaceViolation() throws Exception {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
-                        "permissions",
-                        List.of(java.util.Map.of("action", "other:read", "description", "x", "scope", "cluster")));
+                        "permissions", List.of(Map.of("action", "other:read", "description", "x", "scope", "cluster")));
         assertThat(has(validate(jar), "permission-namespace")).isTrue();
     }
 
@@ -316,7 +319,7 @@ class PluginValidatorTest {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
                         "mcpTools",
-                        List.of(java.util.Map.of(
+                        List.of(Map.of(
                                 "name", "other_tool",
                                 "posture", "read",
                                 "scope", "global",
@@ -330,7 +333,7 @@ class PluginValidatorTest {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
                         "mcpTools",
-                        List.of(java.util.Map.of(
+                        List.of(Map.of(
                                 "name", "acme_notes_search",
                                 "posture", "read",
                                 "scope", "cluster",
@@ -344,7 +347,7 @@ class PluginValidatorTest {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
                         "mcpTools",
-                        List.of(java.util.Map.of(
+                        List.of(Map.of(
                                 "name",
                                 "acme_notes_search",
                                 "posture",
@@ -361,7 +364,7 @@ class PluginValidatorTest {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
                         "mcpTools",
-                        List.of(java.util.Map.of(
+                        List.of(Map.of(
                                 "name", "acme_notes_search",
                                 "posture", "read",
                                 "scope", "global",
@@ -376,11 +379,11 @@ class PluginValidatorTest {
                         .contains("cluster"));
     }
 
-    private static PluginJarBuilder resourcePlugin(java.util.Map<String, Object> tool) {
+    private static PluginJarBuilder resourcePlugin(Map<String, Object> tool) {
         return validPlugin("acme-notes")
                 .descriptorField(
                         "permissions",
-                        List.of(java.util.Map.of(
+                        List.of(Map.of(
                                 "action",
                                 "acme-notes:read",
                                 "description",
@@ -392,8 +395,8 @@ class PluginValidatorTest {
                 .descriptorField("mcpTools", List.of(tool));
     }
 
-    private static java.util.Map<String, Object> resourceTool(String scope, String arg, String kind) {
-        var tool = new java.util.LinkedHashMap<String, Object>();
+    private static Map<String, Object> resourceTool(String scope, String arg, String kind) {
+        var tool = new LinkedHashMap<String, Object>();
         tool.put("name", "acme_notes_search");
         tool.put("posture", "read");
         tool.put("scope", scope);
@@ -438,9 +441,8 @@ class PluginValidatorTest {
                 .satisfies(v -> assertThat(v.message()).contains("address").contains("queue"));
     }
 
-    private static java.util.Map<String, String> metric(String name, String unit, String permission) {
-        return java.util.Map.of(
-                "name", name, "description", "x", "unit", unit, "subject", "note", "permission", permission);
+    private static Map<String, String> metric(String name, String unit, String permission) {
+        return Map.of("name", name, "description", "x", "unit", unit, "subject", "note", "permission", permission);
     }
 
     @Test
@@ -449,12 +451,12 @@ class PluginValidatorTest {
                 .descriptorField(
                         "permissions",
                         List.of(
-                                java.util.Map.of("action", "acme-notes:read", "description", "x", "scope", "cluster"),
-                                java.util.Map.of("action", "acme-notes:stats", "description", "x", "scope", "cluster")))
+                                Map.of("action", "acme-notes:read", "description", "x", "scope", "cluster"),
+                                Map.of("action", "acme-notes:stats", "description", "x", "scope", "cluster")))
                 .descriptorField("metrics", List.of(metric("acme-notes:edits", "count", "acme-notes:stats")))
                 .descriptorField(
                         "alertRules",
-                        List.of(java.util.Map.of(
+                        List.of(Map.of(
                                 "key", "many-edits",
                                 "name", "Many edits",
                                 "metric", "acme-notes:edits",
@@ -470,7 +472,7 @@ class PluginValidatorTest {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
                         "permissions",
-                        List.of(java.util.Map.of("action", "acme-notes:stats", "description", "x", "scope", "cluster")))
+                        List.of(Map.of("action", "acme-notes:stats", "description", "x", "scope", "cluster")))
                 .descriptorField("metrics", List.of(metric("other:edits", "furlongs", "acme-notes:stats")));
         var violations = validate(jar);
         assertThat(has(violations, "metric-name")).isTrue();
@@ -489,7 +491,7 @@ class PluginValidatorTest {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
                         "alertRules",
-                        List.of(java.util.Map.of(
+                        List.of(Map.of(
                                 "key", "k",
                                 "name", "n",
                                 "metric", "acme-notes:edits",
@@ -503,20 +505,20 @@ class PluginValidatorTest {
     @Test
     void anApprovalProviderNamingADeclaredPermissionIsAccepted() throws Exception {
         var jar = validPlugin("acme-notes")
-                .descriptorField("approvalProvider", java.util.Map.of("approverPermission", "acme-notes:read"));
+                .descriptorField("approvalProvider", Map.of("approverPermission", "acme-notes:read"));
         assertThat(validate(jar)).isEmpty();
     }
 
     @Test
     void anApprovalProviderWithoutAnApproverPermissionIsRefused() throws Exception {
-        var jar = validPlugin("acme-notes").descriptorField("approvalProvider", java.util.Map.of());
+        var jar = validPlugin("acme-notes").descriptorField("approvalProvider", Map.of());
         assertThat(has(validate(jar), "approval-provider-permission")).isTrue();
     }
 
     @Test
     void anApprovalProviderNamingAPermissionTheyDoNotDeclareIsRefused() throws Exception {
         var jar = validPlugin("acme-notes")
-                .descriptorField("approvalProvider", java.util.Map.of("approverPermission", "queue:purge"));
+                .descriptorField("approvalProvider", Map.of("approverPermission", "queue:purge"));
         assertThat(has(validate(jar), "approval-provider-permission")).isTrue();
     }
 
@@ -524,16 +526,14 @@ class PluginValidatorTest {
     void aWellFormedIdentityProviderIsAccepted() throws Exception {
         var jar = validPlugin("acme-notes")
                 .descriptorField(
-                        "identityProviders",
-                        List.of(java.util.Map.of("id", "acme-notes:corp", "label", "Corporate directory")));
+                        "identityProviders", List.of(Map.of("id", "acme-notes:corp", "label", "Corporate directory")));
         assertThat(validate(jar)).isEmpty();
     }
 
     @Test
     void anIdentityProviderOutsideTheNamespaceIsRefused() throws Exception {
         var jar = validPlugin("acme-notes")
-                .descriptorField(
-                        "identityProviders", List.of(java.util.Map.of("id", "other:corp", "label", "Corporate")));
+                .descriptorField("identityProviders", List.of(Map.of("id", "other:corp", "label", "Corporate")));
         assertThat(has(validate(jar), "identity-provider-id")).isTrue();
     }
 
@@ -543,8 +543,8 @@ class PluginValidatorTest {
                 .descriptorField(
                         "identityProviders",
                         List.of(
-                                java.util.Map.of("id", "acme-notes:corp", "label", "One"),
-                                java.util.Map.of("id", "acme-notes:corp", "label", "Two")));
+                                Map.of("id", "acme-notes:corp", "label", "One"),
+                                Map.of("id", "acme-notes:corp", "label", "Two")));
         assertThat(has(validate(jar), "identity-provider-duplicate")).isTrue();
     }
 
@@ -552,8 +552,7 @@ class PluginValidatorTest {
     void anIdentityProviderLabelMustBeBetweenOneAndSixtyFourCharacters() throws Exception {
         for (String label : List.of("", " ", "x".repeat(65))) {
             var jar = validPlugin("acme-notes")
-                    .descriptorField(
-                            "identityProviders", List.of(java.util.Map.of("id", "acme-notes:corp", "label", label)));
+                    .descriptorField("identityProviders", List.of(Map.of("id", "acme-notes:corp", "label", label)));
             assertThat(has(validate(jar), "identity-provider-label"))
                     .as("label '%s'", label)
                     .isTrue();
@@ -732,13 +731,12 @@ class PluginValidatorTest {
         return new PluginJarBuilder(id)
                 .descriptorField(
                         "permissions",
-                        List.of(java.util.Map.of(
-                                "action", id + ":read", "description", "Read notes", "scope", "cluster")))
+                        List.of(Map.of("action", id + ":read", "description", "Read notes", "scope", "cluster")))
                 .descriptorField("settingKeys", List.of(id + ".enabled"))
                 .descriptorField("streamTopics", List.of(id))
                 .descriptorField(
                         "mcpTools",
-                        List.of(java.util.Map.of(
+                        List.of(Map.of(
                                 "name",
                                 id.replace('-', '_') + "_search",
                                 "posture",

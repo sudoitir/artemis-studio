@@ -5,6 +5,7 @@ import io.github.sudoitir.rahdar.feature.sql.QueryAst.Literal;
 import io.github.sudoitir.rahdar.feature.sql.QueryAst.Predicate;
 import io.github.sudoitir.rahdar.feature.sql.QueryAst.Term;
 import io.github.sudoitir.rahdar.feature.sql.QueryPlan.Target;
+import java.util.regex.Pattern;
 
 /**
  * Evaluates the target-level conjuncts — {@code queue}, {@code address},
@@ -62,9 +63,8 @@ final class TargetPredicateEvaluator {
         if (left == null) {
             return true;
         }
-        int flags = like.caseInsensitive() ? java.util.regex.Pattern.CASE_INSENSITIVE : 0;
-        boolean hit = java.util.regex.Pattern.compile(
-                        MessagePredicate.likeToRegex(like.pattern(), like.escape()), flags)
+        int flags = like.caseInsensitive() ? Pattern.CASE_INSENSITIVE : 0;
+        boolean hit = Pattern.compile(MessagePredicate.likeToRegex(like.pattern(), like.escape()), flags)
                 .matcher(left)
                 .matches();
         return hit != like.negated();

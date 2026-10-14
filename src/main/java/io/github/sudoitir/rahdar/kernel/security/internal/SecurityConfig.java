@@ -15,6 +15,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -24,6 +25,7 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
 import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.header.writers.CrossOriginOpenerPolicyHeaderWriter.CrossOriginOpenerPolicy;
@@ -108,8 +110,7 @@ public class SecurityConfig {
             throws Exception {
         ProblemAuthenticationEntryPoint entryPoint = new ProblemAuthenticationEntryPoint(json);
         http.securityContext(sc -> sc.securityContextRepository(securityContextRepository()))
-                .sessionManagement(session -> session.sessionCreationPolicy(
-                        org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                         // A request a bearer token authenticated carries no ambient browser
@@ -165,7 +166,7 @@ public class SecurityConfig {
                         SecurityContextHolderFilter.class)
                 .addFilterAfter(
                         new RestrictedSessionFilter(handlerExceptionResolver), SecurityContextHolderFilter.class)
-                .addFilterAfter(new CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter.class);
+                .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class);
 
         // Redirect sign-in (ADR-0040) adds what it needs; a module with nothing to add adds nothing.
         for (IdentityProviders contribution : identityProviders) {

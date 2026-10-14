@@ -3,10 +3,14 @@ package io.github.sudoitir.rahdar.platform.broker;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import com.sun.net.httpserver.HttpServer;
 import java.lang.management.ManagementFactory;
+import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.UUID;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.ssl.SslBundles;
 import tools.jackson.databind.json.JsonMapper;
@@ -33,7 +37,7 @@ class BrokerClientFactoryTest {
             io.micrometer.observation.ObservationRegistry.NOOP,
             BrokerCallGuard.OFF);
 
-    @org.junit.jupiter.api.AfterEach
+    @AfterEach
     void tearDown() {
         factory.destroy();
     }
@@ -68,8 +72,7 @@ class BrokerClientFactoryTest {
 
     @Test
     void redirectIsStillNotFollowedAfterATimeoutChange() throws Exception {
-        com.sun.net.httpserver.HttpServer server =
-                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
             exchange.getResponseHeaders().add("Location", "/hawtio/login");
             exchange.sendResponseHeaders(302, -1);
@@ -82,7 +85,7 @@ class BrokerClientFactoryTest {
                     SETTINGS, "http://127.0.0.1:" + server.getAddress().getPort() + "/console");
 
             JolokiaRequest request = JolokiaRequest.search("org.apache.activemq.artemis:*");
-            org.assertj.core.api.Assertions.assertThatThrownBy(() -> client.single(request))
+            Assertions.assertThatThrownBy(() -> client.single(request))
                     .isInstanceOf(BrokerConnectionException.class)
                     .hasMessageContaining("redirected");
         } finally {

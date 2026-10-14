@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.SequenceWriter;
@@ -111,8 +112,8 @@ enum AuditExportFormat {
 
     private static Sink sink(
             SequenceWriter writer,
-            java.util.function.Function<AuditExportRow, Object> columns,
-            java.util.function.Function<HeavyRequests.Bound, Object> mark) {
+            Function<AuditExportRow, Object> columns,
+            Function<HeavyRequests.Bound, Object> mark) {
         return new Sink() {
             @Override
             public void write(AuditExportRow row) {

@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.app;
 import io.github.sudoitir.rahdar.support.ApiContract;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -53,7 +54,7 @@ public class ApiContractConfig implements WebMvcConfigurer {
                                             mock.getStatus(),
                                             type,
                                             mock.getContentAsString()));
-                } catch (java.io.UnsupportedEncodingException e) {
+                } catch (UnsupportedEncodingException e) {
                     throw new IllegalStateException(e);
                 }
             }

@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -206,7 +207,7 @@ class InboxIntegrationTest extends PostgresIntegrationTest {
             inbox.post("approval", notice("n" + i, null), one(alice));
         }
         List<Long> all = a.ids(false);
-        assertThat(all).isSortedAccordingTo(java.util.Comparator.reverseOrder()).hasSize(5);
+        assertThat(all).isSortedAccordingTo(Comparator.reverseOrder()).hasSize(5);
         a.send("POST", "/api/v1/inbox/read", "{\"ids\":[" + all.get(0) + "]}");
 
         var first = a.send("GET", "/api/v1/inbox?limit=2", null).body();

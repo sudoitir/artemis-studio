@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.platform.broker;
 import jakarta.jms.Connection;
 import jakarta.jms.JMSException;
 import jakarta.jms.Session;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,7 +65,7 @@ public class CoreSubscriptionCheck {
                 session.createConsumer(session.createTopic(NOTIFICATIONS_ADDRESS))
                         .close();
             }
-            return new SubscriptionVerdict.Connected(1, java.time.Instant.now());
+            return new SubscriptionVerdict.Connected(1, Instant.now());
         } catch (JMSException e) {
             return new SubscriptionVerdict.Failed(CoreEventClient.classify(e), e.getMessage());
         } catch (RuntimeException e) {

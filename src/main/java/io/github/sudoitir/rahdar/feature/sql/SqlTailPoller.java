@@ -8,14 +8,17 @@ import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -78,7 +81,7 @@ public class SqlTailPoller {
         ExecutorService closing = polls.get();
         closing.shutdown();
         try {
-            if (!closing.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+            if (!closing.awaitTermination(10, TimeUnit.SECONDS)) {
                 closing.shutdownNow();
             }
         } catch (InterruptedException _) {
@@ -399,8 +402,8 @@ public class SqlTailPoller {
     private void advanceIndexWindow(Tail tail, QueryResult result) {
         Instant newest = result.rows().stream()
                 .map(Row::observedAt)
-                .filter(java.util.Objects::nonNull)
-                .max(java.util.Comparator.naturalOrder())
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
                 .orElse(null);
         if (newest == null) {
             return;

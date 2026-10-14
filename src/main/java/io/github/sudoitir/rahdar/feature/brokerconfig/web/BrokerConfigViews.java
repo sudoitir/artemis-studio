@@ -18,6 +18,7 @@ import io.github.sudoitir.rahdar.feature.brokerconfig.PermissionType;
 import io.github.sudoitir.rahdar.feature.brokerconfig.Plan;
 import io.github.sudoitir.rahdar.feature.brokerconfig.Violation;
 import io.github.sudoitir.rahdar.feature.brokerconfig.internal.persistence.BrokerConfigApplyEntity;
+import io.github.sudoitir.rahdar.platform.clusters.ClusterSecrets;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
@@ -27,6 +28,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -364,7 +366,7 @@ public final class BrokerConfigViews {
     public record BridgeCredentialView(
             @Schema(requiredMode = REQUIRED) String ref,
             @Schema(nullable = true) String username) {
-        public static BridgeCredentialView of(io.github.sudoitir.rahdar.platform.clusters.ClusterSecrets.Credential c) {
+        public static BridgeCredentialView of(ClusterSecrets.Credential c) {
             return new BridgeCredentialView(c.ref(), c.username());
         }
     }
@@ -526,7 +528,7 @@ public final class BrokerConfigViews {
         public static DriftReportView of(BrokerConfigService.Declaration d) {
             Instant latest = d.nodes().stream()
                     .map(BrokerConfigService.NodeState::evaluatedAt)
-                    .filter(java.util.Objects::nonNull)
+                    .filter(Objects::nonNull)
                     .max(Instant::compareTo)
                     .orElse(null);
             return new DriftReportView(

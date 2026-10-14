@@ -32,6 +32,7 @@ import io.github.sudoitir.rahdar.platform.clusters.LifecycleOutcome.NodeStatus;
 import io.github.sudoitir.rahdar.platform.scrape.QueueLocator;
 import io.github.sudoitir.rahdar.platform.scrape.QueueLocator.QueueLocation;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshotUpsert;
+import jakarta.validation.Validator;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -40,6 +41,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
@@ -92,7 +94,7 @@ public class QueueLifecycleService {
     private final ClusterDirectory clusters;
     private final BrokerConnections connections;
     private final ObjectMapper mapper;
-    private final jakarta.validation.Validator validator;
+    private final Validator validator;
     private final OperationGate gate;
 
     /** What a delete would touch: how many messages, and the target's identity for the gate's state key. */
@@ -397,11 +399,11 @@ public class QueueLifecycleService {
                                 ? ""
                                 : ", transformer " + d.transformerClassName())
                         + ")")
-                .collect(java.util.stream.Collectors.joining("; "));
+                .collect(Collectors.joining("; "));
     }
 
     private static String quoted(List<String> names) {
-        return names.stream().map(n -> "'" + n + "'").collect(java.util.stream.Collectors.joining(", "));
+        return names.stream().map(n -> "'" + n + "'").collect(Collectors.joining(", "));
     }
 
     public Attempt<LifecycleOutcome> setPaused(UUID clusterId, String queueName, boolean paused, boolean dryRun) {
@@ -562,7 +564,7 @@ public class QueueLifecycleService {
             throw new IllegalArgumentException(violations.stream()
                     .map(v -> v.getPropertyPath() + ": " + v.getMessage())
                     .sorted()
-                    .collect(java.util.stream.Collectors.joining("; ")));
+                    .collect(Collectors.joining("; ")));
         }
     }
 

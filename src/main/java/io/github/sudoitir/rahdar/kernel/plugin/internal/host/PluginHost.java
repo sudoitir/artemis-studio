@@ -37,6 +37,7 @@ import jakarta.servlet.ServletContext;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -50,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -63,6 +65,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -417,7 +421,7 @@ public class PluginHost implements SmartLifecycle {
     private static String providerIds(PluginDescriptor descriptor) {
         return descriptor.identityProviders().stream()
                 .map(PluginDescriptor.IdentityProvider::id)
-                .collect(java.util.stream.Collectors.joining(", "));
+                .collect(Collectors.joining(", "));
     }
 
     /** Dependency-first order: a plugin's {@code requires} on another plugin being started here
@@ -759,7 +763,7 @@ public class PluginHost implements SmartLifecycle {
         if (!report.valid()) {
             throw new PluginRefusedException(report.violations());
         }
-        String sha256 = store.put(java.nio.file.Files.readAllBytes(jar));
+        String sha256 = store.put(Files.readAllBytes(jar));
         jdbc.update(
                 """
                 INSERT INTO plugin_upload (uploaded_at, sha256, plugin_id, uploaded_by, descriptor, report)
@@ -1352,8 +1356,8 @@ public class PluginHost implements SmartLifecycle {
         Long settings =
                 jdbc.queryForObject("SELECT count(*) FROM rahdar_setting WHERE key LIKE ?", Long.class, id + ".%");
         PluginInstallEntity entity = requireInstall(id);
-        long artifacts = java.util.stream.Stream.of(entity.getSha256(), entity.getPreviousSha256())
-                .filter(java.util.Objects::nonNull)
+        long artifacts = Stream.of(entity.getSha256(), entity.getPreviousSha256())
+                .filter(Objects::nonNull)
                 .distinct()
                 .count();
         return new PurgePlan(schema, tables, grants == null ? 0 : grants, settings == null ? 0 : settings, artifacts);
@@ -1645,30 +1649,27 @@ public class PluginHost implements SmartLifecycle {
                 ? Set.of()
                 : oldD.permissions().stream()
                         .map(PluginDescriptor.Permission::action)
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
         Set<String> newPerms = newD.permissions().stream()
                 .map(PluginDescriptor.Permission::action)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         Set<String> oldSettings = oldD == null ? Set.of() : Set.copyOf(oldD.settingKeys());
         Set<String> newSettings = Set.copyOf(newD.settingKeys());
         Set<String> oldTopics = oldD == null ? Set.of() : Set.copyOf(oldD.streamTopics());
         Set<String> newTopics = Set.copyOf(newD.streamTopics());
         Set<String> oldTools = oldD == null
                 ? Set.of()
-                : oldD.mcpTools().stream()
-                        .map(PluginDescriptor.McpTool::name)
-                        .collect(java.util.stream.Collectors.toSet());
-        Set<String> newTools = newD.mcpTools().stream()
-                .map(PluginDescriptor.McpTool::name)
-                .collect(java.util.stream.Collectors.toSet());
+                : oldD.mcpTools().stream().map(PluginDescriptor.McpTool::name).collect(Collectors.toSet());
+        Set<String> newTools =
+                newD.mcpTools().stream().map(PluginDescriptor.McpTool::name).collect(Collectors.toSet());
         Set<String> oldProviders = oldD == null
                 ? Set.of()
                 : oldD.identityProviders().stream()
                         .map(PluginDescriptor.IdentityProvider::id)
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
         Set<String> newProviders = newD.identityProviders().stream()
                 .map(PluginDescriptor.IdentityProvider::id)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         Set<String> oldAudit = oldD == null ? Set.of() : auditFlags(oldD);
         Set<String> newAudit = auditFlags(newD);
         return new ContributionDiff(
@@ -1715,7 +1716,7 @@ public class PluginHost implements SmartLifecycle {
                 String.join(",", removedPermissions.stream().map(p -> "?").toList());
         String sql = "SELECT action, count(DISTINCT role_id) FROM role_permission WHERE action IN (" + placeholders
                 + ") GROUP BY action";
-        Map<String, Integer> result = new java.util.LinkedHashMap<>();
+        Map<String, Integer> result = new LinkedHashMap<>();
         jdbc.query(
                 sql,
                 rs -> {
@@ -1729,7 +1730,7 @@ public class PluginHost implements SmartLifecycle {
     }
 
     private List<String> missingRequires(PluginDescriptor descriptor) {
-        List<String> missing = new java.util.ArrayList<>();
+        List<String> missing = new ArrayList<>();
         for (String dependency : descriptor.requires()) {
             boolean builtinOk = featureRegistry.isEnabled(dependency);
             boolean pluginOk = installs.findById(dependency)

@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -30,7 +31,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
  * {@link CrossNodeAggregator} against a real Postgres, seeded through the real
  * upsert path: pair dedup, one-node vs two-node queues, and stale-not-dropped.
  */
-@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+@ExtendWith(AdminAuthenticationExtension.class)
 class CrossNodeAggregatorTest extends PostgresIntegrationTest {
 
     @Autowired

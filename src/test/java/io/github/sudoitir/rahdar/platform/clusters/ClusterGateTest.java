@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.rahdar.kernel.core.ConflictException;
+import io.github.sudoitir.rahdar.kernel.core.NotFoundException;
 import io.github.sudoitir.rahdar.kernel.gate.CanonicalJson;
 import io.github.sudoitir.rahdar.kernel.gate.DisplayRow;
 import io.github.sudoitir.rahdar.kernel.gate.Effect;
@@ -50,6 +51,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.json.JsonMapper;
@@ -143,7 +145,7 @@ class ClusterGateTest extends PostgresIntegrationTest {
     private EnvironmentView createdEnvironment() {
         allows();
         EnvironmentView created = environmentService.create(new EnvironmentRequest(name, "teal", 3));
-        org.mockito.Mockito.reset(gate);
+        Mockito.reset(gate);
         return created;
     }
 
@@ -158,7 +160,7 @@ class ClusterGateTest extends PostgresIntegrationTest {
 
         assertThat(environments.existsByName(name)).isFalse();
         assertThat(gated().params()).isEqualTo(new EnvironmentCreateParams(name, "teal", 3));
-        org.mockito.Mockito.reset(gate);
+        Mockito.reset(gate);
 
         allows();
         environmentCreateOperation.replay(new EnvironmentCreateParams(name, "teal", 3));
@@ -230,7 +232,7 @@ class ClusterGateTest extends PostgresIntegrationTest {
         environmentService.delete(env.id());
 
         assertThatThrownBy(() -> environmentDeleteOperation.estimate(new EnvironmentDeleteParams(env.id())))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.core.NotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -245,7 +247,7 @@ class ClusterGateTest extends PostgresIntegrationTest {
         assertThat(clusters.findById(clusterId).orElseThrow().getEnvironmentId())
                 .isNull();
         assertThat(gated().params()).isEqualTo(new ClusterAssignParams(clusterId, env.id()));
-        org.mockito.Mockito.reset(gate);
+        Mockito.reset(gate);
 
         allows();
         clusterAssignEnvironmentOperation.replay(new ClusterAssignParams(clusterId, env.id()));
@@ -266,7 +268,7 @@ class ClusterGateTest extends PostgresIntegrationTest {
 
         assertThat(clusters.existsById(clusterId)).isTrue();
         assertThat(gated().params()).isEqualTo(new ClusterDeleteParams(clusterId));
-        org.mockito.Mockito.reset(gate);
+        Mockito.reset(gate);
 
         allows();
         clusterDeleteOperation.replay(new ClusterDeleteParams(clusterId));
@@ -290,7 +292,7 @@ class ClusterGateTest extends PostgresIntegrationTest {
         clusters.deleteById(clusterId);
 
         assertThatThrownBy(() -> clusterDeleteOperation.estimate(new ClusterDeleteParams(clusterId)))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.core.NotFoundException.class);
+                .isInstanceOf(NotFoundException.class);
         clusterId = clusters.save(new ClusterEntity("c-" + UUID.randomUUID(), null, null))
                 .getId();
     }
@@ -314,7 +316,7 @@ class ClusterGateTest extends PostgresIntegrationTest {
         assertThat(clusterNodeOverrideOperation.display(params))
                 .contains(new DisplayRow("Core URL", seeded.getCoreUrl(), "tcp://a-core:61616"));
         String before = clusterNodeOverrideOperation.estimate(params).stateKey();
-        org.mockito.Mockito.reset(gate);
+        Mockito.reset(gate);
 
         allows();
         clusterNodeOverrideOperation.replay(params);
@@ -364,8 +366,7 @@ class ClusterGateTest extends PostgresIntegrationTest {
                 UUID.randomUUID(),
                 null);
 
-        assertThatThrownBy(() -> clusterService.register(request))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.core.NotFoundException.class);
+        assertThatThrownBy(() -> clusterService.register(request)).isInstanceOf(NotFoundException.class);
 
         verify(gate, never()).run(any(), any());
     }

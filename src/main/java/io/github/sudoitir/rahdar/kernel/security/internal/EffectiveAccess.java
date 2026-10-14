@@ -31,6 +31,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -243,7 +244,7 @@ public class EffectiveAccess {
                 .filter(s -> s.getOwnerTeamId().equals(share.ownerTeamId())
                         && s.getPattern().equals(share.pattern().text()))
                 .map(s -> roleById.get(s.getRoleId()))
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .map(RoleEntity::getName)
                 .findFirst()
                 .orElse("?");

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.jayway.jsonpath.JsonPath;
 import io.github.sudoitir.rahdar.support.AccountIntegrationTest;
 import io.github.sudoitir.rahdar.support.Browser;
+import java.net.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -28,7 +29,7 @@ class TokenSessionEndpointsIntegrationTest extends AccountIntegrationTest {
         var endOthers = bearer.send("DELETE", "/api/v1/auth/sessions", null, "Authorization", bearerAuth);
         var endOne = bearer.send("DELETE", "/api/v1/auth/sessions/abc", null, "Authorization", bearerAuth);
 
-        for (var refused : new java.net.http.HttpResponse<?>[] {list, endOthers, endOne}) {
+        for (var refused : new HttpResponse<?>[] {list, endOthers, endOne}) {
             assertThat(refused.statusCode()).isEqualTo(403);
             assertThat(JsonPath.<String>read(refused.body().toString(), "$.type"))
                     .endsWith("/session-required");

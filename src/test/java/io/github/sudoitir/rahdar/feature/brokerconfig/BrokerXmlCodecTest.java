@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -246,17 +247,17 @@ class BrokerXmlCodecTest {
         assertThat(result.unsupported())
                 .extracting(BrokerXmlCodec.Unsupported::path, BrokerXmlCodec.Unsupported::reason)
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple(
+                        Tuple.tuple(
                                 "queue",
                                 "A queue belongs inside an address and its routing type: wrap it in"
                                         + " <address name=\"…\"><anycast>…</anycast></address>."),
-                        org.assertj.core.groups.Tuple.tuple(
+                        Tuple.tuple(
                                 "anycast",
                                 "A routing type belongs inside an address: wrap it in <address name=\"…\">…</address>."),
-                        org.assertj.core.groups.Tuple.tuple(
+                        Tuple.tuple(
                                 "max-delivery-attempts",
                                 "An address-setting key: wrap it in <address-setting match=\"…\">…</address-setting>."),
-                        org.assertj.core.groups.Tuple.tuple(
+                        Tuple.tuple(
                                 "permission",
                                 "A permission belongs inside a security setting: wrap it in"
                                         + " <security-setting match=\"…\">…</security-setting>."));

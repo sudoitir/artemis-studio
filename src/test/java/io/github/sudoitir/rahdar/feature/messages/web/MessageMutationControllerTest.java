@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -260,7 +261,7 @@ class MessageMutationControllerTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"filter\":\"region = 'eu'\"}"))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("bulk-cap-exceeded")))
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("bulk-cap-exceeded")))
                 .andExpect(jsonPath("$.affectedCount").value(3))
                 .andExpect(jsonPath("$.cap").value(2));
 

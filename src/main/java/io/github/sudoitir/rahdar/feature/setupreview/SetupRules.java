@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -937,7 +938,7 @@ public final class SetupRules {
         final List<NodeRead> readable;
         final ObjectMapper mapper;
         final Set<String> rahdarNodeIds = new TreeSet<>();
-        final Map<java.util.UUID, HaPolicy> policies = new LinkedHashMap<>();
+        final Map<UUID, HaPolicy> policies = new LinkedHashMap<>();
         final List<Finding> findings = new ArrayList<>();
         final List<NotAssessed> notAssessed = new ArrayList<>();
         final Set<String> evaluated = new LinkedHashSet<>();

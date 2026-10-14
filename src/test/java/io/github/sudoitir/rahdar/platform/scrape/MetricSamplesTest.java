@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import io.github.sudoitir.rahdar.support.TestPartitions;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,7 +65,7 @@ class MetricSamplesTest extends PostgresIntegrationTest {
                 """,
                 Map.of(
                         "ts",
-                        java.sql.Timestamp.from(ts),
+                        Timestamp.from(ts),
                         "value",
                         value,
                         "subject",
@@ -216,25 +218,16 @@ class MetricSamplesTest extends PostgresIntegrationTest {
         UUID otherNode = UUID.randomUUID();
         sample("messagesAdded", "orders", base, 100.0);
         sample("messagesAdded", "orders", base.plusSeconds(10), 200.0);
-        jdbc.update(
-                """
+        jdbc.update("""
                 INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
                 VALUES (:ts, :value, 'QUEUE', 'orders', 'messagesAdded', :c, :n)
-                """, Map.of("ts", java.sql.Timestamp.from(base), "value", 90_000.0, "c", clusterId, "n", otherNode));
+                """, Map.of("ts", Timestamp.from(base), "value", 90_000.0, "c", clusterId, "n", otherNode));
         jdbc.update(
                 """
                 INSERT INTO metric_sample (ts, value, subject_type, subject_name, metric, cluster_id, node_id)
                 VALUES (:ts, :value, 'QUEUE', 'orders', 'messagesAdded', :c, :n)
                 """,
-                Map.of(
-                        "ts",
-                        java.sql.Timestamp.from(base.plusSeconds(10)),
-                        "value",
-                        90_050.0,
-                        "c",
-                        clusterId,
-                        "n",
-                        otherNode));
+                Map.of("ts", Timestamp.from(base.plusSeconds(10)), "value", 90_050.0, "c", clusterId, "n", otherNode));
 
         MetricSamples.SubjectRate orders = repository
                 .latestRateWithTimeBySubject(clusterId, "messagesAdded", base, base.plusSeconds(60))
@@ -333,7 +326,7 @@ class MetricSamplesTest extends PostgresIntegrationTest {
 
         assertThat(byNode).hasSize(2);
         assertThat(byNode.stream().mapToDouble(MetricSamples.NodeBucket::value).sum())
-                .isCloseTo(total.get(0).value(), org.assertj.core.data.Offset.offset(1e-9));
+                .isCloseTo(total.get(0).value(), Offset.offset(1e-9));
     }
 
     @Test

@@ -9,6 +9,8 @@ import io.github.sudoitir.rahdar.platform.broker.MessageTransport.BrowseResult;
 import io.github.sudoitir.rahdar.platform.broker.MessageTransport.TransportTarget;
 import io.github.sudoitir.rahdar.support.ArtemisIntegrationTest;
 import jakarta.jms.Connection;
+import jakarta.jms.Message;
+import jakarta.jms.Queue;
 import jakarta.jms.Session;
 import java.time.Duration;
 import java.util.UUID;
@@ -99,12 +101,12 @@ class CoreMessageTransportPagingTest extends ArtemisIntegrationTest {
                 coreUrl() + "?useTopologyForLoadBalancing=false&consumerWindowSize=0", BROKER_USER, BROKER_PASSWORD);
         try (Connection conn = factory.createConnection(BROKER_USER, BROKER_PASSWORD)) {
             Session session = conn.createSession(false, Session.CLIENT_ACKNOWLEDGE);
-            jakarta.jms.Queue queue = session.createQueue(consumed);
+            Queue queue = session.createQueue(consumed);
             var producer = session.createProducer(queue);
             for (int i = 0; i < 10; i++) {
                 producer.send(session.createTextMessage("m" + i));
             }
-            jakarta.jms.Message later = session.createTextMessage("scheduled");
+            Message later = session.createTextMessage("scheduled");
             later.setLongProperty("_AMQ_SCHED_DELIVERY", System.currentTimeMillis() + 3_600_000);
             producer.send(later);
             conn.start();

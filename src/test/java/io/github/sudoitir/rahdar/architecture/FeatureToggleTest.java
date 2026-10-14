@@ -24,6 +24,7 @@ import io.github.sudoitir.rahdar.kernel.security.ScopeIds;
 import io.github.sudoitir.rahdar.kernel.security.internal.RoleService;
 import io.github.sudoitir.rahdar.kernel.security.web.UserViews.PermissionView;
 import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
+import io.github.sudoitir.rahdar.kernel.stream.StreamTopicRegistry;
 import io.github.sudoitir.rahdar.platform.mcp.McpRunbookPrompts;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -138,8 +139,7 @@ class FeatureToggleTest {
 
             Set<String> topicNames =
                     feature.streamTopics().stream().map(TopicDef::name).collect(Collectors.toSet());
-            Set<String> topics = context.getBean(io.github.sudoitir.rahdar.kernel.stream.StreamTopicRegistry.class)
-                    .known();
+            Set<String> topics = context.getBean(StreamTopicRegistry.class).known();
             assertThat(topics).noneMatch(topicNames::contains);
 
             SecurityContextHolder.getContext().setAuthentication(administrator());

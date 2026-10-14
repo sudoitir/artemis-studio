@@ -4,6 +4,7 @@ import io.github.sudoitir.rahdar.platform.scrape.MetricSamples;
 import io.github.sudoitir.rahdar.platform.scrape.ScrapeProperties;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -45,7 +46,7 @@ public class RateCondition implements AlertCondition {
         Instant from = to.minus(properties.tierBInterval().multipliedBy(2));
 
         Map<String, Double> ratesByQueue = series.latestRateBySubject(clusterId, rule.metric(), from, to);
-        Set<String> universe = new java.util.HashSet<>();
+        Set<String> universe = new HashSet<>();
         Map<String, Double> active = new HashMap<>();
         ratesByQueue.forEach((queueName, rate) -> {
             if (!scope.matchesQueue(queueName)) {

@@ -25,6 +25,7 @@ import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleRe
 import io.github.sudoitir.rahdar.kernel.security.web.UserViews.PermissionView;
 import io.github.sudoitir.rahdar.kernel.security.web.UserViews.RoleRequest;
 import io.github.sudoitir.rahdar.kernel.security.web.UserViews.RoleView;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -208,7 +209,7 @@ public class RoleService {
     private void requireConsistent(RoleRequest request) {
         Set<String> held = new HashSet<>(request.permissions());
         List<CatalogueEntry> catalogue = features.catalogue();
-        List<String> missing = new java.util.ArrayList<>();
+        List<String> missing = new ArrayList<>();
         for (CatalogueEntry entry : catalogue) {
             if (Grant.covers(held, entry.action())) {
                 entry.requires().stream()

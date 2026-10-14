@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -183,7 +184,7 @@ class QueueDeleteRealBrokerTest extends PostgresIntegrationTest {
                             .param("disconnectConsumers", "true"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.nodes[0].status").value("WOULD_APPLY"))
-                    .andExpect(jsonPath("$.nodes[0].error").value(org.hamcrest.Matchers.containsString(feed)));
+                    .andExpect(jsonPath("$.nodes[0].error").value(Matchers.containsString(feed)));
 
             NodeOutcome deleted = deleteDst(false, true);
             assertThat(deleted.status()).isEqualTo(NodeStatus.APPLIED);

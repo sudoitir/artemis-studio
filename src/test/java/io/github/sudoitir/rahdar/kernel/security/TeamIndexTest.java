@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /** The index is rebuilt after a change, and never keeps what was read from before one (design D12). */
@@ -63,7 +64,7 @@ class TeamIndexTest {
 
         index.invalidate();
         assertThat(index.ownerOf(cluster, ResourceRef.queue("orders.in"))).isEmpty();
-        org.mockito.Mockito.verify(rolePermissions, org.mockito.Mockito.never()).findByIdRoleId(any());
+        Mockito.verify(rolePermissions, Mockito.never()).findByIdRoleId(any());
     }
 
     @Test

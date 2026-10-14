@@ -44,6 +44,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -702,7 +703,7 @@ public class FlowGraphService {
      * every message before the address's own queues see it, which the route edges then say.
      */
     private static void drawDiverts(
-            java.util.Collection<RoutingAgg> diverts, int sampledNodes, Drawing drawing, Map<String, QueueAgg> queues) {
+            Collection<RoutingAgg> diverts, int sampledNodes, Drawing drawing, Map<String, QueueAgg> queues) {
         for (RoutingAgg d : diverts) {
             Route r = d.route;
             if (drawing.addresses.contains(r.source())) {
@@ -750,7 +751,7 @@ public class FlowGraphService {
     }
 
     private static void drawBridges(
-            java.util.Collection<RoutingAgg> bridges,
+            Collection<RoutingAgg> bridges,
             int sampledNodes,
             Set<String> knownAddresses,
             Fresh fresh,
@@ -825,7 +826,7 @@ public class FlowGraphService {
     }
 
     private static void drawHops(
-            java.util.Collection<HopAgg> hops, Map<String, String> nodeNamesByArtemisId, Fresh fresh, Drawing drawing) {
+            Collection<HopAgg> hops, Map<String, String> nodeNamesByArtemisId, Fresh fresh, Drawing drawing) {
         for (HopAgg hop : hops) {
             if (!drawing.queues.contains(hop.queue)) {
                 continue;
@@ -1176,7 +1177,7 @@ public class FlowGraphService {
         }
 
         private List<FlowNodeShare> shares(List<QueueAgg> of) {
-            Map<UUID, FlowNodeShare> out = new java.util.TreeMap<>();
+            Map<UUID, FlowNodeShare> out = new TreeMap<>();
             for (QueueAgg q : of) {
                 for (Map.Entry<UUID, QueueSnapshot> e : q.perNode.entrySet()) {
                     UUID node = e.getKey();

@@ -42,6 +42,7 @@ import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,6 +55,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.context.WebApplicationContext;
@@ -176,7 +178,7 @@ class ClusterConnectionControllerTest extends PostgresIntegrationTest {
         return vault.open(SecretVault.aad(clusterId, kind), row.getSealed());
     }
 
-    private org.springframework.test.web.servlet.ResultActions edit(String body, boolean dryRun) throws Exception {
+    private ResultActions edit(String body, boolean dryRun) throws Exception {
         return mvc.perform(patch("/api/v1/clusters/{id}", clusterId)
                 .param("dryRun", String.valueOf(dryRun))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -257,7 +259,7 @@ class ClusterConnectionControllerTest extends PostgresIntegrationTest {
     void aCoreAccountSetToNullFallsBackToTheManagementAccount() throws Exception {
         edit("{\"core\":null}", false)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.connection.coreUsername").value(org.hamcrest.Matchers.nullValue()));
+                .andExpect(jsonPath("$.connection.coreUsername").value(Matchers.nullValue()));
 
         assertThat(credentials.findByClusterIdAndKind(clusterId, CORE)).isEmpty();
         assertThat(credentials.findByClusterIdAndKind(clusterId, JOLOKIA_BASIC)).isPresent();

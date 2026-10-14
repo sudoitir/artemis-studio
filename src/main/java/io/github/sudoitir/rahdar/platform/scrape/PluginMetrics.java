@@ -15,7 +15,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -160,7 +162,7 @@ public class PluginMetrics implements PluginBridge {
     }
 
     /** Calls into the plugin on a virtual thread, abandoning it after {@link #TIMEOUT}. */
-    private <T> T call(PluginHandle handle, java.util.concurrent.Callable<T> body) {
+    private <T> T call(PluginHandle handle, Callable<T> body) {
         Future<T> future = calls.submit(() -> handle.runInPlugin(body));
         try {
             return future.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
@@ -170,7 +172,7 @@ public class PluginMetrics implements PluginBridge {
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("interrupted");
-        } catch (java.util.concurrent.ExecutionException e) {
+        } catch (ExecutionException e) {
             throw new IllegalStateException(String.valueOf(e.getCause()), e.getCause());
         }
     }

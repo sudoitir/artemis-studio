@@ -22,6 +22,9 @@ import io.github.sudoitir.rahdar.platform.governance.ContentPolicy;
 import io.github.sudoitir.rahdar.platform.governance.GovernContext;
 import io.github.sudoitir.rahdar.platform.governance.GovernedMessage;
 import io.github.sudoitir.rahdar.platform.governance.Location;
+import io.github.sudoitir.rahdar.platform.governance.MessageContent;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -171,8 +174,8 @@ class SqlGovernanceTest {
                 null,
                 Map.of("k", "v"),
                 QueryAst.Source.INDEX,
-                java.time.Instant.parse("2026-01-01T00:00:00Z"),
-                java.time.Instant.parse("2026-01-02T00:00:00Z"),
+                Instant.parse("2026-01-01T00:00:00Z"),
+                Instant.parse("2026-01-02T00:00:00Z"),
                 "CAPTURED",
                 99L);
     }
@@ -206,7 +209,7 @@ class SqlGovernanceTest {
         QueryResult.Row original = row("orders", 3);
         var replaced = SqlGovernance.withContent(
                 original,
-                new io.github.sudoitir.rahdar.platform.governance.MessageContent(
+                new MessageContent(
                         Map.of("correlationId", "c2", "groupId", "g2", "userId", "u2", "replyTo", "r2"),
                         Map.of("p", 1L),
                         "masked",
@@ -346,7 +349,7 @@ class SqlGovernanceTest {
                 Map.of("big", 5L),
                 Map.of("ratio", 0.5),
                 Map.of());
-        var properties = new java.util.HashMap<String, Object>();
+        var properties = new HashMap<String, Object>();
         properties.put("big", 5L);
         properties.put("ratio", 0.5);
         properties.put("other", 12L);

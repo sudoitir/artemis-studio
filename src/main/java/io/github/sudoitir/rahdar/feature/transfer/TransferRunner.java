@@ -34,6 +34,7 @@ import io.github.sudoitir.rahdar.platform.clusters.ClusterNode;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -888,7 +889,7 @@ class TransferRunner {
     }
 
     private static List<String> named(String... names) {
-        return java.util.Arrays.stream(names).filter(java.util.Objects::nonNull).toList();
+        return Arrays.stream(names).filter(Objects::nonNull).toList();
     }
 
     /** Always reached: the run gets its state and the segment's audit events their outcome, whatever happened. */

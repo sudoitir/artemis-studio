@@ -1,5 +1,6 @@
 package io.github.sudoitir.rahdar.support;
 
+import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
@@ -39,7 +40,7 @@ public final class TotpCodes {
     }
 
     private static byte[] decode(String text) {
-        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
         int buffer = 0;
         int bits = 0;
         for (char c : text.toCharArray()) {

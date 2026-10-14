@@ -35,10 +35,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -142,7 +144,7 @@ class TransferGateTest extends PostgresIntegrationTest {
     }
 
     private void holds() {
-        org.mockito.Mockito.doThrow(new OperationHeldException(
+        Mockito.doThrow(new OperationHeldException(
                         UUID.randomUUID(), "Move messages", Instant.now().plus(Duration.ofHours(2))))
                 .when(gate)
                 .run(any(), any());
@@ -189,7 +191,7 @@ class TransferGateTest extends PostgresIntegrationTest {
 
     @Test
     void anApprovedTransferStartsOnce() {
-        when(gate.run(any(), any())).thenAnswer(call -> ((java.util.function.Supplier<?>) call.getArgument(1)).get());
+        when(gate.run(any(), any())).thenAnswer(call -> ((Supplier<?>) call.getArgument(1)).get());
 
         transfers.execute(source, run.getId(), request());
 

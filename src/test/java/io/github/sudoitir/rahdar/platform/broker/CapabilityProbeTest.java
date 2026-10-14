@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.RequestMatcher;
 import org.springframework.web.client.RestClient;
@@ -42,7 +43,7 @@ class CapabilityProbeTest {
      */
     private RequestMatcher readOnly() {
         return request -> {
-            String body = ((org.springframework.mock.http.client.MockClientHttpRequest) request).getBodyAsString();
+            String body = ((MockClientHttpRequest) request).getBodyAsString();
             JsonNode root = mapper.readTree(body);
             for (JsonNode entry :
                     root.isArray() ? root : mapper.createArrayNode().add(root)) {

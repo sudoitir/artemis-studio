@@ -10,8 +10,10 @@ import java.security.GeneralSecurityException;
 import java.security.cert.CertificateFactory;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
@@ -149,7 +151,7 @@ public final class PluginJarBuilder {
 
         try (var out = Files.newOutputStream(jarFile);
                 JarOutputStream jar = new JarOutputStream(out, manifest)) {
-            java.util.Set<String> dirsWritten = new java.util.LinkedHashSet<>();
+            Set<String> dirsWritten = new LinkedHashSet<>();
             writeEntryWithDirs(
                     jar,
                     "META-INF/rahdar/plugin.json",
@@ -191,8 +193,8 @@ public final class PluginJarBuilder {
      * against nothing and silently finds no classes, even though {@code Class.forName} on a fully
      * qualified name still works (that path never lists a directory).
      */
-    private static void writeEntryWithDirs(
-            JarOutputStream jar, String name, byte[] content, java.util.Set<String> dirsWritten) throws IOException {
+    private static void writeEntryWithDirs(JarOutputStream jar, String name, byte[] content, Set<String> dirsWritten)
+            throws IOException {
         int slash = name.lastIndexOf('/');
         if (slash > 0) {
             String dir = name.substring(0, slash + 1);

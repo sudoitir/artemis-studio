@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
@@ -377,7 +378,7 @@ class SseHubTest {
         verify(emitter, after(200).times(1)).send(any(SseEmitter.SseEventBuilder.class));
         String wire = sent.getValue().build().stream()
                 .map(d -> String.valueOf(d.getData()))
-                .collect(java.util.stream.Collectors.joining());
+                .collect(Collectors.joining());
         assertThat(wire).contains("orders.in").doesNotContain("billing.in");
     }
 }

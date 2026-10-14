@@ -30,6 +30,7 @@ import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -157,7 +158,7 @@ public class SettingsService {
                 }
             }
         }
-        registry = java.util.Collections.unmodifiableMap(registry);
+        registry = Collections.unmodifiableMap(registry);
     }
 
     private void register(FeatureDescriptor module, SettingsContribution contribution) {
@@ -193,7 +194,7 @@ public class SettingsService {
      * with it: the Instant activation class (design.md §5) attaches a new version's bridges before
      * the old version's detach runs, so both briefly hold the same id. {@code namespace}'s own
      * currently-registered keys are dropped from the collision check before the incoming ones are
-     * added, the same way {@link io.github.sudoitir.rahdar.kernel.plugin.FeatureRegistry
+     * added, the same way {@link FeatureRegistry
      * FeatureRegistry#addPlugin} excludes its own immediately-prior version.
      */
     public synchronized void addSettings(String namespace, List<SettingDef> defs, String writePermission) {
@@ -215,7 +216,7 @@ public class SettingsService {
                 nextPermissions.put(def.key(), writePermission);
             }
         }
-        registry = java.util.Collections.unmodifiableMap(next);
+        registry = Collections.unmodifiableMap(next);
         writePermissions = Map.copyOf(nextPermissions);
         Map<String, String> previousOverrides = overrides;
         Map<String, String> withStored = new LinkedHashMap<>(previousOverrides);
@@ -249,7 +250,7 @@ public class SettingsService {
         next.keySet().removeIf(key -> key.startsWith(namespace + "."));
         Map<String, String> nextPermissions = new LinkedHashMap<>(writePermissions);
         nextPermissions.keySet().removeIf(key -> key.startsWith(namespace + "."));
-        registry = java.util.Collections.unmodifiableMap(next);
+        registry = Collections.unmodifiableMap(next);
         writePermissions = Map.copyOf(nextPermissions);
     }
 

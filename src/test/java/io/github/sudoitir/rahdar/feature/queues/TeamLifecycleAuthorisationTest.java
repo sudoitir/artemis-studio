@@ -29,6 +29,7 @@ import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import io.github.sudoitir.rahdar.support.TeamAccessFixture;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -168,11 +169,11 @@ class TeamLifecycleAuthorisationTest extends PostgresIntegrationTest {
 
     @Test
     void anAddressThatStillHasQueuesBoundNamesOnlyTheTeamsAndCountsTheRest() throws Exception {
-        when(divertOps.listDiverts(any(), any(), any())).thenReturn(java.util.List.of());
+        when(divertOps.listDiverts(any(), any(), any())).thenReturn(List.of());
         doThrow(new ManagementRefusal(ManagementRefusal.Kind.BOUND_QUEUES, "bound"))
                 .when(ops)
                 .deleteAddress(any(), any(), eq("orders.in"));
-        when(ops.boundQueues(any(), any())).thenReturn(java.util.List.of("orders.a", "billing.x", "billing.y"));
+        when(ops.boundQueues(any(), any())).thenReturn(List.of("orders.a", "billing.x", "billing.y"));
 
         MockHttpServletResponse response = mvc.perform(delete("/api/v1/clusters/" + cluster + "/addresses/orders.in")
                         .with(authentication(ordersOperator))

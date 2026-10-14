@@ -17,6 +17,7 @@ import io.github.sudoitir.rahdar.kernel.core.PagedView;
 import io.github.sudoitir.rahdar.kernel.core.ResourceQuery;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.rahdar.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeRepository;
@@ -81,8 +82,7 @@ class RoutingServiceTest extends PostgresIntegrationTest {
         when(client.resolveBrokerObjectName()).thenReturn("org.apache.activemq.artemis:broker=\"b\"");
         when(connections.forCluster(eq(clusterId), anyString())).thenReturn(client);
         when(divertOps.addressAvailable(any(), any(), any())).thenReturn(true);
-        when(divertOps.createVerified(any(), any(), any()))
-                .thenReturn(io.github.sudoitir.rahdar.platform.clusters.LifecycleOutcome.NodeStatus.APPLIED);
+        when(divertOps.createVerified(any(), any(), any())).thenReturn(LifecycleOutcome.NodeStatus.APPLIED);
     }
 
     private UUID node(String name, String url) {

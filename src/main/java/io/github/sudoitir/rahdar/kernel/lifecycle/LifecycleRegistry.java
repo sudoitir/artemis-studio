@@ -5,6 +5,7 @@ import io.github.sudoitir.rahdar.kernel.settings.SettingDef;
 import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,7 +91,7 @@ public class LifecycleRegistry {
     public synchronized void removePlugin(String pluginId) {
         Map<String, RegisteredStore> next = new LinkedHashMap<>(stores);
         next.values().removeIf(s -> s.source().equals(pluginId));
-        stores = java.util.Collections.unmodifiableMap(next);
+        stores = Collections.unmodifiableMap(next);
         settings.removeSettings(LifecycleSettings.PLUGIN_NAMESPACE + pluginId);
     }
 
@@ -105,6 +106,6 @@ public class LifecycleRegistry {
             settings.addSettings(
                     LifecycleSettings.namespace(store), LifecycleSettings.policy(store), DataPermissions.DATA_WRITE);
         }
-        stores = java.util.Collections.unmodifiableMap(next);
+        stores = Collections.unmodifiableMap(next);
     }
 }

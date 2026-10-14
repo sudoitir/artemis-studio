@@ -36,6 +36,7 @@ import io.github.sudoitir.rahdar.kernel.security.ResourceRef;
 import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import io.github.sudoitir.rahdar.platform.broker.AcceptanceProbe;
 import io.github.sudoitir.rahdar.platform.broker.AcceptanceProbe.Facts;
+import io.github.sudoitir.rahdar.platform.broker.BrokerCapabilities;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.rahdar.platform.broker.BrokerMBeans;
 import io.github.sudoitir.rahdar.platform.broker.BrokerSettings;
@@ -389,9 +390,7 @@ public class TransferService {
                 .managementWrite(clusterId)
                 .ifPresentOrElse(
                         assessment -> {
-                            if (assessment.status()
-                                    != io.github.sudoitir.rahdar.platform.broker.BrokerCapabilities.CapabilityStatus
-                                            .AVAILABLE) {
+                            if (assessment.status() != BrokerCapabilities.CapabilityStatus.AVAILABLE) {
                                 out.add(new Finding(
                                         FindingKind.REFUSE,
                                         "management-write",

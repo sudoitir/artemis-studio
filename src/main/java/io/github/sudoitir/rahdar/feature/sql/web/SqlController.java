@@ -10,6 +10,7 @@ import io.github.sudoitir.rahdar.feature.sql.web.SqlViews.SqlQueryRequest;
 import io.github.sudoitir.rahdar.feature.sql.web.SqlViews.SqlQueryTicketView;
 import io.github.sudoitir.rahdar.feature.sql.web.SqlViews.VerifyRequest;
 import io.github.sudoitir.rahdar.feature.sql.web.SqlViews.VerifyView;
+import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -57,8 +58,7 @@ public class SqlController {
     public SqlQueryTicketView query(@PathVariable UUID clusterId, @RequestBody SqlExecuteRequest request) {
         console.plan(clusterId, request.sql());
         UUID id = tickets.issue(clusterId, request.sql(), Boolean.TRUE.equals(request.tail()), tickets.currentOwner());
-        return new SqlQueryTicketView(
-                id, java.time.Instant.now().plusSeconds(60).toString());
+        return new SqlQueryTicketView(id, Instant.now().plusSeconds(60).toString());
     }
 
     /**

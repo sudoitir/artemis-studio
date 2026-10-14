@@ -55,6 +55,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -730,12 +732,12 @@ public class TeamService {
         }
     }
 
-    private java.util.Optional<TeamMemberEntity> existing(UUID teamId, TeamMemberEntity candidate) {
+    private Optional<TeamMemberEntity> existing(UUID teamId, TeamMemberEntity candidate) {
         return members.findByTeamId(teamId).stream()
                 .filter(m -> m.getPrincipalType().equals(candidate.getPrincipalType())
-                        && java.util.Objects.equals(m.getUserId(), candidate.getUserId())
-                        && java.util.Objects.equals(m.getProviderId(), candidate.getProviderId())
-                        && java.util.Objects.equals(m.getGroupName(), candidate.getGroupName()))
+                        && Objects.equals(m.getUserId(), candidate.getUserId())
+                        && Objects.equals(m.getProviderId(), candidate.getProviderId())
+                        && Objects.equals(m.getGroupName(), candidate.getGroupName()))
                 .findFirst();
     }
 
@@ -895,7 +897,7 @@ public class TeamService {
     private Map<UUID, String> usernames(List<TeamMemberEntity> memberRows) {
         Set<UUID> ids = memberRows.stream()
                 .map(TeamMemberEntity::getUserId)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         return users.findAllById(ids).stream()
                 .collect(Collectors.toMap(AppUserEntity::getId, AppUserEntity::getUsername, (a, b) -> a));

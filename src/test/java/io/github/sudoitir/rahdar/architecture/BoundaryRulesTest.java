@@ -8,9 +8,11 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaAnnotation;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import jakarta.persistence.Entity;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.BeanFactory;
@@ -122,7 +124,7 @@ class BoundaryRulesTest {
      */
     @Test
     void webAndMcpCodeNeverReadsRawMessageContent() {
-        java.util.Set<String> content = java.util.Set.of(
+        Set<String> content = Set.of(
                 "body",
                 "bodyPreview",
                 "properties",
@@ -139,17 +141,15 @@ class BoundaryRulesTest {
                 .that()
                 .resideInAnyPackage(ROOT + "..web..", ROOT + "..mcp..")
                 .should()
-                .callMethodWhere(
-                        new DescribedPredicate<com.tngtech.archunit.core.domain.JavaMethodCall>(
-                                "a raw message content accessor") {
-                            @Override
-                            public boolean test(com.tngtech.archunit.core.domain.JavaMethodCall call) {
-                                String owner = call.getTargetOwner().getFullName();
-                                return (owner.equals(ROOT + ".platform.broker.MessageBrowser$BrowsedMessage")
-                                                || owner.equals(ROOT + ".feature.sql.QueryResult$Row"))
-                                        && content.contains(call.getName());
-                            }
-                        })
+                .callMethodWhere(new DescribedPredicate<JavaMethodCall>("a raw message content accessor") {
+                    @Override
+                    public boolean test(JavaMethodCall call) {
+                        String owner = call.getTargetOwner().getFullName();
+                        return (owner.equals(ROOT + ".platform.broker.MessageBrowser$BrowsedMessage")
+                                        || owner.equals(ROOT + ".feature.sql.QueryResult$Row"))
+                                && content.contains(call.getName());
+                    }
+                })
                 .check(CLASSES);
     }
 

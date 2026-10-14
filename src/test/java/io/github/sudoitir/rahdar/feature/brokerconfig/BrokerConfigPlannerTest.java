@@ -13,6 +13,7 @@ import io.github.sudoitir.rahdar.feature.brokerconfig.Plan.HazardKind;
 import io.github.sudoitir.rahdar.feature.brokerconfig.Plan.Op;
 import io.github.sudoitir.rahdar.feature.brokerconfig.Plan.Section;
 import io.github.sudoitir.rahdar.feature.brokerconfig.Plan.Step;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -535,7 +536,7 @@ class BrokerConfigPlannerTest {
         // must read as already applied once the ten echoed types match.
         UUID id = UUID.randomUUID();
         ObservedNodeConfig n = node(id, "broker-1", Map.of(), Map.of(), Map.of());
-        Map<PermissionType, Set<String>> declared = new java.util.EnumMap<>(PermissionType.class);
+        Map<PermissionType, Set<String>> declared = new EnumMap<>(PermissionType.class);
         declared.put(PermissionType.SEND, Set.of("amq"));
         declared.put(PermissionType.VIEW, Set.of("amq"));
         declared.put(PermissionType.EDIT, Set.of("amq"));

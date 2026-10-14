@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.kernel.lifecycle.partition;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 /** How long one partition covers. Bounds are always UTC. */
 public enum Grain {
@@ -44,7 +45,7 @@ public enum Grain {
             return this == MONTH
                     ? LocalDate.parse(digits + "01", DateTimeFormatter.ofPattern("yyyyMMdd"))
                     : LocalDate.parse(digits, suffix);
-        } catch (java.time.format.DateTimeParseException _) {
+        } catch (DateTimeParseException _) {
             return null;
         }
     }

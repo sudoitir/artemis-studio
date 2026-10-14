@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.kernel.plugin;
 
 import io.github.sudoitir.rahdar.kernel.plugin.internal.descriptor.PluginDescriptor;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import org.springframework.context.ApplicationContext;
 
@@ -35,7 +36,7 @@ public interface PluginHandle {
      * The plugin's own beans of a type, by name — not its parents' — for a bridge that looks for a
      * contribution without needing the context itself.
      */
-    default <T> java.util.Map<String, T> beansOfType(Class<T> type) {
+    default <T> Map<String, T> beansOfType(Class<T> type) {
         return applicationContext().getBeansOfType(type);
     }
 

@@ -1,5 +1,6 @@
 package io.github.sudoitir.rahdar.platform.scrape;
 
+import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
 import io.github.sudoitir.rahdar.platform.broker.BrokerListOps;
@@ -93,7 +94,7 @@ public class ScrapeScheduler implements DisposableBean {
     private static final String LIST_QUEUES = "listQueues(java.lang.String,int,int)";
     private static final int PAGE_SIZE = 200;
 
-    private final io.github.sudoitir.rahdar.kernel.settings.SettingsService settings;
+    private final SettingsService settings;
     private final ClusterDirectory clusters;
     private final ClusterOwnership ownership;
     private final ClusterService clusterService;

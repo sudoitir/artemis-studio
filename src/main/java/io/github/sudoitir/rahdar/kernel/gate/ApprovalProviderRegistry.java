@@ -5,6 +5,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.PluginHandle;
 import io.github.sudoitir.rahdar.kernel.plugin.PluginInstallStatus;
 import io.github.sudoitir.rahdar.kernel.plugin.PluginStatusChanged;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,7 +65,7 @@ public class ApprovalProviderRegistry implements PluginBridge {
      */
     public Optional<String> armedApproverPermission() {
         return jdbc.queryForList(ARMED_PERMISSION_SQL, String.class, DESIRED_ACTIVE).stream()
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .findFirst();
     }
 
@@ -167,7 +168,7 @@ public class ApprovalProviderRegistry implements PluginBridge {
 
     private synchronized void observe(Optional<String> armed, String why) {
         String now = armed.orElse(null);
-        if (java.util.Objects.equals(now, lastArmed)) {
+        if (Objects.equals(now, lastArmed)) {
             return;
         }
         lastArmed = now;

@@ -9,6 +9,7 @@ import io.github.sudoitir.rahdar.kernel.stream.SseHub;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 
 class TopicCoalescerTest {
 
@@ -34,6 +35,6 @@ class TopicCoalescerTest {
     @Test
     void aNullTopicIsIgnored() {
         coalescer.touch(UUID.randomUUID(), null);
-        verify(hub, times(0)).publish(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        verify(hub, times(0)).publish(ArgumentMatchers.any(), ArgumentMatchers.any());
     }
 }

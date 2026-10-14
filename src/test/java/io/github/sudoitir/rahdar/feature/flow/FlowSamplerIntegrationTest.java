@@ -74,7 +74,7 @@ class FlowSamplerIntegrationTest extends PostgresIntegrationTest {
 
     static ScheduledJob flowSampleJob() {
         return ScheduledJob.fixedDelay(
-                "flow-sample", "flow", ScheduledJob.Scope.INSTANCE, () -> java.time.Duration.ofDays(1), () -> {});
+                "flow-sample", "flow", ScheduledJob.Scope.INSTANCE, () -> Duration.ofDays(1), () -> {});
     }
 
     private UUID clusterId;

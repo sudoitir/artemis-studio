@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageCaptureNodeRepository;
+import io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
 import io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageIndexSubscriptionRepository;
 import io.github.sudoitir.rahdar.kernel.audit.AuditEvent;
 import io.github.sudoitir.rahdar.kernel.audit.AuditService;
@@ -26,7 +27,11 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.unit.DataSize;
@@ -157,23 +162,21 @@ class MessageIndexServicePreviewTest {
 
     @Test
     void deletingACaptureStopsRecordingBeforeItsRowsAreDeletedAndSweepsItsTaps() {
-        io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageIndexSubscriptionEntity entity =
-                new io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageIndexSubscriptionEntity();
+        MessageIndexSubscriptionEntity entity = new MessageIndexSubscriptionEntity();
         UUID id = UUID.randomUUID();
         entity.setId(id);
         entity.setClusterId(CLUSTER);
         entity.setQueuePattern("ORDER.IN");
         entity.setMode(CaptureMode.CAPTURE);
         entity.setRetentionDays(7);
-        when(subscriptions.findById(id)).thenReturn(java.util.Optional.of(entity));
+        when(subscriptions.findById(id)).thenReturn(Optional.of(entity));
         when(addresses.of(any(), any())).thenReturn(Set.of("ORDER.IN"));
         AuditEvent auditEvent = mock(AuditEvent.class);
-        when(audit.begin(any(), any(), any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+        when(audit.begin(any(), any(), any(), any(), any(), any(), any(), ArgumentMatchers.anyBoolean()))
                 .thenReturn(auditEvent);
         CaptureConsumer consumers = mock(CaptureConsumer.class);
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        when(jdbc.queryForObject(
-                        any(String.class), any(org.springframework.jdbc.core.RowMapper.class), any(Object[].class)))
+        when(jdbc.queryForObject(any(String.class), any(RowMapper.class), any(Object[].class)))
                 .thenReturn(new MessageIndexService.Footprint(3, 30, null));
         CaptureProperties properties = new CaptureProperties(
                 "rahdar",
@@ -204,18 +207,16 @@ class MessageIndexServicePreviewTest {
 
         service.delete(CLUSTER, id);
 
-        org.mockito.InOrder order = org.mockito.Mockito.inOrder(consumers, jdbc, reconciler);
+        InOrder order = Mockito.inOrder(consumers, jdbc, reconciler);
         order.verify(consumers).stopSubscription(id);
-        order.verify(jdbc)
-                .update(org.mockito.ArgumentMatchers.startsWith("DELETE FROM message_index"), any(Object[].class));
+        order.verify(jdbc).update(ArgumentMatchers.startsWith("DELETE FROM message_index"), any(Object[].class));
         // No transaction is active in this test, so the after-commit sweep runs straight away.
         order.verify(reconciler).reconcileNow(CLUSTER);
     }
 
     @Test
     void turningCaptureOffSweepsItsTapsOnceTheChangeCommits() {
-        io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageIndexSubscriptionEntity entity =
-                new io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageIndexSubscriptionEntity();
+        MessageIndexSubscriptionEntity entity = new MessageIndexSubscriptionEntity();
         UUID id = UUID.randomUUID();
         entity.setId(id);
         entity.setClusterId(CLUSTER);
@@ -223,11 +224,11 @@ class MessageIndexServicePreviewTest {
         entity.setMode(CaptureMode.CAPTURE);
         entity.setEnabled(true);
         entity.setRetentionDays(7);
-        when(subscriptions.findById(id)).thenReturn(java.util.Optional.of(entity));
+        when(subscriptions.findById(id)).thenReturn(Optional.of(entity));
         when(subscriptions.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(addresses.of(any(), any())).thenReturn(Set.of());
         AuditEvent auditEvent = mock(AuditEvent.class);
-        when(audit.begin(any(), any(), any(), any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean()))
+        when(audit.begin(any(), any(), any(), any(), any(), any(), any(), ArgumentMatchers.anyBoolean()))
                 .thenReturn(auditEvent);
 
         service("rahdar")

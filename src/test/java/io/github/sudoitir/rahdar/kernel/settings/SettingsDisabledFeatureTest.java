@@ -22,6 +22,7 @@ import io.github.sudoitir.rahdar.kernel.settings.internal.persistence.RahdarSett
 import io.github.sudoitir.rahdar.kernel.settings.internal.persistence.RahdarSettingRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -38,7 +39,7 @@ class SettingsDisabledFeatureTest {
     @SuppressWarnings("unchecked")
     private SettingsService settings(boolean rrEnabled) {
         var permissions = mock(PermissionResolver.class);
-        when(permissions.can(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+        when(permissions.can(ArgumentMatchers.anyString())).thenReturn(true);
         var env = new MockEnvironment().withProperty("rahdar.features.rr.enabled", Boolean.toString(rrEnabled));
         var registry = new FeatureRegistry(
                 new InstalledFeatures(List.of(

@@ -68,11 +68,15 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -248,7 +252,7 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
 
     private void approversAre(Person... people) {
         when(holders.holders(any(), eq(GateTestKit.APPROVER_PERMISSION), anyInt()))
-                .thenReturn(java.util.Arrays.stream(people).map(Person::id).toList());
+                .thenReturn(Arrays.stream(people).map(Person::id).toList());
     }
 
     /** Runs {@code work} as if no approval provider were installed. */
@@ -370,8 +374,8 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
         assertThat(request.display())
                 .extracting(DisplayRow::from, DisplayRow::to)
                 .containsExactlyInAnyOrder(
-                        org.assertj.core.api.Assertions.tuple(settings.value(BrokerSettings.BULK_CAP), "3"),
-                        org.assertj.core.api.Assertions.tuple(
+                        Assertions.tuple(settings.value(BrokerSettings.BULK_CAP), "3"),
+                        Assertions.tuple(
                                 "2",
                                 "default ("
                                         + settings.definition(BrokerSettings.BULK_QUEUE_CAP)
@@ -582,8 +586,7 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
     void aChangeSetIsHeldTheSameThroughRestAndTheMcpTool() throws Exception {
         Person alice = settingsAdmin();
         approversAre(approver());
-        java.util.concurrent.atomic.AtomicReference<McpFixture.Key> minted =
-                new java.util.concurrent.atomic.AtomicReference<>();
+        AtomicReference<McpFixture.Key> minted = new AtomicReference<>();
         whileDisarmed(() -> minted.set(McpFixture.mintKey(
                 users,
                 roles,
@@ -624,7 +627,7 @@ class SettingsAndTokenGatingIntegrationTest extends PostgresIntegrationTest {
 
     /** What the requester's one held request asks for, as stored, and how they signed in. */
     private Map<String, Object> heldRequestOf(UUID requesterId) {
-        return new java.util.HashMap<>(jdbc.queryForMap("""
+        return new HashMap<>(jdbc.queryForMap("""
                 SELECT type, type_version, mode, auth_kind, summary, traits::text AS traits, params::text AS params,
                     display::text AS display, effect::text AS effect, encode(params_hash, 'hex') AS params_hash,
                     cluster_id, environment_id

@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
@@ -332,7 +333,7 @@ class TopologyDiscoveryTest extends PostgresIntegrationTest {
 
         discovery.discover(clusterId, List.of(seed("topology.json")), derivation(PATTERN));
 
-        verify(clientFactory, org.mockito.Mockito.times(1)).forNode(any(), any());
+        verify(clientFactory, Mockito.times(1)).forNode(any(), any());
         assertThat(backup(clusterId).getJolokiaUrl()).isEqualTo(BACKUP_URL);
     }
 

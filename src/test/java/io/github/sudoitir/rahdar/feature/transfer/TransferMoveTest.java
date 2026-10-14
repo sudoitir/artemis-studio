@@ -12,6 +12,7 @@ import jakarta.jms.Session;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.junit.jupiter.api.Test;
 
@@ -76,8 +77,7 @@ class TransferMoveTest extends TransferTestSupport {
         assertThat(p.depth(src)).isZero();
         assertThat(d.drain(dst))
                 .extracting(m -> m.getIntProperty("seq"))
-                .containsExactlyElementsOf(
-                        java.util.stream.IntStream.range(0, 45).boxed().toList());
+                .containsExactlyElementsOf(IntStream.range(0, 45).boxed().toList());
         assertThat(staging.list(p.jolokia())).doesNotContain(StagingQueues.queueName(run.id()));
     }
 

@@ -396,8 +396,8 @@ class PluginTrustGateIntegrationTest extends PostgresIntegrationTest {
     void aPluginDeclaringAuditAccessNeedsConfirmationAndAnUpdateThatAddsAFlagDoesToo() throws Exception {
         String id = uniqueId("gate-audit");
         pluginIds.add(id);
-        String shaV1 = upload(auditBeans(new PluginJarBuilder(id), true, false)
-                .descriptorField("audit", java.util.Map.of("receive", true)));
+        String shaV1 = upload(
+                auditBeans(new PluginJarBuilder(id), true, false).descriptorField("audit", Map.of("receive", true)));
 
         ActivationPlan plan = host.plan(shaV1);
         assertThat(plan.diff().auditAdded()).containsExactly("receive");
@@ -408,12 +408,12 @@ class PluginTrustGateIntegrationTest extends PostgresIntegrationTest {
         awaitActive(id, shaV1);
 
         String sameFlags = upload(auditBeans(new PluginJarBuilder(id), true, false)
-                .descriptorField("audit", java.util.Map.of("receive", true))
+                .descriptorField("audit", Map.of("receive", true))
                 .descriptorField("version", "2.0.0"));
         assertThat(host.plan(sameFlags).acknowledgements()).isEmpty();
 
         String moreFlags = upload(auditBeans(new PluginJarBuilder(id), true, true)
-                .descriptorField("audit", java.util.Map.of("receive", true, "retentionHold", true))
+                .descriptorField("audit", Map.of("receive", true, "retentionHold", true))
                 .descriptorField("version", "3.0.0"));
         ActivationPlan update = host.plan(moreFlags);
         assertThat(update.diff().auditAdded()).containsExactly("retentionHold");

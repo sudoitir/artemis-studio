@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -277,8 +278,7 @@ public class UserService {
     }
 
     private static RahdarPrincipal currentPrincipalOrNull() {
-        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext()
-                .getAuthentication();
+        var auth = SecurityContextHolder.getContext().getAuthentication();
         return auth != null && auth.getPrincipal() instanceof RahdarPrincipal p ? p : null;
     }
 

@@ -6,12 +6,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.descriptor.PluginDescriptorParser;
 import io.github.sudoitir.rahdar.kernel.plugin.support.PluginJarBuilder;
 import io.github.sudoitir.rahdar.kernel.security.Grant;
 import io.github.sudoitir.rahdar.kernel.security.RahdarPrincipal;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.io.File;
+import java.lang.management.ManagementFactory;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -19,21 +23,29 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.jar.JarFile;
+import javax.management.ObjectName;
+import javax.sql.DataSource;
 import org.awaitility.core.ConditionTimeoutException;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
@@ -74,9 +86,7 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
     private MockMvc mvc() {
         if (mvc == null) {
             mvc = webAppContextSetup(webContext)
-                    .apply(
-                            org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers
-                                    .springSecurity())
+                    .apply(SecurityMockMvcConfigurers.springSecurity())
                     .build();
         }
         return mvc;
@@ -101,8 +111,7 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
                 .descriptorField("version", version)
                 .descriptorField(
                         "permissions",
-                        java.util.List.of(java.util.Map.of(
-                                "action", "acme-notes:read", "description", "Read notes", "scope", "cluster")))
+                        List.of(Map.of("action", "acme-notes:read", "description", "Read notes", "scope", "cluster")))
                 .descriptorField("basePackage", "com.acme.notes")
                 .descriptorField("configuration", "com.acme.notes.PluginConfig")
                 .changelog("""
@@ -213,14 +222,11 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
         }
 
         mvc().perform(MockMvcRequestBuilders.get("/api/v1/p/acme-notes/secure").with(authentication(callerWith())))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
-                        .isForbidden());
+                .andExpect(MockMvcResultMatchers.status().isForbidden());
         mvc().perform(MockMvcRequestBuilders.get("/api/v1/p/acme-notes/secure")
                         .with(authentication(callerWith("acme-notes:read"))))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
-                        .isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
-                        .string("granted"));
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.content().string("granted"));
 
         mvc().perform(
                         MockMvcRequestBuilders.post("/api/v1/p/acme-notes/notes")
@@ -228,18 +234,15 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
                                 .with(org.springframework.security.test.web.servlet.request
                                         .SecurityMockMvcRequestPostProcessors.csrf())
                                 .param("text", "hi"))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
-                        .isOk());
+                .andExpect(MockMvcResultMatchers.status().isOk());
     }
 
     @Test
     void answers404ForAnUninstalledPlugin() throws Exception {
         mvc().perform(MockMvcRequestBuilders.get("/api/v1/p/no-such-plugin/version")
                         .with(authentication(callerWith())))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
-                        .isNotFound())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.type")
-                        .value(org.hamcrest.Matchers.endsWith("feature-disabled")));
+                .andExpect(MockMvcResultMatchers.status().isNotFound())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.type").value(Matchers.endsWith("feature-disabled")));
     }
 
     @Test
@@ -248,10 +251,8 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
         try {
             mvc().perform(MockMvcRequestBuilders.get("/api/v1/p/acme-notes/version")
                             .with(authentication(callerWith())))
-                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
-                            .isServiceUnavailable())
-                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
-                            .string("Retry-After", "2"));
+                    .andExpect(MockMvcResultMatchers.status().isServiceUnavailable())
+                    .andExpect(MockMvcResultMatchers.header().string("Retry-After", "2"));
         } finally {
             registry.remove("acme-notes");
         }
@@ -265,7 +266,7 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
 
         AtomicBoolean failed = new AtomicBoolean(false);
         ExecutorService pool = Executors.newFixedThreadPool(4);
-        List<Future<?>> inflight = new java.util.ArrayList<>();
+        List<Future<?>> inflight = new ArrayList<>();
         for (int i = 0; i < 40; i++) {
             inflight.add(pool.submit(() -> {
                 try {
@@ -334,10 +335,10 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
             }
             if (!pinnedByThread) {
                 String path = "target/plugin-leak.hprof";
-                new java.io.File(path).delete();
-                java.lang.management.ManagementFactory.getPlatformMBeanServer()
+                new File(path).delete();
+                ManagementFactory.getPlatformMBeanServer()
                         .invoke(
-                                new javax.management.ObjectName("com.sun.management:type=HotSpotDiagnostic"),
+                                new ObjectName("com.sun.management:type=HotSpotDiagnostic"),
                                 "dumpHeap",
                                 new Object[] {path, true},
                                 new String[] {"java.lang.String", "boolean"});
@@ -360,10 +361,10 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
         boolean collected = awaitCollected(loaderRef);
         if (!collected) {
             String path = "target/plugin-leak-exercised.hprof";
-            new java.io.File(path).delete();
-            java.lang.management.ManagementFactory.getPlatformMBeanServer()
+            new File(path).delete();
+            ManagementFactory.getPlatformMBeanServer()
                     .invoke(
-                            new javax.management.ObjectName("com.sun.management:type=HotSpotDiagnostic"),
+                            new ObjectName("com.sun.management:type=HotSpotDiagnostic"),
                             "dumpHeap",
                             new Object[] {path, true},
                             new String[] {"java.lang.String", "boolean"});
@@ -401,10 +402,9 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
         WeakReference<ClassLoader> loaderRef = new WeakReference<>(runtime.classLoader());
         for (int i = 0; i < 3; i++) {
             mvc().perform(MockMvcRequestBuilders.get(
-                                    "/api/v1/clusters/{c}/p/acme-notes/views/n{i}", java.util.UUID.randomUUID(), i)
+                                    "/api/v1/clusters/{c}/p/acme-notes/views/n{i}", UUID.randomUUID(), i)
                             .with(authentication(callerWith("acme-notes:read"))))
-                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
-                            .isOk());
+                    .andExpect(MockMvcResultMatchers.status().isOk());
         }
         mvc().perform(
                         MockMvcRequestBuilders.post("/api/v1/p/acme-notes/notes")
@@ -412,8 +412,7 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
                                 .with(org.springframework.security.test.web.servlet.request
                                         .SecurityMockMvcRequestPostProcessors.csrf())
                                 .param("text", "hi"))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
-                        .isOk());
+                .andExpect(MockMvcResultMatchers.status().isOk());
         registry.remove("acme-notes");
         runtime.close();
         return loaderRef;
@@ -627,13 +626,13 @@ class PluginRuntimeIntegrationTest extends PostgresIntegrationTest {
     }
 
     /** A plain pooled datasource pointed at the shared test Postgres, for the migration-only tests. */
-    private javax.sql.DataSource testDataSource() {
-        com.zaxxer.hikari.HikariConfig config = new com.zaxxer.hikari.HikariConfig();
+    private DataSource testDataSource() {
+        HikariConfig config = new HikariConfig();
         config.setJdbcUrl(POSTGRES.getJdbcUrl());
         config.setUsername(POSTGRES.getUsername());
         config.setPassword(POSTGRES.getPassword());
         config.setMaximumPoolSize(3);
         config.setPoolName("plugin-migrations-test-pool-" + System.nanoTime());
-        return new com.zaxxer.hikari.HikariDataSource(config);
+        return new HikariDataSource(config);
     }
 }

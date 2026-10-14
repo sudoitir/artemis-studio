@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -197,7 +198,7 @@ public class PluginValidator {
                     "\"%s\" appears more than once in the jar.".formatted(name),
                     "Rebuild the jar without duplicate entries.");
         }
-        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        String lower = name.toLowerCase(Locale.ROOT);
         if (!entry.isDirectory() && (lower.endsWith(".jar") || lower.endsWith(".zip"))) {
             return new Violation(
                     "jar-nested-archive",

@@ -15,13 +15,18 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
@@ -112,22 +117,21 @@ class BrokerEventWriterTest extends PostgresIntegrationTest {
 
     @Test
     void aBatchWhoseWriteFailsIsKeptInOrderForTheNextFlush() {
-        NamedParameterJdbcTemplate failingOnce = org.mockito.Mockito.spy(jdbc);
-        org.mockito.Mockito.doThrow(new org.springframework.dao.DataAccessResourceFailureException("database down"))
+        NamedParameterJdbcTemplate failingOnce = Mockito.spy(jdbc);
+        Mockito.doThrow(new DataAccessResourceFailureException("database down"))
                 .doCallRealMethod()
                 .when(failingOnce)
                 .batchUpdate(
-                        org.mockito.ArgumentMatchers.anyString(),
-                        org.mockito.ArgumentMatchers.any(
-                                org.springframework.jdbc.core.namedparam.SqlParameterSource[].class),
-                        org.mockito.ArgumentMatchers.any(org.springframework.jdbc.support.KeyHolder.class),
-                        org.mockito.ArgumentMatchers.any(String[].class));
+                        ArgumentMatchers.anyString(),
+                        ArgumentMatchers.any(SqlParameterSource[].class),
+                        ArgumentMatchers.any(KeyHolder.class),
+                        ArgumentMatchers.any(String[].class));
         BrokerEventWriter flaky =
                 new BrokerEventWriter(failingOnce, mapper, publisher, transactions, partitions, properties);
         flaky.accept(event("CONSUMER_CREATED"));
         flaky.accept(event("SESSION_CREATED"));
 
-        org.assertj.core.api.Assertions.assertThatThrownBy(flaky::flush).hasMessageContaining("database down");
+        Assertions.assertThatThrownBy(flaky::flush).hasMessageContaining("database down");
         assertThat(persisted()).isZero();
 
         flaky.flush();

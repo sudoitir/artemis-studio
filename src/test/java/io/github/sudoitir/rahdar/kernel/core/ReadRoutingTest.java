@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -52,7 +53,7 @@ class ReadRoutingTest {
         return new DriverManagerDataSource(container.getJdbcUrl(), container.getUsername(), container.getPassword());
     }
 
-    private static String origin(org.springframework.jdbc.core.simple.JdbcClient client) {
+    private static String origin(JdbcClient client) {
         return client.sql("SELECT origin FROM seen").query(String.class).single();
     }
 

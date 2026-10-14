@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
 /** The reconciliation of the trusted key table with the configured keys, without a database. */
 class TrustedKeyReconcilerTest {
@@ -156,7 +157,7 @@ class TrustedKeyReconcilerTest {
     @Test
     void aFailedChangeIsRecordedAndStopsStartup() throws Exception {
         when(trust.keys()).thenReturn(List.of());
-        org.mockito.Mockito.doThrow(new IllegalStateException("database is down"))
+        Mockito.doThrow(new IllegalStateException("database is down"))
                 .when(trust)
                 .pin(anyString(), any(), anyString());
 

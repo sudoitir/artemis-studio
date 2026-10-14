@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.support;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,12 +52,12 @@ public final class MockOtlpServer implements AutoCloseable {
 
     /** Whether any body received on any path holds {@code text}. */
     public boolean anyBodyContains(String text) {
-        byte[] needle = text.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] needle = text.getBytes(StandardCharsets.UTF_8);
         return received.values().stream().flatMap(List::stream).anyMatch(body -> contains(body, needle));
     }
 
     public boolean bodyContains(String path, String text) {
-        byte[] needle = text.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] needle = text.getBytes(StandardCharsets.UTF_8);
         return bodies(path).stream().anyMatch(body -> contains(body, needle));
     }
 

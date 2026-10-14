@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 /** A user's snapshot is dropped by an announced change, even one that lands while it is being loaded. */
 class AccessLoaderTest {
@@ -59,7 +60,7 @@ class AccessLoaderTest {
 
         when(grants.loadFor(userId)).thenAnswer(i -> stored.get());
         assertThat(loader.of(userId).grants()).as("the next call reads again").containsExactly(read);
-        org.mockito.Mockito.verify(users, org.mockito.Mockito.atLeastOnce()).findById(any());
+        Mockito.verify(users, Mockito.atLeastOnce()).findById(any());
     }
 
     @Test

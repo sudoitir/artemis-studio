@@ -8,12 +8,15 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
@@ -108,8 +111,7 @@ class NoticeSendersTest {
                 .andExpect(jsonPath("$.sentAt").value("2026-10-07T10:00:00Z"))
                 .andExpect(request -> {
                     String timestamp = request.getHeaders().getFirst("webhook-timestamp");
-                    String body =
-                            ((org.springframework.mock.http.client.MockClientHttpRequest) request).getBodyAsString();
+                    String body = ((MockClientHttpRequest) request).getBodyAsString();
                     seen.set(WebhookSigner.sign("alert-delivery-7", Long.parseLong(timestamp), body, SECRET));
                     assertThat(request.getHeaders().getFirst("webhook-signature"))
                             .isEqualTo(seen.get());
@@ -162,9 +164,9 @@ class NoticeSendersTest {
 
         assertThat(mime.getSubject()).isEqualTo("[Artemis] Approval requested");
         assertThat(mime.getHeader("X-Rahdar-Delivery")).containsExactly("5");
-        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
         mime.writeTo(out);
-        String raw = out.toString(java.nio.charset.StandardCharsets.UTF_8);
+        String raw = out.toString(StandardCharsets.UTF_8);
         assertThat(NoticeFormatter.plainText(NoticePayload.parseOrNull(payload, mapper)))
                 .contains("alice asks to change a setting", "Requested by: alice")
                 .contains("Open in Rahdar: https://rahdar.example.com/approvals/3");

@@ -4,6 +4,7 @@ import io.github.sudoitir.rahdar.feature.resources.ConnectionCloseKind;
 import io.github.sudoitir.rahdar.feature.resources.ConnectionControlService;
 import io.github.sudoitir.rahdar.feature.resources.ConnectionControlService.CloseResult;
 import io.github.sudoitir.rahdar.platform.broker.Attempt;
+import io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.rahdar.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.rahdar.platform.mcp.McpArgs;
 import io.github.sudoitir.rahdar.platform.mcp.McpErrors;
@@ -105,8 +106,7 @@ public class ResourcesMcpActionTools {
     private static CloseResult result(Attempt<CloseResult> attempt) {
         return switch (attempt) {
             case Attempt.Ok<CloseResult>(var value) -> value;
-            case Attempt.Failed<CloseResult>(var kind, var detail) ->
-                throw new io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException(kind, detail);
+            case Attempt.Failed<CloseResult>(var kind, var detail) -> throw new BrokerConnectionException(kind, detail);
         };
     }
 

@@ -7,6 +7,7 @@ import io.github.sudoitir.rahdar.feature.queues.LifecycleRequests.CreateQueueReq
 import io.github.sudoitir.rahdar.feature.queues.LifecycleRequests.UpdateQueueRequest;
 import io.github.sudoitir.rahdar.feature.queues.QueueLifecycleService;
 import io.github.sudoitir.rahdar.platform.broker.Attempt;
+import io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.rahdar.platform.clusters.LifecycleOutcome;
 import io.github.sudoitir.rahdar.platform.mcp.McpArgs;
 import io.github.sudoitir.rahdar.platform.mcp.McpErrors;
@@ -54,7 +55,7 @@ public class QueuesMcpTools {
      * {@code kind} rather than ten — the tool-count budget the MCP capability sets is
      * a real constraint, and ten near-identical verbs would spend it for nothing.
      *
-     * <p>Delegates to {@link io.github.sudoitir.rahdar.feature.queues.QueueLifecycleService},
+     * <p>Delegates to {@link QueueLifecycleService},
      * so the permission check, the bulk cap and the audit row are the same ones the
      * HTTP API gets. Nothing here implements authorization, capping or auditing of
      * its own.
@@ -176,7 +177,7 @@ public class QueuesMcpTools {
                 switch (attempt) {
                     case Attempt.Ok<LifecycleOutcome>(var value) -> value;
                     case Attempt.Failed<LifecycleOutcome>(var failure, var detail) ->
-                        throw new io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException(failure, detail);
+                        throw new BrokerConnectionException(failure, detail);
                 };
         List<McpViews.LifecycleNode> nodes = outcome.nodes().stream()
                 .map(n -> new McpViews.LifecycleNode(n.nodeName(), n.status().name(), n.affected(), n.error()))

@@ -29,7 +29,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 class CapabilityAssessmentsTest {
@@ -70,7 +72,7 @@ class CapabilityAssessmentsTest {
         });
 
         try (ExecutorService readers = Executors.newFixedThreadPool(20)) {
-            List<Future<CapabilityAssessments.Outcome>> reads = java.util.stream.IntStream.range(0, 20)
+            List<Future<CapabilityAssessments.Outcome>> reads = IntStream.range(0, 20)
                     .mapToObj(i -> readers.submit(() -> assessments.outcome(clusterId)))
                     .toList();
             // every reader is waiting on the one probe before it is released
@@ -111,7 +113,7 @@ class CapabilityAssessmentsTest {
         assessments.invalidate(clusterId);
         assessments.outcome(clusterId);
 
-        verify(probe, org.mockito.Mockito.times(2)).probe(any(), any(), any());
+        verify(probe, Mockito.times(2)).probe(any(), any(), any());
         verify(bus).publish(new ReplicaSignal("capability-assessment", clusterId.toString()));
     }
 
@@ -123,6 +125,6 @@ class CapabilityAssessmentsTest {
         assessments.onSignal(new ReplicaSignal("capability-assessment", clusterId.toString()));
         assessments.outcome(clusterId);
 
-        verify(probe, org.mockito.Mockito.times(2)).probe(any(), any(), any());
+        verify(probe, Mockito.times(2)).probe(any(), any(), any());
     }
 }

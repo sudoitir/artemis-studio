@@ -128,13 +128,13 @@ class PluginMetricsIntegrationTest extends PostgresIntegrationTest {
                         .gauge()
                         .value())
                 .isEqualTo(9.0);
-        assertThat(firings.findOpenVisible(clusterId, false, true, java.util.List.of(java.util.UUID.randomUUID())))
+        assertThat(firings.findOpenVisible(clusterId, false, true, List.of(UUID.randomUUID())))
                 .singleElement()
                 .satisfies(f -> assertThat(f.getSubjectKey()).isEqualTo("note:daily"));
 
         System.setProperty(id + ".value", "1");
         tierB();
-        assertThat(firings.findOpenVisible(clusterId, false, true, java.util.List.of(java.util.UUID.randomUUID())))
+        assertThat(firings.findOpenVisible(clusterId, false, true, List.of(UUID.randomUUID())))
                 .isEmpty();
     }
 
@@ -171,7 +171,7 @@ class PluginMetricsIntegrationTest extends PostgresIntegrationTest {
         assertThat(meters.find("rahdar.plugin.metric").tag("plugin", id).gauges())
                 .allSatisfy(g -> assertThat(g.getId().getTag("subject")).isNull());
         assertThat(pluginMetrics.declared(id + ":edits")).isEmpty();
-        assertThat(firings.findOpenVisible(clusterId, false, true, java.util.List.of(java.util.UUID.randomUUID())))
+        assertThat(firings.findOpenVisible(clusterId, false, true, List.of(UUID.randomUUID())))
                 .isEmpty();
     }
 

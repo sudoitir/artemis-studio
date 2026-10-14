@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -99,10 +100,9 @@ class RahdarHealthControllerIntegrationTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.degraded").value(true))
                 .andExpect(jsonPath("$.nodes[?(@.name=='quiet')].managementP95Millis")
-                        .value(org.hamcrest.Matchers.contains((Object) null)))
+                        .value(Matchers.contains((Object) null)))
                 .andExpect(jsonPath("$.nodes[?(@.name=='quiet')].lastError")
-                        .value(org.hamcrest.Matchers.contains(
-                                org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("hunter2")))))
+                        .value(Matchers.contains(Matchers.not(Matchers.containsString("hunter2")))))
                 .andExpect(jsonPath("$.dbPool.max").isNumber());
     }
 
@@ -137,19 +137,19 @@ class RahdarHealthControllerIntegrationTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.answeringReplica").value(replicas.id().toString()))
                 .andExpect(jsonPath("$.degraded").value(true))
                 .andExpect(jsonPath("$.replicas[?(@.self==true)].id")
-                        .value(org.hamcrest.Matchers.contains(replicas.id().toString())))
+                        .value(Matchers.contains(replicas.id().toString())))
                 .andExpect(jsonPath("$.replicas[?(@.self==true)].ownedClusters[0].id")
-                        .value(org.hamcrest.Matchers.contains(clusterId.toString())))
+                        .value(Matchers.contains(clusterId.toString())))
                 .andExpect(jsonPath("$.replicas[?(@.host=='host-ready-1-minute')].state")
-                        .value(org.hamcrest.Matchers.contains("GONE")))
+                        .value(Matchers.contains("GONE")))
                 .andExpect(jsonPath("$.replicas[?(@.host=='host-ready-1-minute')].degraded")
-                        .value(org.hamcrest.Matchers.contains(true)))
+                        .value(Matchers.contains(true)))
                 .andExpect(jsonPath("$.replicas[?(@.host=='host-draining-1-second')].state")
-                        .value(org.hamcrest.Matchers.contains("DRAINING")))
+                        .value(Matchers.contains("DRAINING")))
                 .andExpect(jsonPath("$.replicas[?(@.host=='host-stopped-2-minutes')].state")
-                        .value(org.hamcrest.Matchers.contains("STOPPED")))
+                        .value(Matchers.contains("STOPPED")))
                 .andExpect(jsonPath("$.replicas[?(@.host=='host-stopped-2-minutes')].degraded")
-                        .value(org.hamcrest.Matchers.contains(false)))
+                        .value(Matchers.contains(false)))
                 .andExpect(
                         jsonPath("$.replicas[?(@.host=='host-ready-1-hour')]").isEmpty());
     }

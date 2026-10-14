@@ -14,10 +14,11 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /** {@link RrMetrics}: percentiles and coverage are never reported separately, and coverage starts unknown. */
-@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+@ExtendWith(AdminAuthenticationExtension.class)
 class RrMetricsTest extends PostgresIntegrationTest {
 
     @Autowired

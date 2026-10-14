@@ -41,11 +41,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -97,7 +99,7 @@ class BulkGateTest extends BulkTestSupport {
     @AfterEach
     @SuppressWarnings("unchecked")
     void openTheGate() {
-        org.mockito.Mockito.reset(gate);
+        Mockito.reset(gate);
         when(gate.run(any(), any())).thenAnswer(call -> ((Supplier<Object>) call.getArgument(1)).get());
     }
 
@@ -128,7 +130,7 @@ class BulkGateTest extends BulkTestSupport {
         Instant deadline = Instant.now().plus(Duration.ofSeconds(15));
         while (bulk.get(clusterId, runId).run().finishedAt() == null) {
             assertThat(Instant.now()).isBefore(deadline);
-            java.util.concurrent.locks.LockSupport.parkNanos(20_000_000);
+            LockSupport.parkNanos(20_000_000);
         }
     }
 
@@ -177,10 +179,10 @@ class BulkGateTest extends BulkTestSupport {
         BulkRunDetailView preview = pausePreview();
         GateTicket ticket = new GateTicket(null, "bulk.execute", null);
         allowsUnder(ticket);
-        org.mockito.Mockito.doAnswer(call -> Optional.of(new GateLease(ticket, () -> {})))
+        Mockito.doAnswer(call -> Optional.of(new GateLease(ticket, () -> {})))
                 .when(leases)
                 .retain(ticket);
-        org.mockito.Mockito.doAnswer(call -> {
+        Mockito.doAnswer(call -> {
                     operators.add(call.getArgument(0));
                     return call.callRealMethod();
                 })

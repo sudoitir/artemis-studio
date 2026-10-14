@@ -10,11 +10,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 /**
@@ -65,8 +68,8 @@ public class MessageIndexCapture {
     private record Capture(SqlTailPoller.Tail tail, String fingerprint) {}
 
     /** The reason this subscription is not capturing, or empty when it is. */
-    public java.util.Optional<String> notCapturingReason(UUID subscriptionId) {
-        return java.util.Optional.ofNullable(notCapturing.get(subscriptionId));
+    public Optional<String> notCapturingReason(UUID subscriptionId) {
+        return Optional.ofNullable(notCapturing.get(subscriptionId));
     }
 
     /**
@@ -91,12 +94,11 @@ public class MessageIndexCapture {
         // Running both would double the broker load and write the same message twice,
         // once as SAMPLED and once as CAPTURED (ADR-0062).
         List<MessageIndexSubscriptionEntity> enabled = subscriptions.findByEnabledTrue().stream()
-                .filter(s -> s.getMode() != io.github.sudoitir.rahdar.feature.sql.CaptureMode.CAPTURE)
+                .filter(s -> s.getMode() != CaptureMode.CAPTURE)
                 .filter(s -> ownership.owns(s.getClusterId()))
                 .toList();
-        Set<UUID> wanted = enabled.stream()
-                .map(MessageIndexSubscriptionEntity::getId)
-                .collect(java.util.stream.Collectors.toSet());
+        Set<UUID> wanted =
+                enabled.stream().map(MessageIndexSubscriptionEntity::getId).collect(Collectors.toSet());
 
         running.entrySet().removeIf(entry -> {
             if (wanted.contains(entry.getKey())) {
@@ -127,7 +129,7 @@ public class MessageIndexCapture {
     }
 
     /** A cluster this replica no longer owns: its tails stop now, not at the next pass. */
-    @org.springframework.context.event.EventListener
+    @EventListener
     void onDutyReleased(ClusterDutyReleased released) {
         // Nobody joins this thread, so a failure must end here: when the application is closing, the
         // database is already going away and an uncaught exception reaches the JVM's handler instead.

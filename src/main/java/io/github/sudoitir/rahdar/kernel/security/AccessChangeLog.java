@@ -1,5 +1,6 @@
 package io.github.sudoitir.rahdar.kernel.security;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class AccessChangeLog {
                             SELECT 1 FROM access_change_log
                             WHERE actor_id = ? AND at > ? AND (subject_id IS NULL OR subject_id <> ?))
                         """)
-                .params(actorId, java.sql.Timestamp.from(since), actorId)
+                .params(actorId, Timestamp.from(since), actorId)
                 .query(Boolean.class)
                 .single();
     }

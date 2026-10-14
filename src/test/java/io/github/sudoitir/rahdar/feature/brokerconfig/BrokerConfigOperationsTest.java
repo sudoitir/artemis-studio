@@ -28,6 +28,7 @@ import io.github.sudoitir.rahdar.platform.broker.JolokiaRequest;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaResponse;
 import io.github.sudoitir.rahdar.platform.broker.ManagementRefusal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -238,7 +239,7 @@ class BrokerConfigOperationsTest {
 
     @Test
     void updateQueuePatchesTheDeclaredKeysWithoutAutoCreateAddress() {
-        Map<String, Object> declared = new java.util.LinkedHashMap<>();
+        Map<String, Object> declared = new LinkedHashMap<>();
         declared.put("name", "orders.q");
         declared.put("address", "orders");
         declared.put("routing-type", "ANYCAST");

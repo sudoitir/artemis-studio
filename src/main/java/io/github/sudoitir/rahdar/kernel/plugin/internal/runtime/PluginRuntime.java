@@ -6,6 +6,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.PluginHandle;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.descriptor.PluginDescriptor;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.trust.PluginTrust;
 import jakarta.persistence.EntityManagerFactory;
+import java.io.IOException;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -17,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.web.context.support.GenericWebApplicationContext;
 import org.springframework.web.servlet.DispatcherServlet;
+import org.springframework.web.servlet.FrameworkServlet;
 
 /**
  * One running instance of a plugin (design.md §3, task 6.2): its own classloader, its own child
@@ -94,8 +96,7 @@ public final class PluginRuntime implements AutoCloseable {
         this.dataSource = parts.dataSource();
         this.entityManagerFactory = parts.entityManagerFactory();
         this.mainContext = mainContext;
-        this.servletContextAttribute =
-                org.springframework.web.servlet.FrameworkServlet.SERVLET_CONTEXT_PREFIX + servletName;
+        this.servletContextAttribute = FrameworkServlet.SERVLET_CONTEXT_PREFIX + servletName;
         this.jarPath = jarPath;
         this.sha256 = sha256;
     }
@@ -277,7 +278,7 @@ public final class PluginRuntime implements AutoCloseable {
         }
         try {
             classLoader.close();
-        } catch (java.io.IOException e) {
+        } catch (IOException e) {
             log.warn("Plugin '{}' classloader close() threw; unload continues.", id, e);
         }
         PluginClassloaderCaches.clear(classLoader);

@@ -6,6 +6,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.PluginLifecycleListener;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.host.PluginHost;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.host.PluginSummary;
 import io.github.sudoitir.rahdar.kernel.security.Actor;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,7 +64,7 @@ class PluginAuditTrail implements PluginLifecycleListener {
             // Boot: nobody asked, so the row is begun and finished here.
             AuditEvent boot = audit.begin(
                     Actor.system(),
-                    "PLUGIN_" + step.toUpperCase(java.util.Locale.ROOT).replace('-', '_'),
+                    "PLUGIN_" + step.toUpperCase(Locale.ROOT).replace('-', '_'),
                     "plugin",
                     pluginId,
                     null,

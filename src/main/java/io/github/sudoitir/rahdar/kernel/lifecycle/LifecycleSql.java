@@ -6,6 +6,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.PluginApi;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
@@ -73,7 +74,7 @@ public final class LifecycleSql {
                         "SELECT count(*) FROM " + SqlIdentifier.quote(table) + WHERE + predicate,
                         Long.class,
                         Timestamp.from(cutoff)));
-        StoreUsage usage = usage(jdbc, java.util.List.of(table));
+        StoreUsage usage = usage(jdbc, List.of(table));
         long bytesPerRow = usage.rows() > 0 ? usage.bytes() / usage.rows() : 0;
         long n = rows == null ? 0 : rows;
         return new PurgeEstimate(n, n * bytesPerRow);

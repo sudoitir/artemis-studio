@@ -8,6 +8,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.internal.runtime.PluginRuntimeReg
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.jar.JarEntry;
@@ -138,7 +139,7 @@ public class PluginAssetController {
 
     private static String contentTypeOf(String entryName) {
         int dot = entryName.lastIndexOf('.');
-        String extension = dot < 0 ? "" : entryName.substring(dot + 1).toLowerCase(java.util.Locale.ROOT);
+        String extension = dot < 0 ? "" : entryName.substring(dot + 1).toLowerCase(Locale.ROOT);
         return CONTENT_TYPES.getOrDefault(extension, MediaType.APPLICATION_OCTET_STREAM_VALUE);
     }
 

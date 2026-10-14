@@ -29,6 +29,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -291,7 +292,7 @@ public class PluginAdministration {
 
     // ---- installers -----------------------------------------------------------------------------------
 
-    public record InstallerView(UUID userId, String username, java.time.Instant grantedAt, String grantedBy) {}
+    public record InstallerView(UUID userId, String username, Instant grantedAt, String grantedBy) {}
 
     public List<InstallerView> installers() {
         requireInstaller();

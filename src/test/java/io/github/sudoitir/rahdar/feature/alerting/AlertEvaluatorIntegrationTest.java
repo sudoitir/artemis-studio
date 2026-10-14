@@ -12,6 +12,7 @@ import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNo
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -79,14 +80,14 @@ class AlertEvaluatorIntegrationTest extends PostgresIntegrationTest {
 
         assertThat(states.findByRuleId(rule.getId())).hasSize(1);
         assertThat(states.findByRuleId(rule.getId()).get(0).getState()).isEqualTo("FIRING");
-        assertThat(firings.findOpenVisible(clusterId, false, true, java.util.List.of(java.util.UUID.randomUUID())))
+        assertThat(firings.findOpenVisible(clusterId, false, true, List.of(UUID.randomUUID())))
                 .hasSize(1);
 
         snapshot(clusterId, node.getId(), "orders", 10);
         evaluator.evaluate(clusterId, "METRIC_THRESHOLD");
 
         assertThat(states.findByRuleId(rule.getId())).isEmpty(); // resolved back to OK, row dropped
-        assertThat(firings.findOpenVisible(clusterId, false, true, java.util.List.of(java.util.UUID.randomUUID())))
+        assertThat(firings.findOpenVisible(clusterId, false, true, List.of(UUID.randomUUID())))
                 .isEmpty();
     }
 

@@ -11,8 +11,11 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -111,8 +114,8 @@ public class CaptureLoss {
                 .toList();
         Instant asOf = used.stream()
                 .map(QueueSnapshot::ts)
-                .filter(java.util.Objects::nonNull)
-                .min(java.util.Comparator.naturalOrder())
+                .filter(Objects::nonNull)
+                .min(Comparator.naturalOrder())
                 .orElse(null);
         String key = subscription.getId() + "|" + node.getNodeId();
         Instant now = Instant.now();
@@ -315,7 +318,7 @@ public class CaptureLoss {
         if (covered.isEmpty()) {
             return 0L;
         }
-        String placeholders = String.join(", ", java.util.Collections.nCopies(covered.size(), "?"));
+        String placeholders = String.join(", ", Collections.nCopies(covered.size(), "?"));
         List<Object> binds = new ArrayList<>();
         binds.add(clusterId);
         binds.add(nodeId);

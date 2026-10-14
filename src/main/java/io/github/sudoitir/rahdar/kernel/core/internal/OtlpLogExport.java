@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.kernel.core.internal;
 import ch.qos.logback.classic.LoggerContext;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
@@ -41,14 +42,14 @@ class OtlpLogExport {
             otlpAppender.setContext(logs);
             otlpAppender.setName("OTLP");
             otlpAppender.start();
-            logs.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).addAppender(otlpAppender);
+            logs.getLogger(Logger.ROOT_LOGGER_NAME).addAppender(otlpAppender);
             OpenTelemetryAppender.install(openTelemetry);
         }
 
         @Override
         public void destroy() {
             ((LoggerContext) LoggerFactory.getILoggerFactory())
-                    .getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
+                    .getLogger(Logger.ROOT_LOGGER_NAME)
                     .detachAppender(otlpAppender);
             otlpAppender.stop();
         }

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.sudoitir.rahdar.feature.rr.FlowStateMachine.FlowContext;
 import io.github.sudoitir.rahdar.feature.rr.FlowStateMachine.Transition;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -21,15 +22,7 @@ class FlowStateMachineTest {
 
     private static Observation.ReplySeen reply(Instant at, Instant enqueuedAt) {
         return new Observation.ReplySeen(
-                CLUSTER,
-                UUID.randomUUID(),
-                at,
-                "temp.reply.q",
-                "reply-msg-1",
-                "corr-1",
-                null,
-                java.util.Map.of(),
-                enqueuedAt);
+                CLUSTER, UUID.randomUUID(), at, "temp.reply.q", "reply-msg-1", "corr-1", null, Map.of(), enqueuedAt);
     }
 
     @Test
@@ -87,7 +80,7 @@ class FlowStateMachineTest {
                         "reply-msg-1",
                         "corr-1",
                         null,
-                        java.util.Map.of()));
+                        Map.of()));
 
         assertThat(t).isPresent();
         assertThat(t.get().next()).isEqualTo(RrState.COMPLETED);
@@ -181,7 +174,7 @@ class FlowStateMachineTest {
                             "m",
                             "c",
                             null,
-                            java.util.Map.of()));
+                            Map.of()));
             assertThat(t).as("terminal state %s must not transition", terminal).isEmpty();
         }
     }

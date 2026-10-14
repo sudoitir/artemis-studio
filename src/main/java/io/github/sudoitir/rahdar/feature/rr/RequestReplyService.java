@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -111,7 +112,7 @@ public class RequestReplyService {
         clusterAccess.requireCluster(clusterId, RrPermissions.RR_WRITE);
         clusterAccess.requireAll(
                 clusterId,
-                java.util.stream.Stream.concat(java.util.stream.Stream.of(requestAddress), replyAddresses.stream())
+                Stream.concat(Stream.of(requestAddress), replyAddresses.stream())
                         .map(a -> new Requirement(ResourceRef.address(a), Permissions.ADDRESS_READ))
                         .toList());
     }
@@ -371,7 +372,7 @@ public class RequestReplyService {
             int nodesWithCore,
             long sampleIntervalMs,
             UUID clusterId) {
-        List<TracingReasonView> out = new java.util.ArrayList<>();
+        List<TracingReasonView> out = new ArrayList<>();
 
         if (declared.isEmpty()) {
             out.add(new TracingReasonView(

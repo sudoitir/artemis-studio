@@ -5,9 +5,11 @@ import io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageIndexSu
 import io.github.sudoitir.rahdar.kernel.lifecycle.LifecycleRegistry;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshots;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,10 +72,10 @@ public class MessageIndexRetention {
                     return;
                 }
                 Instant cutoff = Instant.now().minus(Duration.ofDays(retentionDays));
-                String placeholders = String.join(", ", java.util.Collections.nCopies(queues.size(), "?"));
+                String placeholders = String.join(", ", Collections.nCopies(queues.size(), "?"));
                 List<Object> binds = new ArrayList<>();
                 binds.add(clusterId);
-                binds.add(java.sql.Timestamp.from(cutoff));
+                binds.add(Timestamp.from(cutoff));
                 binds.addAll(queues);
                 int removed = jdbc.getJdbcTemplate()
                         .update(

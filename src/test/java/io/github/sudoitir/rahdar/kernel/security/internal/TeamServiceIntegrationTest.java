@@ -15,6 +15,7 @@ import io.github.sudoitir.rahdar.kernel.security.ResourceRef;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.RoleRepository;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.TeamMemberEntity;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.TeamMemberRepository;
 import io.github.sudoitir.rahdar.kernel.security.web.TeamViews.MemberRequest;
 import io.github.sudoitir.rahdar.kernel.security.web.TeamViews.PatternRequest;
@@ -28,6 +29,8 @@ import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -651,8 +654,7 @@ class TeamServiceIntegrationTest extends PostgresIntegrationTest {
         UUID boss = user();
         teams.addMember(orders, new MemberRequest(PrincipalType.USER, boss, null, null, role("TEAM_ADMIN")));
         UUID group = teamMembers
-                .save(io.github.sudoitir.rahdar.kernel.security.internal.persistence.TeamMemberEntity.ofGroup(
-                        orders, "dir", "eng", role("TEAM_VIEWER")))
+                .save(TeamMemberEntity.ofGroup(orders, "dir", "eng", role("TEAM_VIEWER")))
                 .getId();
 
         asUser(boss);
@@ -719,8 +721,8 @@ class TeamServiceIntegrationTest extends PostgresIntegrationTest {
             UUID b = team("race-b");
             UUID cluster = clusters.save(new ClusterEntity("race-" + UUID.randomUUID(), null, null))
                     .getId();
-            java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
-            var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+            CountDownLatch start = new CountDownLatch(1);
+            var pool = Executors.newFixedThreadPool(2);
             try {
                 var first = pool.submit(() -> addWhenReleased(start, a, cluster, "race.#"));
                 var second = pool.submit(() -> addWhenReleased(start, b, cluster, "race.in.*"));
@@ -733,7 +735,7 @@ class TeamServiceIntegrationTest extends PostgresIntegrationTest {
         }
     }
 
-    private boolean addWhenReleased(java.util.concurrent.CountDownLatch start, UUID team, UUID cluster, String pattern)
+    private boolean addWhenReleased(CountDownLatch start, UUID team, UUID cluster, String pattern)
             throws InterruptedException {
         start.await();
         new AdminAuthenticationExtension().beforeEach(null);

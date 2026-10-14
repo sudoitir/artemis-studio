@@ -16,12 +16,14 @@ import io.github.sudoitir.rahdar.kernel.plugin.internal.trust.PluginTrust;
 import io.github.sudoitir.rahdar.kernel.plugin.support.PluginJarBuilder;
 import io.github.sudoitir.rahdar.kernel.plugin.support.TestSigningKeys;
 import io.github.sudoitir.rahdar.kernel.plugin.support.TrustedTestKey;
+import io.github.sudoitir.rahdar.kernel.security.ReauthenticationRequiredException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -298,10 +300,10 @@ class PluginGatingIntegrationTest extends GatedAccessTestBase {
     void aRefusedStepUpIsAuditedAndHoldsNothing() {
         setUp();
 
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> administration.setAllowUnverified(true, () -> {
-                    throw new io.github.sudoitir.rahdar.kernel.security.ReauthenticationRequiredException();
+        Assertions.assertThatThrownBy(() -> administration.setAllowUnverified(true, () -> {
+                    throw new ReauthenticationRequiredException();
                 }))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.security.ReauthenticationRequiredException.class);
+                .isInstanceOf(ReauthenticationRequiredException.class);
 
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM held_operation WHERE requester_id = ?", Long.class, alice.id()))

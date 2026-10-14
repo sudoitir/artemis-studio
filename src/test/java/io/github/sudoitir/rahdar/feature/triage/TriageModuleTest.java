@@ -2,7 +2,9 @@ package io.github.sudoitir.rahdar.feature.triage;
 
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
+import io.github.sudoitir.rahdar.platform.clusters.ClusterEnvironmentIndex;
 import io.github.sudoitir.rahdar.platform.clusters.NodeStateRecorder;
+import io.github.sudoitir.rahdar.platform.governance.ContentPolicy;
 import io.github.sudoitir.rahdar.support.ModuleIntegrationTest;
 import org.springframework.modulith.test.ApplicationModuleTest;
 import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
@@ -34,9 +36,9 @@ class TriageModuleTest extends ModuleIntegrationTest {
      * bean that {@code ClusterService} injects by type.
      */
     @MockitoBean
-    io.github.sudoitir.rahdar.platform.clusters.ClusterEnvironmentIndex clusterEnvironmentIndex;
+    ClusterEnvironmentIndex clusterEnvironmentIndex;
 
     /** Broker events, a direct dependency, mask notification props through the governance policy. */
     @MockitoBean
-    io.github.sudoitir.rahdar.platform.governance.ContentPolicy contentPolicy;
+    ContentPolicy contentPolicy;
 }

@@ -22,6 +22,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.InstalledFeatures;
 import io.github.sudoitir.rahdar.kernel.replica.ReplicaRegistry;
 import io.github.sudoitir.rahdar.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.rahdar.kernel.stream.SseHub;
+import io.github.sudoitir.rahdar.kernel.stream.StreamTopicRegistry;
 import io.github.sudoitir.rahdar.kernel.stream.Subscriber;
 import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
@@ -32,8 +33,10 @@ import java.util.UUID;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.env.MockEnvironment;
@@ -52,7 +55,7 @@ import org.springframework.web.server.ResponseStatusException;
  * async result to dispatch — the assertions here are all on what the controller
  * does synchronously before it returns the emitter.
  */
-@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+@ExtendWith(AdminAuthenticationExtension.class)
 class StreamControllerTest extends PostgresIntegrationTest {
 
     MockMvc mvc;
@@ -148,14 +151,14 @@ class StreamControllerTest extends PostgresIntegrationTest {
                         .param("topics", "events"))
                 .andExpect(request().asyncStarted());
 
-        verify(hub, org.mockito.Mockito.never()).replayTo(any(), any(), any(), any(), any());
+        verify(hub, Mockito.never()).replayTo(any(), any(), any(), any(), any());
     }
 
     @Test
     void aDisabledFeaturesTopicIsIgnored() {
         var env = new MockEnvironment().withProperty("rahdar.features.alerting.enabled", "false");
         var registry = new FeatureRegistry(new InstalledFeatures(RahdarFeatures.descriptors()), env, event -> {});
-        var topics = new io.github.sudoitir.rahdar.kernel.stream.StreamTopicRegistry(registry, List.of());
+        var topics = new StreamTopicRegistry(registry, List.of());
         SseHub localHub = mock(SseHub.class);
         var controller =
                 new StreamController(localHub, mock(ClusterAccessGuard.class), topics, mock(ReplicaRegistry.class));
@@ -216,10 +219,7 @@ class StreamControllerTest extends PostgresIntegrationTest {
             when(replica.state()).thenReturn(state);
             SseHub localHub = mock(SseHub.class);
             var controller = new StreamController(
-                    localHub,
-                    mock(ClusterAccessGuard.class),
-                    mock(io.github.sudoitir.rahdar.kernel.stream.StreamTopicRegistry.class),
-                    replica);
+                    localHub, mock(ClusterAccessGuard.class), mock(StreamTopicRegistry.class), replica);
 
             assertThatThrownBy(() -> controller.stream(
                             UUID.randomUUID(),

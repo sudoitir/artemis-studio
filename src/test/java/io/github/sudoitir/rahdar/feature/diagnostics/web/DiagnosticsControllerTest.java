@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -214,7 +215,7 @@ class DiagnosticsControllerTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rahdarVersion").isNotEmpty())
                 .andExpect(jsonPath("$.java").isNotEmpty())
-                .andExpect(jsonPath("$.database").value(org.hamcrest.Matchers.startsWith("PostgreSQL")));
+                .andExpect(jsonPath("$.database").value(Matchers.startsWith("PostgreSQL")));
     }
 
     private JsonNode prepare() throws Exception {
@@ -241,7 +242,7 @@ class DiagnosticsControllerTest extends PostgresIntegrationTest {
                 .andReturn();
         byte[] zip = mvc.perform(asyncDispatch(started))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString(".zip")))
+                .andExpect(header().string("Content-Disposition", Matchers.containsString(".zip")))
                 .andReturn()
                 .getResponse()
                 .getContentAsByteArray();

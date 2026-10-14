@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.sudoitir.rahdar.platform.broker.BrokerCapabilities.CapabilityStatus;
 import java.util.List;
 import java.util.UUID;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.Test;
 
 class VersionGateTest {
@@ -58,9 +59,7 @@ class VersionGateTest {
         assertThat(a.reason()).contains("old");
         assertThat(a.nodes())
                 .extracting(VersionGate.NodeVerdict::nodeName, VersionGate.NodeVerdict::supported)
-                .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple("new", true),
-                        org.assertj.core.groups.Tuple.tuple("old", false));
+                .containsExactly(Tuple.tuple("new", true), Tuple.tuple("old", false));
     }
 
     @Test

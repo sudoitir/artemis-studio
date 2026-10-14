@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -154,9 +155,8 @@ class RahdarBusTest extends PostgresIntegrationTest {
             stall.countDown();
             await().atMost(Duration.ofSeconds(5)).until(() -> handled.size() == 50);
             assertThat(handled.stream().map(ReplicaSignal.class::cast).map(ReplicaSignal::key))
-                    .containsExactlyElementsOf(java.util.stream.IntStream.range(0, 50)
-                            .mapToObj(i -> "k" + i)
-                            .toList());
+                    .containsExactlyElementsOf(
+                            IntStream.range(0, 50).mapToObj(i -> "k" + i).toList());
         } finally {
             stall.countDown();
             stalled.stop();

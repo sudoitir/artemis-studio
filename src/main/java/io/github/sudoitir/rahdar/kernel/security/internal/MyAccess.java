@@ -20,6 +20,7 @@ import io.github.sudoitir.rahdar.kernel.security.web.AccessViews.AccessSummary;
 import io.github.sudoitir.rahdar.kernel.security.web.AccessViews.CreatePatterns;
 import io.github.sudoitir.rahdar.kernel.security.web.AccessViews.MyResourceAccess;
 import io.github.sudoitir.rahdar.kernel.security.web.AccessViews.TeamMembership;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -115,8 +116,7 @@ public class MyAccess {
                             role.getName(),
                             Grant.covers(permissions, Permissions.TEAM_ADMIN));
                 })
-                .sorted(java.util.Comparator.comparing(TeamMembership::teamName)
-                        .thenComparing(TeamMembership::roleName))
+                .sorted(Comparator.comparing(TeamMembership::teamName).thenComparing(TeamMembership::roleName))
                 .toList();
     }
 }

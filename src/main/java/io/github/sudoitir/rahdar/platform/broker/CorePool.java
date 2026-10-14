@@ -4,6 +4,7 @@ import jakarta.jms.Connection;
 import jakarta.jms.JMSException;
 import jakarta.jms.Session;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Pools Core connections per {@code (clusterId, coreUrl)} (ADR-0031),
- * replacing the connect-per-call pattern {@link io.github.sudoitir.rahdar.platform.broker.CoreMessageTransport}
+ * replacing the connect-per-call pattern {@link CoreMessageTransport}
  * used before the request-reply sampler made per-call connect-and-tear-down
  * too expensive to run every few seconds across every traced address.
  *
@@ -174,9 +175,9 @@ public class CorePool {
 
     /** How many Core connections are open for a cluster, across its node pools. */
     public int connections(UUID clusterId) {
-        return keysByCluster.getOrDefault(clusterId, java.util.Set.of()).stream()
+        return keysByCluster.getOrDefault(clusterId, Set.of()).stream()
                 .map(pools::get)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .mapToInt(JmsPoolConnectionFactory::getNumConnections)
                 .sum();
     }

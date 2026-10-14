@@ -21,7 +21,9 @@ import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import io.github.sudoitir.rahdar.kernel.stream.SseHub;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
+import io.github.sudoitir.rahdar.platform.broker.BrokerListOps;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.rahdar.platform.broker.JolokiaRequest;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaResponse;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterLock;
@@ -31,6 +33,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -97,7 +100,7 @@ class ClientSamplerTest {
         }
 
         @Override
-        public Clock withZone(java.time.ZoneId zone) {
+        public Clock withZone(ZoneId zone) {
             return this;
         }
 
@@ -584,11 +587,9 @@ class ClientSamplerTest {
         sampler.sweep(clusterId);
 
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<io.github.sudoitir.rahdar.platform.broker.JolokiaRequest>> requests =
-                ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<JolokiaRequest>> requests = ArgumentCaptor.forClass(List.class);
         verify(client).batch(requests.capture());
-        assertThat(requests.getValue().get(0).arguments())
-                .containsExactly(io.github.sudoitir.rahdar.platform.broker.BrokerListOps.ALL, 1, 1);
+        assertThat(requests.getValue().get(0).arguments()).containsExactly(BrokerListOps.ALL, 1, 1);
     }
 
     // ---- sweepObserved -------------------------------------------------

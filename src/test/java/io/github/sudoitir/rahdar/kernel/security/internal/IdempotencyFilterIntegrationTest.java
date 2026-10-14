@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.sudoitir.rahdar.kernel.security.RahdarPrincipal;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -44,7 +45,7 @@ class IdempotencyFilterIntegrationTest extends PostgresIntegrationTest {
     private FilterChain create() {
         return (req, res) -> {
             int n = applied.incrementAndGet();
-            ((jakarta.servlet.http.HttpServletResponse) res).setStatus(201);
+            ((HttpServletResponse) res).setStatus(201);
             res.setContentType("application/json");
             res.getWriter().write("{\"n\":" + n + "}");
         };
@@ -124,7 +125,7 @@ class IdempotencyFilterIntegrationTest extends PostgresIntegrationTest {
                 Thread.currentThread().interrupt();
             }
             applied.incrementAndGet();
-            ((jakarta.servlet.http.HttpServletResponse) res).setStatus(201);
+            ((HttpServletResponse) res).setStatus(201);
         };
         CompletableFuture<MockHttpServletResponse> first = CompletableFuture.supplyAsync(() -> {
             try {
@@ -186,7 +187,7 @@ class IdempotencyFilterIntegrationTest extends PostgresIntegrationTest {
         String key = UUID.randomUUID().toString();
         FilterChain failing = (req, res) -> {
             applied.incrementAndGet();
-            ((jakarta.servlet.http.HttpServletResponse) res).setStatus(500);
+            ((HttpServletResponse) res).setStatus(500);
         };
 
         MockHttpServletResponse failed = post(alice, key, null, "{}", failing);
@@ -311,7 +312,7 @@ class IdempotencyFilterIntegrationTest extends PostgresIntegrationTest {
     void aReplayCarriesLocationAndETagButNeverACookie() throws Exception {
         String key = UUID.randomUUID().toString();
         FilterChain creating = (req, res) -> {
-            var response = (jakarta.servlet.http.HttpServletResponse) res;
+            var response = (HttpServletResponse) res;
             response.setStatus(201);
             response.setHeader("Location", "/api/v1/things/7");
             response.setHeader("ETag", "\"v1\"");
@@ -332,7 +333,7 @@ class IdempotencyFilterIntegrationTest extends PostgresIntegrationTest {
         String key = UUID.randomUUID().toString();
         FilterChain huge = (req, res) -> {
             applied.incrementAndGet();
-            ((jakarta.servlet.http.HttpServletResponse) res).setStatus(200);
+            ((HttpServletResponse) res).setStatus(200);
             res.getWriter().write("x".repeat(9 * 1024 * 1024));
         };
 

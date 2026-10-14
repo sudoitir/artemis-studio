@@ -17,7 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -59,7 +62,7 @@ class JolokiaBrokerClientTest {
 
     @Test
     void everyRequestWaitsForTheNodeCeilingAndABatchPaysPerFiftyOperations() {
-        NodeCallLimiter limiter = org.mockito.Mockito.mock(NodeCallLimiter.class);
+        NodeCallLimiter limiter = Mockito.mock(NodeCallLimiter.class);
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         server.expect(requestTo(URL)).andRespond(withSuccess(body("search-broker.json"), MediaType.APPLICATION_JSON));
@@ -68,17 +71,17 @@ class JolokiaBrokerClientTest {
                 builder.build(),
                 URL,
                 mapper,
-                new java.util.concurrent.ConcurrentHashMap<>(),
+                new ConcurrentHashMap<>(),
                 new JolokiaClientHooks(null, null, limiter, BrokerCallGuard.OFF));
 
         client.single(JolokiaRequest.search("org.apache.activemq.artemis:*"));
-        client.batch(java.util.stream.IntStream.range(0, 120)
+        client.batch(IntStream.range(0, 120)
                 .mapToObj(i -> JolokiaRequest.read("x", "MessageCount"))
                 .toList());
 
         // One permit for the single request; 120 operations in one batch cost three, so
         // batching can never carry more than fifty operations per unit of the ceiling.
-        org.mockito.InOrder order = org.mockito.Mockito.inOrder(limiter);
+        InOrder order = Mockito.inOrder(limiter);
         order.verify(limiter).acquire(URL, 1, "single");
         order.verify(limiter).acquire(URL, 3, "batch");
         server.verify();

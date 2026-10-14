@@ -1,6 +1,8 @@
 package io.github.sudoitir.rahdar.feature.brokerconfig;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,9 +60,8 @@ public record BrokerConfigDocument(
     /** An address and the queues bound to it. */
     public record AddressDecl(String name, Set<String> routingTypes, List<QueueDecl> queues) {
         public AddressDecl {
-            routingTypes = routingTypes == null
-                    ? Set.of()
-                    : java.util.Collections.unmodifiableSortedSet(new TreeSet<>(routingTypes));
+            routingTypes =
+                    routingTypes == null ? Set.of() : Collections.unmodifiableSortedSet(new TreeSet<>(routingTypes));
             queues = List.copyOf(queues == null ? List.of() : queues);
         }
     }
@@ -89,7 +90,7 @@ public record BrokerConfigDocument(
     /** One {@code <address-setting match="…">} — only the keys that were declared. */
     public record AddressSettingDecl(String match, Map<String, Object> values) {
         public AddressSettingDecl {
-            values = values == null ? Map.of() : java.util.Collections.unmodifiableMap(new TreeMap<>(values));
+            values = values == null ? Map.of() : Collections.unmodifiableMap(new TreeMap<>(values));
         }
     }
 
@@ -101,11 +102,11 @@ public record BrokerConfigDocument(
                 for (PermissionType type : PermissionType.values()) {
                     Set<String> roles = permissions.get(type);
                     if (roles != null && !roles.isEmpty()) {
-                        normalised.put(type, java.util.Collections.unmodifiableSortedSet(new TreeSet<>(roles)));
+                        normalised.put(type, Collections.unmodifiableSortedSet(new TreeSet<>(roles)));
                     }
                 }
             }
-            permissions = java.util.Collections.unmodifiableMap(normalised);
+            permissions = Collections.unmodifiableMap(normalised);
         }
 
         /** The roles holding one type, empty when none. */
@@ -131,7 +132,7 @@ public record BrokerConfigDocument(
                     transformerClassName == null || transformerClassName.isBlank() ? null : transformerClassName;
             transformerProperties = transformerProperties == null
                     ? Map.of()
-                    : java.util.Collections.unmodifiableMap(new TreeMap<>(transformerProperties));
+                    : Collections.unmodifiableMap(new TreeMap<>(transformerProperties));
         }
 
         /**
@@ -179,8 +180,7 @@ public record BrokerConfigDocument(
     public record TransformerDecl(String className, Map<String, String> properties) {
         public TransformerDecl {
             className = className == null || className.isBlank() ? null : className.trim();
-            properties =
-                    properties == null ? Map.of() : java.util.Collections.unmodifiableMap(new TreeMap<>(properties));
+            properties = properties == null ? Map.of() : Collections.unmodifiableMap(new TreeMap<>(properties));
         }
 
         /** Null when no class is declared — properties without a class configure nothing. */
@@ -280,7 +280,7 @@ public record BrokerConfigDocument(
 
         /** The fields of {@link #sameAs} on which this declaration and an observed bridge differ. */
         public List<String> differencesFrom(BridgeDecl observed) {
-            List<String> out = new java.util.ArrayList<>();
+            List<String> out = new ArrayList<>();
             if (observed == null) {
                 return out;
             }

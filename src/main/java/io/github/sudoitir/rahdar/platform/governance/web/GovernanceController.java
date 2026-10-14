@@ -8,6 +8,7 @@ import io.github.sudoitir.rahdar.platform.governance.GovernanceRuleService;
 import io.github.sudoitir.rahdar.platform.governance.web.GovernanceRuleViews.RuleRequest;
 import io.github.sudoitir.rahdar.platform.governance.web.GovernanceRuleViews.RuleView;
 import jakarta.validation.Valid;
+import java.util.Locale;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -35,14 +36,11 @@ public class GovernanceController {
     /** The classification inbox. {@code status} is OPEN by default; ALL lists every finding. */
     @GetMapping("/findings")
     public PagedView<FindingViews.FindingView> findings(
-            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "OPEN") String status,
+            @RequestParam(defaultValue = "OPEN") String status,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size) {
         return ResourceQuery.ofPage(page, size)
-                .paginate(
-                        findings.list(
-                                "ALL".equalsIgnoreCase(status) ? null : status.toUpperCase(java.util.Locale.ROOT)),
-                        null);
+                .paginate(findings.list("ALL".equalsIgnoreCase(status) ? null : status.toUpperCase(Locale.ROOT)), null);
     }
 
     @PostMapping("/findings/{findingId}/confirm")

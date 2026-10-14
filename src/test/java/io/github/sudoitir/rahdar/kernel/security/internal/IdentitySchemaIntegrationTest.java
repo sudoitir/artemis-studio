@@ -17,8 +17,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 
 /**
  * The kernel/security {@code 0001-baseline.sql} applies cleanly (Liquibase runs this for
@@ -78,9 +80,9 @@ class IdentitySchemaIntegrationTest extends PostgresIntegrationTest {
         String name = "Case-" + UUID.randomUUID();
         AppUserEntity first = users.saveAndFlush(AppUserEntity.local(name, null, "{noop}x"));
         assertThat(users.existsByUsernameIgnoreCase(name.toLowerCase())).isTrue();
-        org.assertj.core.api.Assertions.assertThatThrownBy(
+        Assertions.assertThatThrownBy(
                         () -> users.saveAndFlush(AppUserEntity.local(name.toUpperCase(), null, "{noop}x")))
-                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+                .isInstanceOf(DataIntegrityViolationException.class);
         users.delete(first);
     }
 

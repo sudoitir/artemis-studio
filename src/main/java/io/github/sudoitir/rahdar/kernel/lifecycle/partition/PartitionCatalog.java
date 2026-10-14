@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.kernel.lifecycle.partition;
 
 import io.github.sudoitir.rahdar.kernel.core.StatementTimeout;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
@@ -53,7 +54,7 @@ final class PartitionCatalog {
      * Runs {@code statements}, each as its own auto-committed statement, on one connection with the long
      * statement timeout, and puts the connection's own timeout back afterwards.
      */
-    private static void setStatementTimeout(java.sql.Connection connection, String value) throws SQLException {
+    private static void setStatementTimeout(Connection connection, String value) throws SQLException {
         try (var set = connection.prepareStatement("SELECT set_config('statement_timeout', ?, false)")) {
             set.setString(1, value);
             set.execute();
@@ -61,7 +62,7 @@ final class PartitionCatalog {
     }
 
     static void outsideTransaction(JdbcTemplate jdbc, String... statements) {
-        jdbc.execute((java.sql.Connection connection) -> {
+        jdbc.execute((Connection connection) -> {
             try (Statement statement = connection.createStatement()) {
                 String previous;
                 try (var rs = statement.executeQuery("SHOW statement_timeout")) {

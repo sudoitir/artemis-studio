@@ -3,9 +3,11 @@ package io.github.sudoitir.rahdar.kernel.plugin.internal.runtime;
 import io.github.sudoitir.rahdar.kernel.plugin.PluginApi;
 import java.time.Clock;
 import java.util.Map;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -31,9 +33,7 @@ public class PluginApiContext {
         // (ScheduledJob, SettingsContribution, ...) is API without making every core bean that
         // implements it visible to plugins.
         exported.forEach((name, bean) -> {
-            if (org.springframework.util.ClassUtils.getUserClass(
-                            org.springframework.aop.support.AopUtils.getTargetClass(bean))
-                    .isAnnotationPresent(PluginApi.class)) {
+            if (ClassUtils.getUserClass(AopUtils.getTargetClass(bean)).isAnnotationPresent(PluginApi.class)) {
                 ctx.getBeanFactory().registerSingleton(name, bean);
             }
         });

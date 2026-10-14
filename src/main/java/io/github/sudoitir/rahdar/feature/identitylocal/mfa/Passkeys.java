@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -84,7 +85,7 @@ class Passkeys {
         return entity == null
                 ? List.of()
                 : credentials.findByUserId(entity.getId()).stream()
-                        .sorted(java.util.Comparator.comparing(CredentialRecord::getCreated))
+                        .sorted(Comparator.comparing(CredentialRecord::getCreated))
                         .toList();
     }
 

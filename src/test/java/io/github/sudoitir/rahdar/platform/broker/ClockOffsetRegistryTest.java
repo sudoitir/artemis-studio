@@ -6,6 +6,7 @@ import io.github.sudoitir.rahdar.platform.broker.ClockOffsetRegistry.ClockOffset
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
 
 /** The offset estimator: min-RTT selection, smoothing, and what it refuses to claim. */
@@ -33,7 +34,7 @@ class ClockOffsetRegistryTest {
         registry.recordReading(URL, (1_000_000 + tenMinutes) / 1_000, 1_000_000, 1_000_020);
 
         ClockOffset offset = registry.offsetFor(URL).orElseThrow();
-        assertThat(offset.offsetMs()).isCloseTo(tenMinutes, org.assertj.core.data.Offset.offset(1_000L));
+        assertThat(offset.offsetMs()).isCloseTo(tenMinutes, Offset.offset(1_000L));
         assertThat(offset.isMeaningful()).isTrue();
     }
 

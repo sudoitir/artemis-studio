@@ -69,6 +69,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -86,7 +88,7 @@ import tools.jackson.databind.json.JsonMapper;
 class BrokerConfigApplyEngineTest {
 
     // Generated, so no credential-shaped literal sits in the source.
-    private static final String BRIDGE_SECRET = java.util.UUID.randomUUID().toString();
+    private static final String BRIDGE_SECRET = UUID.randomUUID().toString();
 
     private static final UUID CLUSTER = UUID.randomUUID();
     private static final UUID NODE_A = UUID.fromString("00000000-0000-0000-0000-00000000000a");
@@ -192,7 +194,7 @@ class BrokerConfigApplyEngineTest {
 
     /** What a node running exactly {@code doc} would report, bridges aside. */
     private static ObservedNodeConfig state(UUID id, BrokerConfigDocument doc) {
-        Map<String, java.util.Set<String>> addresses = new LinkedHashMap<>();
+        Map<String, Set<String>> addresses = new LinkedHashMap<>();
         Map<String, Map<String, Object>> queues = new LinkedHashMap<>();
         for (AddressDecl a : doc.addresses()) {
             addresses.put(a.name(), a.routingTypes());
@@ -292,11 +294,11 @@ class BrokerConfigApplyEngineTest {
         verify(ops, times(2)).createDivert(eq(client), eq(BROKER), anyMap());
         // Ownership is recorded for what a later apply may remove; an address or a queue is never owned.
         ArgumentCaptor<BrokerConfigOwnedItemEntity> owns = ArgumentCaptor.forClass(BrokerConfigOwnedItemEntity.class);
-        verify(ownedItems, org.mockito.Mockito.atLeastOnce()).save(owns.capture());
+        verify(ownedItems, Mockito.atLeastOnce()).save(owns.capture());
         assertThat(owns.getAllValues())
                 .extracting(BrokerConfigOwnedItemEntity::getKind)
                 .containsOnly("ADDRESS_SETTING", "SECURITY_SETTING", "DIVERT");
-        verify(capabilities, org.mockito.Mockito.atLeastOnce()).recordWriteSucceeded(CLUSTER);
+        verify(capabilities, Mockito.atLeastOnce()).recordWriteSucceeded(CLUSTER);
         // Each node's drift state records a verified apply.
         ArgumentCaptor<BrokerConfigNodeStateEntity> states = ArgumentCaptor.forClass(BrokerConfigNodeStateEntity.class);
         verify(nodeStates, times(2)).save(states.capture());
@@ -332,8 +334,8 @@ class BrokerConfigApplyEngineTest {
 
         applyConfirmed();
 
-        verify(existing, org.mockito.Mockito.atLeastOnce()).touch(1L);
-        verify(ownedItems, org.mockito.Mockito.atLeastOnce()).save(existing);
+        verify(existing, Mockito.atLeastOnce()).touch(1L);
+        verify(ownedItems, Mockito.atLeastOnce()).save(existing);
     }
 
     @Test
@@ -478,7 +480,7 @@ class BrokerConfigApplyEngineTest {
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> config = ArgumentCaptor.forClass(Map.class);
-        verify(ops, org.mockito.Mockito.atLeastOnce()).createBridge(eq(client), eq(BROKER), config.capture());
+        verify(ops, Mockito.atLeastOnce()).createBridge(eq(client), eq(BROKER), config.capture());
         assertThat(config.getValue()).doesNotContainKey("password");
         verify(secrets, never()).resolve(any(), anyString());
     }
@@ -557,7 +559,7 @@ class BrokerConfigApplyEngineTest {
                 .extracting(StepApply::status)
                 .containsOnly(StepStatus.ALREADY);
         assertThat(outcome.outcome()).isEqualTo(Outcome.APPLIED);
-        verify(capabilities, org.mockito.Mockito.atLeastOnce()).recordWriteSucceeded(CLUSTER);
+        verify(capabilities, Mockito.atLeastOnce()).recordWriteSucceeded(CLUSTER);
     }
 
     @Test
@@ -872,8 +874,7 @@ class BrokerConfigApplyEngineTest {
         BrokerConfigApplyEntity other = new BrokerConfigApplyEntity(UUID.randomUUID(), 1L, "{}", "alice", null, false);
         ReflectionTestUtils.setField(mine, "id", 5L);
         ReflectionTestUtils.setField(other, "id", 6L);
-        when(applies.findByClusterIdOrderByStartedAtDesc(eq(CLUSTER), any()))
-                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(mine)));
+        when(applies.findByClusterIdOrderByStartedAtDesc(eq(CLUSTER), any())).thenReturn(new PageImpl<>(List.of(mine)));
         when(applies.findById(5L)).thenReturn(Optional.of(mine));
         when(applies.findById(6L)).thenReturn(Optional.of(other));
 
@@ -882,7 +883,7 @@ class BrokerConfigApplyEngineTest {
         verify(applies).findByClusterIdOrderByStartedAtDesc(eq(CLUSTER), page.capture());
         assertThat(page.getValue().getPageNumber()).isEqualTo(2);
         assertThat(page.getValue().getPageSize()).isEqualTo(20);
-        verify(access, org.mockito.Mockito.atLeast(1)).requireCluster(CLUSTER, Permissions.CLUSTER_READ);
+        verify(access, Mockito.atLeast(1)).requireCluster(CLUSTER, Permissions.CLUSTER_READ);
 
         assertThat(service.one(CLUSTER, 5L)).contains(mine);
         // Another cluster's apply is not readable through this one.

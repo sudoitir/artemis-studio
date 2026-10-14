@@ -26,6 +26,7 @@ import io.github.sudoitir.rahdar.support.ArtemisIntegrationTest;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -170,7 +171,7 @@ class MarkupMessageRoundTripRealBrokerTest extends PostgresIntegrationTest {
                         () -> ok(get(MESSAGES, clusterId, queue).with(authentication(admin()))),
                         listed -> listed.path("data").size() == BODIES.size());
 
-        List<String> seen = new java.util.ArrayList<>();
+        List<String> seen = new ArrayList<>();
         for (JsonNode row : page.path("data")) {
             JsonNode detail = ok(get(
                             MESSAGES + "/{id}",

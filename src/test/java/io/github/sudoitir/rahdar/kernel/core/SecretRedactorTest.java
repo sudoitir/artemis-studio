@@ -2,7 +2,9 @@ package io.github.sudoitir.rahdar.kernel.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -88,7 +90,7 @@ class SecretRedactorTest {
         assertThat(SecretRedactor.isCredentialKey(name)).isFalse();
     }
 
-    @org.junit.jupiter.api.Test
+    @Test
     void passesNullThrough() {
         assertThat(SecretRedactor.redact(null)).isNull();
     }
@@ -112,7 +114,7 @@ class SecretRedactorTest {
         String input = unit.repeat(50_000 / unit.length());
 
         assertThat(org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(
-                        java.time.Duration.ofMillis(500), () -> SecretRedactor.redact(input)))
+                        Duration.ofMillis(500), () -> SecretRedactor.redact(input)))
                 .isNotNull();
     }
 }

@@ -23,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
@@ -73,7 +74,7 @@ class SqlControllerTest extends PostgresIntegrationTest {
         clusters.deleteById(clusterId);
     }
 
-    private org.springframework.test.web.servlet.ResultActions plan(String sql) throws Exception {
+    private ResultActions plan(String sql) throws Exception {
         return mvc.perform(post("/api/v1/clusters/{c}/sql/plan", clusterId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"sql\":" + quote(sql) + "}"));

@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.feature.sql;
 
 import io.github.sudoitir.rahdar.feature.messages.MessagePermissions;
+import io.github.sudoitir.rahdar.feature.queues.DivertOperations;
 import io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageCaptureNodeEntity;
 import io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageCaptureNodeRepository;
 import io.github.sudoitir.rahdar.feature.sql.internal.persistence.MessageIndexSubscriptionEntity;
@@ -14,6 +15,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.ResourceKind;
 import io.github.sudoitir.rahdar.kernel.security.ActorResolver;
 import io.github.sudoitir.rahdar.kernel.security.ClusterAccessGuard;
 import io.github.sudoitir.rahdar.kernel.security.SettingsPermissions;
+import io.github.sudoitir.rahdar.kernel.settings.RahdarInstance;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterNode;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshot;
@@ -22,6 +24,8 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -59,7 +63,7 @@ public class MessageIndexService {
     private final CaptureReconciler reconciler;
     private final CaptureTap tap;
     private final CaptureProperties captureProperties;
-    private final io.github.sudoitir.rahdar.kernel.settings.RahdarInstance instance;
+    private final RahdarInstance instance;
     private final LifecycleRegistry lifecycle;
 
     /** What creating a capture subscription would do on the broker, resolved without changing anything. */
@@ -207,7 +211,7 @@ public class MessageIndexService {
         entity.setMode(mode);
         applyBounds(entity, spec);
 
-        Map<String, Object> params = new java.util.LinkedHashMap<>();
+        Map<String, Object> params = new LinkedHashMap<>();
         params.put("queuePattern", pattern);
         params.put("mode", mode.name());
         params.put(INTERVAL_MS, entity.getIntervalMs());
@@ -252,7 +256,7 @@ public class MessageIndexService {
         Map<String, Object> before = bounds(entity);
         CaptureMode modeBefore = entity.getMode();
         boolean enabledBefore = entity.isEnabled();
-        Map<String, Object> params = new java.util.LinkedHashMap<>();
+        Map<String, Object> params = new LinkedHashMap<>();
         params.put("enabled", String.valueOf(spec.enabled()));
         params.put("mode", String.valueOf(target));
         params.put(INTERVAL_MS, String.valueOf(spec.intervalMs()));
@@ -456,7 +460,7 @@ public class MessageIndexService {
 
     /** Every bound that sets what a subscription copies and keeps. */
     private static Map<String, Object> bounds(MessageIndexSubscriptionEntity entity) {
-        Map<String, Object> bounds = new java.util.LinkedHashMap<>();
+        Map<String, Object> bounds = new LinkedHashMap<>();
         bounds.put("ringSize", entity.getRingSize());
         bounds.put("maxBytes", entity.getMaxBytes());
         bounds.put("maxRate", entity.getMaxRate());
@@ -543,7 +547,7 @@ public class MessageIndexService {
         List<Object> binds = new ArrayList<>();
         binds.add(subscription.getClusterId());
         binds.addAll(queues);
-        String placeholders = String.join(", ", java.util.Collections.nCopies(queues.size(), "?"));
+        String placeholders = String.join(", ", Collections.nCopies(queues.size(), "?"));
         return jdbc.queryForObject(
                 """
                 SELECT count(*) AS messages,
@@ -574,7 +578,7 @@ public class MessageIndexService {
         binds.add(subscription.getClusterId());
         binds.add(Timestamp.from(floor));
         binds.addAll(queues);
-        String placeholders = String.join(", ", java.util.Collections.nCopies(queues.size(), "?"));
+        String placeholders = String.join(", ", Collections.nCopies(queues.size(), "?"));
         return jdbc.update(
                 "DELETE FROM message_index WHERE cluster_id = ? AND observed_at >= ? AND queue_name IN (" + placeholders
                         + ')',
@@ -600,8 +604,8 @@ public class MessageIndexService {
         if (CaptureAddresses.isCaptureObject(trimmed)) {
             // Rahdar's own capture queues are never captured: doing so taps the taps (ADR-0079).
             throw new IllegalArgumentException("A pattern under "
-                    + io.github.sudoitir.rahdar.feature.queues.DivertOperations.CAPTURE_PREFIX + " or "
-                    + io.github.sudoitir.rahdar.feature.queues.DivertOperations.PLUGIN_TAP_PREFIX
+                    + DivertOperations.CAPTURE_PREFIX + " or "
+                    + DivertOperations.PLUGIN_TAP_PREFIX
                     + " names Rahdar's own capture or plugin tap objects, which cannot be captured.");
         }
         return trimmed;

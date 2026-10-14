@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.kernel.replica;
 
 import io.github.sudoitir.rahdar.kernel.core.ShutdownPhases;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -104,7 +105,7 @@ public class RahdarBus implements SmartLifecycle {
             throw new IllegalArgumentException(
                     "Cannot serialise " + message.getClass().getSimpleName(), e);
         }
-        if (payload.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_PAYLOAD) {
+        if (payload.getBytes(StandardCharsets.UTF_8).length > MAX_PAYLOAD) {
             switch (message) {
                 case BusFrame f
                 when f.data() != null -> {

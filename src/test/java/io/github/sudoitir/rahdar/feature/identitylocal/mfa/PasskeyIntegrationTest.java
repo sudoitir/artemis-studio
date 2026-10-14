@@ -19,6 +19,7 @@ import io.github.sudoitir.rahdar.support.TotpCodes;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -27,6 +28,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -205,7 +207,7 @@ class PasskeyIntegrationTest extends PostgresIntegrationTest {
         String creation = new PasskeyDevice(ORIGIN)
                 .create(key.post("/api/v1/auth/mfa/webauthn/options", null).body());
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        List<Future<HttpResponse<String>>> responses = new java.util.ArrayList<>();
+        List<Future<HttpResponse<String>>> responses = new ArrayList<>();
         try {
             new TransactionTemplate(transactions).executeWithoutResult(status -> {
                 jdbc.sql("SELECT user_id FROM local_totp_pending WHERE user_id = ? FOR UPDATE")
@@ -230,8 +232,7 @@ class PasskeyIntegrationTest extends PostgresIntegrationTest {
 
             assertThat(confirmed.statusCode()).as(confirmed.body()).isEqualTo(200);
             assertThat(registered.statusCode()).as(registered.body()).isEqualTo(200);
-            assertThat(java.util.stream.Stream.of(confirmed, registered)
-                            .filter(r -> JsonPath.read(r.body(), "$.recoveryCodes") != null))
+            assertThat(Stream.of(confirmed, registered).filter(r -> JsonPath.read(r.body(), "$.recoveryCodes") != null))
                     .as("the sessions that were shown recovery codes")
                     .hasSize(1);
             assertThat(jdbc.sql("SELECT count(*) FROM local_recovery_code WHERE user_id = ? AND used_at IS NULL")

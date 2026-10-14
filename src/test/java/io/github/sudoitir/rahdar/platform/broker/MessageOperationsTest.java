@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -46,7 +47,7 @@ class MessageOperationsTest {
     void aRefusedIdMidBatchIsReportedAsPartialAndLaterBatchesAreNotSent() {
         when(client.batch(anyList())).thenAnswer(invocation -> {
             List<?> requests = invocation.getArgument(0);
-            return java.util.stream.IntStream.range(0, requests.size())
+            return IntStream.range(0, requests.size())
                     .mapToObj(i -> i == 2 ? refused("AMQ229067: no such message") : acted())
                     .toList();
         });

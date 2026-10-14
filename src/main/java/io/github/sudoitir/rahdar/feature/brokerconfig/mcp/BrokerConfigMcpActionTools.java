@@ -16,6 +16,7 @@ import io.github.sudoitir.rahdar.platform.mcp.McpErrors;
 import io.github.sudoitir.rahdar.platform.mcp.McpViews;
 import io.modelcontextprotocol.spec.McpSchema;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -170,12 +171,12 @@ public class BrokerConfigMcpActionTools {
         }
         List<String> acks = acknowledge == null || acknowledge.isBlank()
                 ? List.of()
-                : java.util.Arrays.stream(acknowledge.split(","))
+                : Arrays.stream(acknowledge.split(","))
                         .map(String::trim)
                         .filter(a -> !a.isEmpty())
                         .toList();
         return new BrokerConfigApplyRequest(
-                null, nodes, null, removeUndeclared, acks, expectedPlanHash, override, java.util.Set.of());
+                null, nodes, null, removeUndeclared, acks, expectedPlanHash, override, Set.of());
     }
 
     private McpViews.ConfigApplyOutcome applyConfig(

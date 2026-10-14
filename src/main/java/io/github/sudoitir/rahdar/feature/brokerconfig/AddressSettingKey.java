@@ -1,5 +1,6 @@
 package io.github.sudoitir.rahdar.feature.brokerconfig;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -178,10 +179,10 @@ public enum AddressSettingKey {
         ENUM
     }
 
-    private static final Map<String, AddressSettingKey> BY_XML = java.util.Arrays.stream(values())
-            .collect(Collectors.toUnmodifiableMap(k -> k.xmlName, Function.identity()));
-    private static final Map<String, AddressSettingKey> BY_JSON = java.util.Arrays.stream(values())
-            .collect(Collectors.toUnmodifiableMap(k -> k.jsonName, Function.identity()));
+    private static final Map<String, AddressSettingKey> BY_XML =
+            Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(k -> k.xmlName, Function.identity()));
+    private static final Map<String, AddressSettingKey> BY_JSON =
+            Arrays.stream(values()).collect(Collectors.toUnmodifiableMap(k -> k.jsonName, Function.identity()));
 
     private final String xmlName;
     private final String jsonName;

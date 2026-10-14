@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.kernel.security;
 
 import io.github.sudoitir.rahdar.kernel.plugin.PluginApi;
+import java.util.UUID;
 
 /**
  * Who is performing a mutating action (ADR-0041, superseding ADR-0023).
@@ -10,12 +11,12 @@ import io.github.sudoitir.rahdar.kernel.plugin.PluginApi;
  * {@link #system()}.
  */
 @PluginApi
-public record Actor(String username, String sourceIp, String requestId, java.util.UUID userId, String tokenName) {
+public record Actor(String username, String sourceIp, String requestId, UUID userId, String tokenName) {
 
     public static final String ANONYMOUS = "anonymous";
     public static final String SYSTEM = "system";
 
-    public Actor(String username, String sourceIp, String requestId, java.util.UUID userId) {
+    public Actor(String username, String sourceIp, String requestId, UUID userId) {
         this(username, sourceIp, requestId, userId, null);
     }
 

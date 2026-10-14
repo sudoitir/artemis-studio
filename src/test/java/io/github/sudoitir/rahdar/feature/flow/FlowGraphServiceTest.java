@@ -41,6 +41,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -949,7 +950,7 @@ class FlowGraphServiceTest {
 
     @Test
     void everyKindOfSweepFailureIsMappedToTheStateAndMessageTheOperatorNeeds() {
-        Map<String, NodeSampleState> expected = new java.util.LinkedHashMap<>();
+        Map<String, NodeSampleState> expected = new LinkedHashMap<>();
         expected.put("TLS_FAILED", NodeSampleState.UNREACHABLE);
         expected.put("WRONG_PATH", NodeSampleState.UNREACHABLE);
         expected.put("NOT_ARTEMIS", NodeSampleState.UNREACHABLE);

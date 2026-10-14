@@ -4,6 +4,7 @@ import io.github.sudoitir.rahdar.kernel.inbox.Notice.Severity;
 import io.github.sudoitir.rahdar.kernel.plugin.PluginScopedBeans;
 import io.github.sudoitir.rahdar.kernel.security.PermissionHolders;
 import io.github.sudoitir.rahdar.kernel.stream.UserSignals;
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -12,6 +13,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -254,7 +256,7 @@ public class InboxService implements PluginScopedBeans {
             return null;
         }
         String text = mapper.writeValueAsString(data);
-        if (text.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > Notice.MAX_DATA_BYTES) {
+        if (text.getBytes(StandardCharsets.UTF_8).length > Notice.MAX_DATA_BYTES) {
             throw new IllegalArgumentException("A notice's data is larger than " + Notice.MAX_DATA_BYTES + " bytes.");
         }
         return text;
@@ -267,7 +269,7 @@ public class InboxService implements PluginScopedBeans {
                 rs.getLong("id"),
                 rs.getString("source"),
                 rs.getString("kind"),
-                Severity.valueOf(rs.getString("severity").toUpperCase(java.util.Locale.ROOT)),
+                Severity.valueOf(rs.getString("severity").toUpperCase(Locale.ROOT)),
                 rs.getString("title"),
                 rs.getString("body"),
                 rs.getString("link"),

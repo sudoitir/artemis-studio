@@ -3,12 +3,14 @@ package io.github.sudoitir.rahdar.kernel.security.internal;
 import io.github.sudoitir.rahdar.kernel.security.KeyProvider;
 import io.github.sudoitir.rahdar.kernel.security.Keyring;
 import io.github.sudoitir.rahdar.kernel.security.SecretProviderProperties;
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.Function;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.http.client.ClientHttpRequestFactory;
@@ -101,7 +103,7 @@ class VaultKeyProvider implements KeyProvider, DisposableBean {
         return "vault";
     }
 
-    private <T> T call(String what, java.util.function.Function<VaultVersionedKeyValueTemplate, T> action) {
+    private <T> T call(String what, Function<VaultVersionedKeyValueTemplate, T> action) {
         try {
             return action.apply(template());
         } catch (IllegalStateException e) {
@@ -167,7 +169,7 @@ class VaultKeyProvider implements KeyProvider, DisposableBean {
     private String jwt() {
         try {
             return Files.readString(Path.of(config.kubernetesTokenPath())).trim();
-        } catch (java.io.IOException e) {
+        } catch (IOException e) {
             throw new IllegalStateException("cannot read the service-account token", e);
         }
     }

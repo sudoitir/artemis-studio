@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -181,7 +182,7 @@ public class TeamIndex {
             }
         }
         Map<UUID, ClusterTeams> built = new HashMap<>();
-        Set<UUID> clusters = new java.util.HashSet<>(owned.keySet());
+        Set<UUID> clusters = new HashSet<>(owned.keySet());
         clusters.addAll(shared.keySet());
         for (UUID cluster : clusters) {
             built.put(

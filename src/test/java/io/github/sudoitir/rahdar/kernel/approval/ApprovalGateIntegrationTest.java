@@ -19,6 +19,7 @@ import io.github.sudoitir.rahdar.kernel.approval.GateTestKit.TestService;
 import io.github.sudoitir.rahdar.kernel.approval.GateTestKit.TestState;
 import io.github.sudoitir.rahdar.kernel.approval.GateTestKit.TokenParams;
 import io.github.sudoitir.rahdar.kernel.core.ConflictException;
+import io.github.sudoitir.rahdar.kernel.core.NotFoundException;
 import io.github.sudoitir.rahdar.kernel.gate.ApprovalProviderRegistry;
 import io.github.sudoitir.rahdar.kernel.gate.ApprovalUnavailableException;
 import io.github.sudoitir.rahdar.kernel.gate.ApproverQuorumException;
@@ -51,6 +52,7 @@ import io.github.sudoitir.rahdar.kernel.security.OperatorHandoff;
 import io.github.sudoitir.rahdar.kernel.security.OperatorHandoff.Operator;
 import io.github.sudoitir.rahdar.kernel.security.PermissionHolders;
 import io.github.sudoitir.rahdar.kernel.security.RahdarPrincipal;
+import io.github.sudoitir.rahdar.kernel.security.ReauthenticationRequiredException;
 import io.github.sudoitir.rahdar.kernel.security.ScopeIds;
 import io.github.sudoitir.rahdar.kernel.security.SealedStore;
 import io.github.sudoitir.rahdar.kernel.security.SecretVault;
@@ -78,7 +80,10 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -99,6 +104,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -286,7 +292,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
 
     private void approversAre(Person... people) {
         when(holders.holders(any(), eq(GateTestKit.APPROVER_PERMISSION), anyInt()))
-                .thenReturn(java.util.Arrays.stream(people).map(Person::id).toList());
+                .thenReturn(Arrays.stream(people).map(Person::id).toList());
     }
 
     /** Requests a purge as {@code person} and returns the hold. */
@@ -762,7 +768,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
 
         assertThatThrownBy(() ->
                         approvals.decide(id, Vote.APPROVE, null, detail.view().paramsHash(), detail.version()))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.security.ReauthenticationRequiredException.class);
+                .isInstanceOf(ReauthenticationRequiredException.class);
 
         assertThat(stateOf(id)).isEqualTo(HeldState.HELD);
     }
@@ -801,7 +807,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         Person alice = requester();
         Person twin = approver();
         AppUserEntity entity = users.findById(twin.id()).orElseThrow();
-        entity.setEmail((alice.username() + "@EXAMPLE.test").toUpperCase(java.util.Locale.ROOT));
+        entity.setEmail((alice.username() + "@EXAMPLE.test").toUpperCase(Locale.ROOT));
         users.save(entity);
         approversAre(approver());
         UUID id = hold(alice, "orders");
@@ -820,8 +826,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         Approvals.Detail shown = approvals.get(id);
         signIn(mallory);
 
-        assertThatThrownBy(() -> approvals.get(id))
-                .isInstanceOf(io.github.sudoitir.rahdar.kernel.core.NotFoundException.class);
+        assertThatThrownBy(() -> approvals.get(id)).isInstanceOf(NotFoundException.class);
         String hash = shown.view().paramsHash();
         int version = shown.version();
         assertThatThrownBy(() -> approvals.decide(id, Vote.APPROVE, null, hash, version))
@@ -971,8 +976,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
         UUID id = hold(alice, "orders");
 
         signIn(bob);
-        assertThatThrownBy(() -> approvals.cancel(id))
-                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+        assertThatThrownBy(() -> approvals.cancel(id)).isInstanceOf(AccessDeniedException.class);
         signIn(alice);
         assertThat(approvals.cancel(id).view().state()).isEqualTo(HeldState.CANCELLED);
         assertThatThrownBy(() -> approvals.cancel(id)).isInstanceOf(ConflictException.class);
@@ -1397,7 +1401,7 @@ class ApprovalGateIntegrationTest extends PostgresIntegrationTest {
             }
         } while (!page.isEmpty());
 
-        assertThat(all).isSortedAccordingTo(java.util.Comparator.comparing(HeldEvent::cursor));
+        assertThat(all).isSortedAccordingTo(Comparator.comparing(HeldEvent::cursor));
         assertThat(all.stream().filter(e -> e.heldId().equals(id)).map(HeldEvent::kind))
                 .containsExactly(HeldEvent.Kind.REQUESTED, HeldEvent.Kind.REJECTED);
         assertThat(mine.eventsAfter(cursor, 10)).isEmpty();

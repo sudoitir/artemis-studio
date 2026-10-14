@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.sudoitir.rahdar.kernel.core.ConflictException;
 import io.github.sudoitir.rahdar.kernel.security.RahdarPrincipal;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserEntity;
+import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserRepository;
 import io.github.sudoitir.rahdar.kernel.security.web.TeamViews.MemberRequest;
 import io.github.sudoitir.rahdar.kernel.security.web.TeamViews.PrincipalType;
 import io.github.sudoitir.rahdar.kernel.security.web.UserViews.RoleRequest;
@@ -12,6 +14,7 @@ import io.github.sudoitir.rahdar.kernel.security.web.UserViews.RoleView;
 import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,7 +34,7 @@ class RoleServiceIntegrationTest extends PostgresIntegrationTest {
     TeamService teams;
 
     @Autowired
-    io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserRepository users;
+    AppUserRepository users;
 
     private static String name() {
         return "role-" + UUID.randomUUID();
@@ -130,8 +133,7 @@ class RoleServiceIntegrationTest extends PostgresIntegrationTest {
         RoleView role = create(true, "queue:read");
         UUID team = teams.create("roles-" + UUID.randomUUID()).id();
         String username = "role-member-" + UUID.randomUUID();
-        var user = io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserEntity.local(
-                username, null, "{noop}x");
+        var user = AppUserEntity.local(username, null, "{noop}x");
         user.setMustChangePassword(false);
         UUID userId = users.save(user).getId();
         teams.addMember(team, new MemberRequest(PrincipalType.USER, userId, null, null, role.id()));
@@ -149,7 +151,7 @@ class RoleServiceIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void anyoneSignedInReadsThePermissionCatalogueButNotTheRoles() {
-        RahdarPrincipal nobody = new RahdarPrincipal(null, "no-grants", java.util.Set.of(), false);
+        RahdarPrincipal nobody = new RahdarPrincipal(null, "no-grants", Set.of(), false);
         SecurityContextHolder.getContext()
                 .setAuthentication(UsernamePasswordAuthenticationToken.authenticated(nobody, null, List.of()));
         try {

@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -103,7 +104,7 @@ public class AlertDeliveryEntity {
     }
 
     /** Backs off via the given delay, or gives up to {@code DEAD} at {@code maxAttempts}. */
-    public void recordFailure(Instant now, String error, java.time.Duration nextDelay, int maxAttempts) {
+    public void recordFailure(Instant now, String error, Duration nextDelay, int maxAttempts) {
         this.attempts++;
         this.lastError = error;
         if (this.attempts >= maxAttempts) {

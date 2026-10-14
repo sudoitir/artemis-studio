@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.jar.JarFile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -436,8 +437,8 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
         String id = uniqueId("acme-busy");
         String sha = upload(emptyPlugin(id));
         seedInstalledRow(id, sha);
-        var started = new java.util.concurrent.CountDownLatch(1);
-        var release = new java.util.concurrent.CountDownLatch(1);
+        var started = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
         Thread holder = Thread.ofVirtual()
                 .start(() -> host.exclusively(() -> {
                     started.countDown();
@@ -472,8 +473,7 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
         try {
             for (int i = 0; i < needed; i++) {
                 String fillerId = uniqueId("budget-filler-" + i);
-                var entity = new io.github.sudoitir.rahdar.kernel.plugin.internal.persistence.PluginInstallEntity(
-                        fillerId, "1.0.0", "Acme", fillerSha, "seed", "{}");
+                var entity = new PluginInstallEntity(fillerId, "1.0.0", "Acme", fillerSha, "seed", "{}");
                 entity.transitionTo(PluginInstallStatus.ACTIVE);
                 installs.save(entity);
                 fillerIds.add(fillerId);
@@ -646,7 +646,7 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
         seededIds.add(id);
         awaitStatus(id, PluginInstallStatus.ACTIVE);
 
-        java.util.UUID roleId = java.util.UUID.randomUUID();
+        UUID roleId = UUID.randomUUID();
         jdbc.update("INSERT INTO role (id, name) VALUES (?, ?)", roleId, "purge-test-" + id);
         jdbc.update("INSERT INTO role_permission (action, role_id) VALUES (?, ?)", id + ":admin", roleId);
         jdbc.update("INSERT INTO rahdar_setting (key, value) VALUES (?, '\"x\"'::jsonb)", id + ".some-setting");
@@ -821,7 +821,6 @@ class PluginHostIntegrationTest extends PostgresIntegrationTest {
     }
 
     private String descriptorJson(String id) {
-        return json.writeValueAsString(
-                io.github.sudoitir.rahdar.kernel.plugin.support.PluginJarBuilder.defaultDescriptor(id));
+        return json.writeValueAsString(PluginJarBuilder.defaultDescriptor(id));
     }
 }

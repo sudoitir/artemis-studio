@@ -22,6 +22,8 @@ import io.github.sudoitir.rahdar.kernel.security.PermissionResolver;
 import io.github.sudoitir.rahdar.kernel.security.Permissions;
 import io.github.sudoitir.rahdar.kernel.security.ResourceFilter;
 import io.github.sudoitir.rahdar.kernel.security.ScopeHierarchy;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -30,6 +32,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -172,7 +175,7 @@ public class AuditQueryService {
         }
     }
 
-    private static AuditRow row(java.sql.ResultSet rs, int i) throws java.sql.SQLException {
+    private static AuditRow row(ResultSet rs, int i) throws SQLException {
         return new AuditRow(
                 rs.getLong("id"),
                 rs.getObject("parent_id", Long.class),
@@ -280,7 +283,7 @@ public class AuditQueryService {
         filters.put("parentId", query.parentId());
         filters.put("from", query.from());
         filters.put("to", query.to());
-        filters.values().removeIf(java.util.Objects::isNull);
+        filters.values().removeIf(Objects::isNull);
         String clusterName = clusters.clusterName(clusterId);
         AuditEvent event = audit.begin(
                 actors.resolve(),

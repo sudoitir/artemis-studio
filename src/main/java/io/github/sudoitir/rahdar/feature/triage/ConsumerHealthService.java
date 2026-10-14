@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -88,7 +89,7 @@ public class ConsumerHealthService {
 
     /** One queue's verdict, for the drawer panel and the {@code diagnose} tool. */
     @Transactional(readOnly = true)
-    public java.util.Optional<ConsumerHealth> forQueue(UUID clusterId, String queueName) {
+    public Optional<ConsumerHealth> forQueue(UUID clusterId, String queueName) {
         clusterAccess.requireResource(clusterId, ResourceRef.queue(queueName), Permissions.QUEUE_READ);
         return evaluated(clusterId).stream()
                 .filter(h -> h.queueName().equals(queueName))

@@ -142,7 +142,7 @@ public class MessageService {
         List<GovernedMessage> governed = messages.stream()
                 .map(m -> contentPolicy.govern(context, content(m)))
                 .toList();
-        List<MessageSummaryView> rows = new java.util.ArrayList<>(messages.size());
+        List<MessageSummaryView> rows = new ArrayList<>(messages.size());
         for (int i = 0; i < messages.size(); i++) {
             rows.add(toSummary(messages.get(i), governed.get(i)));
         }
@@ -468,7 +468,7 @@ public class MessageService {
      * messages go to.
      */
     private void requireAllowed(UUID clusterId, String queueName, MessageAction action, MessageActionRequest req) {
-        List<Requirement> needs = new java.util.ArrayList<>();
+        List<Requirement> needs = new ArrayList<>();
         needs.add(new Requirement(ResourceRef.queue(queueName), permissionFor(action)));
         if (action == MessageAction.MOVE
                 && req.targetQueue() != null

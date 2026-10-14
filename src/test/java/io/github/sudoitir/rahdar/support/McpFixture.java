@@ -2,6 +2,7 @@ package io.github.sudoitir.rahdar.support;
 
 import io.github.sudoitir.rahdar.feature.apitokens.ApiTokenService;
 import io.github.sudoitir.rahdar.kernel.security.Grant;
+import io.github.sudoitir.rahdar.kernel.security.ScopeIds;
 import io.github.sudoitir.rahdar.kernel.security.TokenGrant;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserRepository;
@@ -14,6 +15,7 @@ import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleRe
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.test.web.servlet.MockMvc;
@@ -70,9 +72,7 @@ public final class McpFixture {
         // user_role.scope_id and api_token_grant.scope_id are NOT NULL; a GLOBAL row
         // carries the nil UUID sentinel (kernel/security 0001-baseline.sql), not null. The token/owner
         // grant intersection compares scope ids for equality, so both sides must use it.
-        UUID scope = scopeType == Grant.ScopeType.GLOBAL
-                ? io.github.sudoitir.rahdar.kernel.security.ScopeIds.GLOBAL
-                : scopeId;
+        UUID scope = scopeType == Grant.ScopeType.GLOBAL ? ScopeIds.GLOBAL : scopeId;
         String username = "mcp-" + UUID.randomUUID();
         AppUserEntity user = AppUserEntity.local(username, username + "@example.test", "{noop}unused");
         user.setMustChangePassword(false);
@@ -100,8 +100,8 @@ public final class McpFixture {
     public static JsonNode rpc(MockMvc mvc, Key key, String method, Object params) throws Exception {
         String body = JSON.writeValueAsString(
                 params == null
-                        ? java.util.Map.of("jsonrpc", "2.0", "id", 1, "method", method)
-                        : java.util.Map.of("jsonrpc", "2.0", "id", 1, "method", method, "params", params));
+                        ? Map.of("jsonrpc", "2.0", "id", 1, "method", method)
+                        : Map.of("jsonrpc", "2.0", "id", 1, "method", method, "params", params));
         String raw = mvc.perform(MockMvcRequestBuilders.post("/mcp")
                         .header("Authorization", key.bearer())
                         .contentType("application/json")
@@ -114,8 +114,7 @@ public final class McpFixture {
     }
 
     /** {@code tools/call}, returning the {@code result} object (which may carry {@code isError}). */
-    public static JsonNode callTool(MockMvc mvc, Key key, String tool, java.util.Map<String, Object> arguments)
-            throws Exception {
-        return rpc(mvc, key, "tools/call", java.util.Map.of("name", tool, "arguments", arguments));
+    public static JsonNode callTool(MockMvc mvc, Key key, String tool, Map<String, Object> arguments) throws Exception {
+        return rpc(mvc, key, "tools/call", Map.of("name", tool, "arguments", arguments));
     }
 }

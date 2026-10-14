@@ -20,6 +20,7 @@ import io.github.sudoitir.rahdar.platform.broker.MessageTransport;
 import io.github.sudoitir.rahdar.platform.broker.SendNames;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterNode;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -27,6 +28,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -236,7 +238,7 @@ public class PluginMessagingService implements PluginScopedBeans {
                             message.text() ? MessageKind.TEXT : MessageKind.BYTES,
                             message.durable(),
                             message.text()
-                                    ? new String(body, java.nio.charset.StandardCharsets.UTF_8)
+                                    ? new String(body, StandardCharsets.UTF_8)
                                     : Base64.getEncoder().encodeToString(body),
                             Map.of(),
                             properties));
@@ -328,7 +330,7 @@ public class PluginMessagingService implements PluginScopedBeans {
                 .orElse(null);
         Long dropped = nodes.stream()
                 .map(MessageRegistration.NodeState::droppedCopies)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .reduce(Long::sum)
                 .orElse(null);
         return new MessageRegistration(

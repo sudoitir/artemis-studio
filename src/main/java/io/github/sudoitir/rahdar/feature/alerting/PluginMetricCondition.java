@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.feature.alerting;
 
 import io.github.sudoitir.rahdar.platform.scrape.PluginMetrics;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +57,7 @@ public class PluginMetricCondition implements AlertCondition {
         String kind = declared.get().metric().subject();
         AlertScope scope = AlertScope.parse(rule.scope(), mapper);
         Map<String, Double> active = new HashMap<>();
-        List<String> universe = new java.util.ArrayList<>();
+        List<String> universe = new ArrayList<>();
         metrics.latest(clusterId, rule.metric()).forEach((subject, value) -> {
             if (!scope.matchesSubject(subject)) {
                 return;

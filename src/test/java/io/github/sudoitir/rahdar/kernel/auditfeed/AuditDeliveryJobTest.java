@@ -14,10 +14,13 @@ import io.github.sudoitir.rahdar.kernel.audit.AuditService;
 import io.github.sudoitir.rahdar.kernel.auditfeed.AuditReceiverFixtures.FakeHandle;
 import io.github.sudoitir.rahdar.kernel.auditfeed.AuditReceiverFixtures.TestReceiver;
 import io.github.sudoitir.rahdar.kernel.auditfeed.AuditRetentionGuard.Purged;
+import io.github.sudoitir.rahdar.kernel.plugin.PluginInstallStatus;
+import io.github.sudoitir.rahdar.kernel.plugin.PluginStatusChanged;
 import io.github.sudoitir.rahdar.kernel.security.Actor;
 import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -211,11 +215,8 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_receiver WHERE plugin_id = ?", Long.class, pluginId))
                 .isEqualTo(1);
 
-        receivers.onStatusChanged(new io.github.sudoitir.rahdar.kernel.plugin.PluginStatusChanged(
-                pluginId,
-                io.github.sudoitir.rahdar.kernel.plugin.PluginInstallStatus.ACTIVE,
-                io.github.sudoitir.rahdar.kernel.plugin.PluginInstallStatus.UNINSTALLED,
-                "test"));
+        receivers.onStatusChanged(
+                new PluginStatusChanged(pluginId, PluginInstallStatus.ACTIVE, PluginInstallStatus.UNINSTALLED, "test"));
 
         assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_receiver WHERE plugin_id = ?", Long.class, pluginId))
                 .isZero();
@@ -292,12 +293,10 @@ class AuditDeliveryJobTest extends PostgresIntegrationTest {
             release.countDown();
             receiver.beforeAnswer = () -> {};
             // The stuck call returns on its own thread; until it has, the receiver is skipped.
-            org.awaitility.Awaitility.await()
-                    .atMost(java.time.Duration.ofSeconds(10))
-                    .until(() -> {
-                        job.deliver(pluginId);
-                        return receiver.batches.size() >= 2;
-                    });
+            Awaitility.await().atMost(Duration.ofSeconds(10)).until(() -> {
+                job.deliver(pluginId);
+                return receiver.batches.size() >= 2;
+            });
         } finally {
             release.countDown();
             settings.reset(AuditFeedSettings.TIMEOUT);

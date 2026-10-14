@@ -10,6 +10,9 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 import io.github.sudoitir.rahdar.feature.alerting.internal.persistence.NotificationChannelRepository;
 import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.util.UUID;
+import org.assertj.core.api.Assertions;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,7 +40,7 @@ class NotificationChannelsControllerTest extends PostgresIntegrationTest {
 
     @Test
     void createdChannelNeverExposesItsSecretOnRead() throws Exception {
-        String name = "ops-" + java.util.UUID.randomUUID();
+        String name = "ops-" + UUID.randomUUID();
         String body = """
                 {"name":"%s","kind":"SLACK","config":"{}","secret":"https://hooks.slack.com/services/x","enabled":true}""".formatted(name);
 
@@ -65,7 +68,7 @@ class NotificationChannelsControllerTest extends PostgresIntegrationTest {
     @Test
     void unknownKindIsRejected() throws Exception {
         String body = """
-                {"name":"bad-%s","kind":"SMS","config":"{}","enabled":true}""".formatted(java.util.UUID.randomUUID());
+                {"name":"bad-%s","kind":"SMS","config":"{}","enabled":true}""".formatted(UUID.randomUUID());
 
         mvc.perform(post("/api/v1/channels")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -75,14 +78,14 @@ class NotificationChannelsControllerTest extends PostgresIntegrationTest {
 
     @Test
     void anEmailChannelIsValidatedPerFieldAndReportsItsBoundRules() throws Exception {
-        String name = "mail-" + java.util.UUID.randomUUID();
+        String name = "mail-" + UUID.randomUUID();
         String noRecipients = """
                 {"name":"%s","kind":"EMAIL","config":"{\\"host\\":\\"smtp.example.com\\",\\"port\\":587,\\"security\\":\\"STARTTLS\\",\\"from\\":\\"a@example.com\\",\\"to\\":[]}","enabled":true}""".formatted(name);
         mvc.perform(post("/api/v1/channels")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(noRecipients))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.startsWith("to:")));
+                .andExpect(jsonPath("$.detail").value(Matchers.startsWith("to:")));
 
         String valid = noRecipients.replace("[]", "[\\\"oncall@example.com\\\"]");
         String created = mvc.perform(post("/api/v1/channels")
@@ -126,6 +129,6 @@ class NotificationChannelsControllerTest extends PostgresIntegrationTest {
     }
 
     private static void assertThatBodyNeverMentionsTheSecret(String body) {
-        org.assertj.core.api.Assertions.assertThat(body).doesNotContain("hooks.slack.com/services/x");
+        Assertions.assertThat(body).doesNotContain("hooks.slack.com/services/x");
     }
 }

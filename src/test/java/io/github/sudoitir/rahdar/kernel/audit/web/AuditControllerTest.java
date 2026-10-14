@@ -19,9 +19,11 @@ import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,7 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
 /** {@code GET .../audit} — filtered, newest-first paging over `audit_event`. */
-@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+@ExtendWith(AdminAuthenticationExtension.class)
 class AuditControllerTest extends PostgresIntegrationTest {
 
     MockMvc mvc;
@@ -111,7 +113,7 @@ class AuditControllerTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.hasNext").value(false))
                 .andExpect(jsonPath("$.next").doesNotExist())
                 .andExpect(jsonPath("$.data[0].id")
-                        .value(org.hamcrest.Matchers.lessThan(
+                        .value(Matchers.lessThan(
                                 first.get("data").get(2).get("id").asInt())));
     }
 
@@ -121,7 +123,7 @@ class AuditControllerTest extends PostgresIntegrationTest {
                         .param("page", "201")
                         .param("size", "50"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("`after`")));
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("`after`")));
     }
 
     @Test

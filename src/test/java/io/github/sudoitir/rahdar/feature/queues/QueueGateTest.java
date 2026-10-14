@@ -23,6 +23,7 @@ import io.github.sudoitir.rahdar.kernel.gate.Trait;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaResponse;
+import io.github.sudoitir.rahdar.platform.broker.ManagementRefusal;
 import io.github.sudoitir.rahdar.platform.broker.QueueRow;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity.HaObservation;
@@ -37,11 +38,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -107,7 +111,7 @@ class QueueGateTest extends PostgresIntegrationTest {
         node.attachSeedUrl("http://live:8161/console/jolokia");
         node.applyHaState(new HaObservation(true, "STARTED", "PRIMARY", null, "2.44.0", null), 1L, Instant.now());
         nodeId = nodes.save(node).getId();
-        JolokiaBrokerClient client = org.mockito.Mockito.mock(JolokiaBrokerClient.class);
+        JolokiaBrokerClient client = Mockito.mock(JolokiaBrokerClient.class);
         when(client.resolveBrokerObjectName()).thenReturn("org.apache.activemq.artemis:broker=\"b\"");
         when(connections.forCluster(eq(clusterId), anyString())).thenReturn(client);
         // No node has a queue the scrape does not show.
@@ -157,7 +161,7 @@ class QueueGateTest extends PostgresIntegrationTest {
         assertThatThrownBy(() -> lifecycle.deleteQueue(clusterId, QUEUE, false, false, false))
                 .isInstanceOf(OperationHeldException.class);
 
-        verify(ops, never()).destroyQueue(any(), anyString(), anyString(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(ops, never()).destroyQueue(any(), anyString(), anyString(), ArgumentMatchers.anyBoolean());
     }
 
     @Test
@@ -216,10 +220,9 @@ class QueueGateTest extends PostgresIntegrationTest {
 
     @Test
     void aReplayThatFailedOnANodeFailsTheRequest() {
-        when(gate.run(any(), any())).thenAnswer(call -> ((java.util.function.Supplier<?>) call.getArgument(1)).get());
+        when(gate.run(any(), any())).thenAnswer(call -> ((Supplier<?>) call.getArgument(1)).get());
         when(ops.messageCount(any(), anyString())).thenReturn(5L);
-        doThrow(new io.github.sudoitir.rahdar.platform.broker.ManagementRefusal(
-                        io.github.sudoitir.rahdar.platform.broker.ManagementRefusal.Kind.BOUND_QUEUES, "bound"))
+        doThrow(new ManagementRefusal(ManagementRefusal.Kind.BOUND_QUEUES, "bound"))
                 .when(ops)
                 .deleteAddress(any(), anyString(), anyString());
 

@@ -1,5 +1,7 @@
 package io.github.sudoitir.rahdar.feature.alerting;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -34,9 +36,9 @@ public record AlertScope(String addressPattern, String queuePattern, String node
         if (queuePattern == null || queuePattern.isBlank()) {
             return "#";
         }
-        return java.util.Arrays.stream(queuePattern.split("\\.", -1))
+        return Arrays.stream(queuePattern.split("\\.", -1))
                 .map(word -> "*".equals(word) ? "#" : word)
-                .collect(java.util.stream.Collectors.joining("."));
+                .collect(Collectors.joining("."));
     }
 
     public boolean matchesAddress(String address) {

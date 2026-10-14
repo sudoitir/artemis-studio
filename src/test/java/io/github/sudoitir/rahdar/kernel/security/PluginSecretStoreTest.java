@@ -9,6 +9,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.PluginPurged;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.PluginSecretEntity;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.PluginSecretRepository;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -62,8 +63,7 @@ class PluginSecretStoreTest extends PostgresIntegrationTest {
 
         assertThat(secrets.get("token")).contains("second-value");
         PluginSecretEntity row = rows.findByPluginIdAndName(plugin, "token").orElseThrow();
-        assertThat(new String(row.getSealed(), java.nio.charset.StandardCharsets.ISO_8859_1))
-                .doesNotContain("second-value");
+        assertThat(new String(row.getSealed(), StandardCharsets.ISO_8859_1)).doesNotContain("second-value");
         assertThat(rows.findByPluginIdOrderByName(plugin)).hasSize(1);
     }
 

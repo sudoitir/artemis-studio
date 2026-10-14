@@ -10,9 +10,12 @@ import io.github.sudoitir.rahdar.feature.triage.ConsumerHealthService;
 import io.github.sudoitir.rahdar.kernel.audit.AuditQuery;
 import io.github.sudoitir.rahdar.kernel.audit.AuditQueryService;
 import io.github.sudoitir.rahdar.kernel.audit.web.AuditViews;
+import io.github.sudoitir.rahdar.kernel.core.NotFoundException;
 import io.github.sudoitir.rahdar.kernel.security.PermissionResolver;
+import io.github.sudoitir.rahdar.platform.broker.ClockOffsetService;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterService;
+import io.github.sudoitir.rahdar.platform.clusters.RegisteredCluster;
 import io.github.sudoitir.rahdar.platform.clusters.web.ClusterViews;
 import io.github.sudoitir.rahdar.platform.mcp.McpArgs;
 import io.github.sudoitir.rahdar.platform.mcp.McpErrors;
@@ -50,7 +53,7 @@ public class TriageMcpTools {
     private final ClusterDirectory clusterRepo;
     private final ObjectProvider<AlertService> alerts;
     private final PermissionResolver perm;
-    private final io.github.sudoitir.rahdar.platform.broker.ClockOffsetService clocks;
+    private final ClockOffsetService clocks;
 
     /**
      * Cluster health and single-queue diagnosis behind one optional argument
@@ -96,8 +99,8 @@ public class TriageMcpTools {
         // known to hold cluster:read on this id and the name is not a disclosure.
         String name = clusterRepo
                 .cluster(clusterId)
-                .map(io.github.sudoitir.rahdar.platform.clusters.RegisteredCluster::getName)
-                .orElseThrow(() -> new io.github.sudoitir.rahdar.kernel.core.NotFoundException("cluster", clusterId));
+                .map(RegisteredCluster::getName)
+                .orElseThrow(() -> new NotFoundException("cluster", clusterId));
 
         List<McpViews.NodeHealth> nodes = new ArrayList<>();
         for (ClusterViews.LogicalNodeView logical : topology.nodes()) {
@@ -143,7 +146,7 @@ public class TriageMcpTools {
                 assessment.worst().map(w -> w.offset().offsetMs()).orElse(null),
                 assessment.worst().map(w -> w.offset().uncertaintyMs()).orElse(null),
                 assessment.skewed().stream()
-                        .map(io.github.sudoitir.rahdar.platform.broker.ClockOffsetService.NodeSkew::nodeName)
+                        .map(ClockOffsetService.NodeSkew::nodeName)
                         .toList(),
                 assessment.at());
     }
@@ -153,9 +156,8 @@ public class TriageMcpTools {
         // condition read. This method used to derive its own trend from two points and its
         // own slow-consumer guess from a ratio, which is how an agent and a screen came to
         // describe one queue differently.
-        ConsumerHealth health = consumerHealth
-                .forQueue(clusterId, queue)
-                .orElseThrow(() -> new io.github.sudoitir.rahdar.kernel.core.NotFoundException("queue", queue));
+        ConsumerHealth health =
+                consumerHealth.forQueue(clusterId, queue).orElseThrow(() -> new NotFoundException("queue", queue));
 
         List<String> findings = new ArrayList<>();
         if (health.nodesPresent() < health.nodesTotal()) {

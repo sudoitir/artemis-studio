@@ -32,6 +32,7 @@ import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterR
 import io.github.sudoitir.rahdar.support.McpFixture;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -137,7 +138,7 @@ class McpConnectionControlIntegrationTest extends PostgresIntegrationTest {
     }
 
     private Map<String, Object> args(Object... extra) {
-        Map<String, Object> base = new java.util.LinkedHashMap<>(Map.of(
+        Map<String, Object> base = new LinkedHashMap<>(Map.of(
                 "clusterId",
                 clusterId.toString(),
                 "kind",

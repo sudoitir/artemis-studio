@@ -20,6 +20,7 @@ import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNo
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeRepository;
 import java.util.List;
 import java.util.UUID;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -74,9 +75,9 @@ class BrokerCommandsVersionGateTest {
         assertThat(outcome.nodes())
                 .extracting(NodeOutcome::nodeName, NodeOutcome::status)
                 .containsExactly(
-                        org.assertj.core.groups.Tuple.tuple("new", proceeded),
-                        org.assertj.core.groups.Tuple.tuple("old", NodeStatus.UNSUPPORTED_VERSION),
-                        org.assertj.core.groups.Tuple.tuple("unknown", proceeded));
+                        Tuple.tuple("new", proceeded),
+                        Tuple.tuple("old", NodeStatus.UNSUPPORTED_VERSION),
+                        Tuple.tuple("unknown", proceeded));
         assertThat(outcome.nodes().get(1).error())
                 .contains("Doing X needs Artemis 2.38.0")
                 .contains("2.35.0");

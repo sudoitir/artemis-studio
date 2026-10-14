@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.kernel.plugin.support;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.CRC32;
 
 /**
@@ -20,7 +21,7 @@ public final class RawZip {
      * zip-confusion shape, where a sequential reader and {@link java.util.zip.ZipFile} see
      * different files.
      */
-    public static byte[] buildWithCentralSubset(List<Entry> entries, java.util.Set<String> centralNames) {
+    public static byte[] buildWithCentralSubset(List<Entry> entries, Set<String> centralNames) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         int[] localOffsets = new int[entries.size()];
         for (int i = 0; i < entries.size(); i++) {

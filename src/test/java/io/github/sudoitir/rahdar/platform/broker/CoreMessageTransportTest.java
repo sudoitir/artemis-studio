@@ -15,6 +15,7 @@ import io.github.sudoitir.rahdar.platform.broker.MessageTransport.TransportTarge
 import io.github.sudoitir.rahdar.support.ArtemisIntegrationTest;
 import jakarta.jms.BytesMessage;
 import jakarta.jms.Connection;
+import jakarta.jms.Message;
 import jakarta.jms.Session;
 import jakarta.jms.TextMessage;
 import java.io.ByteArrayOutputStream;
@@ -24,9 +25,11 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.zip.GZIPOutputStream;
 import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.ssl.SslBundles;
@@ -224,7 +227,7 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
             conn.start();
             Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
             var browser = session.createBrowser(session.createQueue(queueName), "orderId = 'A-2'");
-            var received = (jakarta.jms.Message) browser.getEnumeration().nextElement();
+            var received = (Message) browser.getEnumeration().nextElement();
             assertThat(received.getJMSCorrelationID()).isEqualTo("corr-1");
             assertThat(received.getJMSType()).isEqualTo("order");
             assertThat(received.getJMSReplyTo().toString()).contains("replies");
@@ -250,13 +253,13 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
     }
 
     /** The sent message, once a browser sees it: a browser's first page can arrive after the send returns. */
-    private jakarta.jms.Message browseOne(String orderId) {
-        return org.awaitility.Awaitility.await("message " + orderId + " to be browsable")
-                .atMost(java.time.Duration.ofSeconds(10))
-                .until(() -> tryBrowse(orderId), java.util.Objects::nonNull);
+    private Message browseOne(String orderId) {
+        return Awaitility.await("message " + orderId + " to be browsable")
+                .atMost(Duration.ofSeconds(10))
+                .until(() -> tryBrowse(orderId), Objects::nonNull);
     }
 
-    private jakarta.jms.Message tryBrowse(String orderId) throws Exception {
+    private Message tryBrowse(String orderId) throws Exception {
         var factory = new ActiveMQConnectionFactory(
                 coreUrl() + "?useTopologyForLoadBalancing=false", BROKER_USER, BROKER_PASSWORD);
         try (Connection conn = factory.createConnection(BROKER_USER, BROKER_PASSWORD)) {
@@ -264,7 +267,7 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
             Session session = conn.createSession(false, Session.AUTO_ACKNOWLEDGE);
             var browser = session.createBrowser(session.createQueue(queueName), "orderId = '" + orderId + "'");
             var messages = browser.getEnumeration();
-            return messages.hasMoreElements() ? (jakarta.jms.Message) messages.nextElement() : null;
+            return messages.hasMoreElements() ? (Message) messages.nextElement() : null;
         } finally {
             factory.close();
         }
@@ -293,8 +296,8 @@ class CoreMessageTransportTest extends ArtemisIntegrationTest {
                                 Map.of("orderId", "B-1")));
 
         var received = browseOne("B-1");
-        assertThat(received).isInstanceOf(jakarta.jms.BytesMessage.class);
-        jakarta.jms.BytesMessage bytes = (jakarta.jms.BytesMessage) received;
+        assertThat(received).isInstanceOf(BytesMessage.class);
+        BytesMessage bytes = (BytesMessage) received;
         byte[] body = new byte[(int) bytes.getBodyLength()];
         bytes.readBytes(body);
         assertThat(body).containsExactly(9, 8, 7);

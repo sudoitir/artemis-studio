@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import io.github.sudoitir.rahdar.kernel.approval.GateTestKit.FakeHandle;
 import io.github.sudoitir.rahdar.kernel.approval.GateTestKit.TestProvider;
 import io.github.sudoitir.rahdar.kernel.gate.ApprovalProviderRegistry;
+import io.github.sudoitir.rahdar.kernel.gate.GateRequest;
 import io.github.sudoitir.rahdar.kernel.gate.HeldState;
 import io.github.sudoitir.rahdar.kernel.gate.OperationHeldException;
 import io.github.sudoitir.rahdar.kernel.gate.Trait;
@@ -245,7 +246,7 @@ abstract class GatedAccessTestBase extends PostgresIntegrationTest {
     }
 
     /** The provider's last request of this type, as the gate showed it to the provider. */
-    io.github.sudoitir.rahdar.kernel.gate.GateRequest lastRequest(String type) {
+    GateRequest lastRequest(String type) {
         return provider.requests.stream()
                 .filter(request -> request.type().equals(type))
                 .reduce((first, second) -> second)

@@ -14,6 +14,7 @@ import io.github.sudoitir.rahdar.kernel.core.web.ApiExceptionHandler;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -65,7 +66,7 @@ public class ClusterResourceController {
     }
 
     /** Binds {@code ?q=&page=&size=&sort=} to the shared query envelope. */
-    @org.springframework.web.bind.annotation.ModelAttribute
+    @ModelAttribute
     ResourceQuery resourceQuery(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Integer page,

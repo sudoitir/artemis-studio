@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,7 +63,7 @@ class MetricSamplesSlopeTest extends PostgresIntegrationTest {
         // +100 every 10s => +10.0/s.
         series("climbing", 0, 100, 200, 300);
 
-        assertThat(slopeOf("climbing")).isCloseTo(10.0, org.assertj.core.data.Offset.offset(0.05));
+        assertThat(slopeOf("climbing")).isCloseTo(10.0, Offset.offset(0.05));
     }
 
     @Test
@@ -78,7 +79,7 @@ class MetricSamplesSlopeTest extends PostgresIntegrationTest {
         givenCluster();
         series("flat", 100, 100, 100, 100);
 
-        assertThat(slopeOf("flat")).isCloseTo(0.0, org.assertj.core.data.Offset.offset(0.001));
+        assertThat(slopeOf("flat")).isCloseTo(0.0, Offset.offset(0.001));
     }
 
     @Test
@@ -89,7 +90,7 @@ class MetricSamplesSlopeTest extends PostgresIntegrationTest {
         // over every sample cannot be fooled by where the window's edges land.
         series("sawtooth", 100, 500, 100, 500, 100);
 
-        assertThat(slopeOf("sawtooth")).isCloseTo(0.0, org.assertj.core.data.Offset.offset(0.5));
+        assertThat(slopeOf("sawtooth")).isCloseTo(0.0, Offset.offset(0.5));
     }
 
     @Test

@@ -34,7 +34,7 @@ public class NotificationMapper {
     private final Supplier<BrokerTime> brokerTime;
 
     @Autowired
-    public NotificationMapper(io.github.sudoitir.rahdar.platform.broker.ClockOffsetService clocks) {
+    public NotificationMapper(ClockOffsetService clocks) {
         this.brokerTime = clocks::brokerTime;
     }
 

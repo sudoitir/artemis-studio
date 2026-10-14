@@ -24,6 +24,7 @@ import io.github.sudoitir.rahdar.kernel.audit.AuditQueryService;
 import io.github.sudoitir.rahdar.kernel.audit.web.AuditViews.AuditEventView;
 import io.github.sudoitir.rahdar.kernel.core.HistoryPage;
 import io.github.sudoitir.rahdar.kernel.security.PermissionResolver;
+import io.github.sudoitir.rahdar.platform.broker.BrokerVersion;
 import io.github.sudoitir.rahdar.platform.broker.ClockOffsetRegistry.ClockOffset;
 import io.github.sudoitir.rahdar.platform.broker.ClockOffsetService;
 import io.github.sudoitir.rahdar.platform.broker.ClockOffsetService.Assessment;
@@ -48,6 +49,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 
 /**
@@ -115,7 +117,7 @@ class TriageMcpToolsTest {
                                         true,
                                         null,
                                         null,
-                                        io.github.sudoitir.rahdar.platform.broker.BrokerVersion.Support.UNKNOWN,
+                                        BrokerVersion.Support.UNKNOWN,
                                         null,
                                         null,
                                         AT,
@@ -218,7 +220,7 @@ class TriageMcpToolsTest {
 
         assertThat(h.alertsVisible()).isFalse();
         assertThat(h.firingAlerts()).isEmpty();
-        org.mockito.Mockito.verifyNoInteractions(alertService);
+        Mockito.verifyNoInteractions(alertService);
     }
 
     @Test

@@ -6,8 +6,11 @@ import io.github.sudoitir.rahdar.support.ArtemisIntegrationTest;
 import jakarta.jms.Message;
 import jakarta.jms.MessageProducer;
 import jakarta.jms.Queue;
+import jakarta.jms.QueueBrowser;
 import jakarta.jms.TextMessage;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -32,7 +35,7 @@ class CorePoolTest extends ArtemisIntegrationTest {
         CorePool pool = pool();
         UUID clusterId = UUID.randomUUID();
         CoreConnectionSettings settings = settings();
-        java.util.List<CorePool.PooledSession> drains = new java.util.ArrayList<>();
+        List<CorePool.PooledSession> drains = new ArrayList<>();
         try {
             // More long-held capture sessions than the operator pool allows in total.
             for (int i = 0; i < 9; i++) {
@@ -64,7 +67,7 @@ class CorePoolTest extends ArtemisIntegrationTest {
 
         try (CorePool.PooledSession second = pool.borrow(clusterId, coreUrl(), settings())) {
             Queue queue = second.session().createQueue(queueName);
-            jakarta.jms.QueueBrowser browser = second.session().createBrowser(queue);
+            QueueBrowser browser = second.session().createBrowser(queue);
             var e = browser.getEnumeration();
             assertThat(e.hasMoreElements()).isTrue();
             Message m = (Message) e.nextElement();

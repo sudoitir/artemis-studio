@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -179,7 +180,7 @@ class McpPluginBridge implements PluginBridge {
     private io.modelcontextprotocol.spec.McpSchema.CallToolResult callThroughPlugin(
             PluginHandle handle,
             PluginDescriptor.McpTool declaration,
-            java.util.function.BiFunction<
+            BiFunction<
                             io.modelcontextprotocol.common.McpTransportContext,
                             io.modelcontextprotocol.spec.McpSchema.CallToolRequest,
                             io.modelcontextprotocol.spec.McpSchema.CallToolResult>

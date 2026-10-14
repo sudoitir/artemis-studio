@@ -23,6 +23,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.access.prepost.PostFilter;
@@ -194,6 +195,6 @@ public class AlertService {
             return Map.of();
         }
         return ruleRepo.findAllById(ruleIds).stream()
-                .collect(java.util.stream.Collectors.toMap(AlertRuleEntity::getId, AlertRuleEntity::getName));
+                .collect(Collectors.toMap(AlertRuleEntity::getId, AlertRuleEntity::getName));
     }
 }

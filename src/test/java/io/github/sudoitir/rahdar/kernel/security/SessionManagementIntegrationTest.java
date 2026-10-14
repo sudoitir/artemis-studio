@@ -14,6 +14,7 @@ import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleRe
 import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.net.CookieManager;
+import java.net.HttpCookie;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -96,7 +97,7 @@ class SessionManagementIntegrationTest extends PostgresIntegrationTest {
         HttpResponse<String> send(String method, String path, String body, String... headers) throws Exception {
             String xsrf = cookies.getCookieStore().getCookies().stream()
                     .filter(c -> c.getName().equals("XSRF-TOKEN"))
-                    .map(java.net.HttpCookie::getValue)
+                    .map(HttpCookie::getValue)
                     .findFirst()
                     .orElse("");
             var request = HttpRequest.newBuilder(URI.create("http://" + host + ":" + port + path))

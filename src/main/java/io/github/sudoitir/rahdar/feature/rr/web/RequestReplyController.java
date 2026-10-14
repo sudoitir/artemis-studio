@@ -12,6 +12,7 @@ import io.github.sudoitir.rahdar.feature.rr.web.RrViews.UpdateExpectationRequest
 import io.github.sudoitir.rahdar.kernel.core.PagedView;
 import io.github.sudoitir.rahdar.kernel.core.ResourceQuery;
 import jakarta.validation.Valid;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -103,6 +104,6 @@ public class RequestReplyController {
 
     @GetMapping("/stats")
     public StatsResponse stats(@PathVariable UUID clusterId, @RequestParam(defaultValue = "PT15M") String window) {
-        return metrics.stats(clusterId, java.time.Duration.parse(window));
+        return metrics.stats(clusterId, Duration.parse(window));
     }
 }

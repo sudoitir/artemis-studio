@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,7 +74,7 @@ class BuiltInRolesCoverageTest extends PostgresIntegrationTest {
         Set<String> undecided = CORE.stream()
                 .map(PermissionDef::action)
                 .filter(action -> !held.contains(action) && !DELIBERATELY_EXCLUDED.containsKey(action))
-                .collect(Collectors.toCollection(java.util.TreeSet::new));
+                .collect(Collectors.toCollection(TreeSet::new));
 
         assertThat(undecided)
                 .as("add each to the built-in roles that should hold it in a new kernel-security changeset,"

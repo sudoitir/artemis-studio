@@ -14,7 +14,9 @@ import io.github.sudoitir.rahdar.kernel.security.internal.persistence.RoleReposi
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.rahdar.platform.broker.Attempt;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
+import io.github.sudoitir.rahdar.platform.broker.BrokerMBeans;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
+import io.github.sudoitir.rahdar.platform.broker.QueueRow;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterService;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeRepository;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterRepository;
@@ -116,8 +118,8 @@ class BulkRealBrokerTest extends PostgresIntegrationTest {
 
         for (String name : queueNames) {
             queueOps.createQueue(client, broker, queue(name));
-            snapshots.upsertBatch(List.of(new io.github.sudoitir.rahdar.platform.broker.QueueRow(
-                    clusterId, nodeId, name, name, "ANYCAST", true, 0, 0, 0, 0, 0, 0, 0, false)));
+            snapshots.upsertBatch(
+                    List.of(new QueueRow(clusterId, nodeId, name, name, "ANYCAST", true, 0, 0, 0, 0, 0, 0, 0, false)));
         }
     }
 
@@ -187,8 +189,7 @@ class BulkRealBrokerTest extends PostgresIntegrationTest {
         assertThat(childAuditIds(deleted.run().auditEventId())).hasSize(3);
 
         for (String name : queueNames) {
-            assertThat(queueOps.boundQueues(
-                            client, io.github.sudoitir.rahdar.platform.broker.BrokerMBeans.address(broker, name)))
+            assertThat(queueOps.boundQueues(client, BrokerMBeans.address(broker, name)))
                     .doesNotContain(name);
         }
     }

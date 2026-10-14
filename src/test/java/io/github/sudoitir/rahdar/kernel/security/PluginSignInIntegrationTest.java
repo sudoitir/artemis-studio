@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.jar.JarFile;
 import org.junit.jupiter.api.Test;
@@ -248,8 +249,7 @@ class PluginSignInIntegrationTest extends SignInPluginIntegrationTest {
 
         // The directory now says "judy" is somebody else: the password is right, the account is not.
         directory.people.put(
-                "judy",
-                new SignInProbe.Person("uid=other", "judy-two", DIRECTORY_PASSWORD, null, java.util.Set.of("eng")));
+                "judy", new SignInProbe.Person("uid=other", "judy-two", DIRECTORY_PASSWORD, null, Set.of("eng")));
         var other = judy.post("/api/v1/auth/reauthenticate", "{\"password\":\"%s\"}".formatted(DIRECTORY_PASSWORD));
         assertThat(other.statusCode()).isEqualTo(403);
     }

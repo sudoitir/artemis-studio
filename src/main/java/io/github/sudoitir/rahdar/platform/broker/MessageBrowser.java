@@ -1,9 +1,11 @@
 package io.github.sudoitir.rahdar.platform.broker;
 
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
@@ -124,7 +126,7 @@ public class MessageBrowser {
         requireBrowsed(browse);
         int sizeLimit = attributeSizeLimit(client, responses.size() > 2 ? responses.get(2) : null);
 
-        java.util.ArrayList<BrowsedMessage> messages = new java.util.ArrayList<>();
+        ArrayList<BrowsedMessage> messages = new ArrayList<>();
         JsonNode array = browse.value();
         if (array != null && array.isArray()) {
             array.forEach(row -> messages.add(decodeRow(row, sizeLimit)));
@@ -203,7 +205,7 @@ public class MessageBrowser {
     private static Integer propertyCut(Map<String, String> strings) {
         return strings.values().stream()
                 .map(MessageBrowser::observedLimit)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .orElse(null);
     }

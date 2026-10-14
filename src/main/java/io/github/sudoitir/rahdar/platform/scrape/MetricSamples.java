@@ -1,8 +1,11 @@
 package io.github.sudoitir.rahdar.platform.scrape;
 
+import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -41,7 +44,7 @@ public class MetricSamples {
     public record NodeBucket(UUID nodeId, Instant ts, double value, Double peak) {}
 
     private final NamedParameterJdbcTemplate jdbc;
-    private final io.github.sudoitir.rahdar.kernel.settings.SettingsService settings;
+    private final SettingsService settings;
 
     /**
      * A subject's counter rate between its oldest and newest sample in a window.
@@ -56,7 +59,7 @@ public class MetricSamples {
          * Several nodes' rates as one: summed, as of the newest, spanning the longest — the same
          * aggregate {@link #latestRateWithTimeBySubject} computes in SQL.
          */
-        public static SubjectRate sum(java.util.Collection<SubjectRate> perNode) {
+        public static SubjectRate sum(Collection<SubjectRate> perNode) {
             double rate = 0;
             Instant asOf = Instant.EPOCH;
             Duration span = Duration.ZERO;
@@ -100,7 +103,7 @@ public class MetricSamples {
                  GROUP BY subject_name
                 """;
         MapSqlParameterSource p = windowParams(clusterId, metric, from, to);
-        Map<String, SubjectRate> out = new java.util.HashMap<>();
+        Map<String, SubjectRate> out = new HashMap<>();
         jdbc.query(sql, p, rs -> {
             double spanSeconds = rs.getDouble("span_seconds");
             out.put(
@@ -134,10 +137,10 @@ public class MetricSamples {
                 HAVING count(*) >= 2 AND max(ts) > min(ts)
                 """;
         MapSqlParameterSource p = windowParams(clusterId, metric, from, to);
-        Map<String, Map<UUID, SubjectRate>> out = new java.util.HashMap<>();
+        Map<String, Map<UUID, SubjectRate>> out = new HashMap<>();
         jdbc.query(sql, p, rs -> {
             double spanSeconds = rs.getDouble("span_seconds");
-            out.computeIfAbsent(rs.getString(SUBJECT_NAME), k -> new java.util.HashMap<>())
+            out.computeIfAbsent(rs.getString(SUBJECT_NAME), k -> new HashMap<>())
                     .put(
                             rs.getObject(NODE_ID, UUID.class),
                             new SubjectRate(
@@ -181,7 +184,7 @@ public class MetricSamples {
                  GROUP BY subject_name
                 """;
         MapSqlParameterSource p = windowParams(clusterId, metric, from, to);
-        Map<String, Double> out = new java.util.HashMap<>();
+        Map<String, Double> out = new HashMap<>();
         jdbc.query(sql, p, rs -> {
             out.put(rs.getString(SUBJECT_NAME), rs.getDouble("slope"));
         });
@@ -379,7 +382,7 @@ public class MetricSamples {
      * {@link #latestRateWithTimeBySubject}: a queue on two nodes has two unrelated counters.
      */
     public Map<String, Double> latestRateBySubject(UUID clusterId, String metric, Instant from, Instant to) {
-        Map<String, Double> out = new java.util.HashMap<>();
+        Map<String, Double> out = new HashMap<>();
         latestRateWithTimeBySubject(clusterId, metric, from, to).forEach((subject, r) -> out.put(subject, r.rate()));
         return out;
     }

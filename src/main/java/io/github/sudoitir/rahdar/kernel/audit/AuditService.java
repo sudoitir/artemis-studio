@@ -9,6 +9,8 @@ import io.github.sudoitir.rahdar.kernel.security.Actor;
 import io.github.sudoitir.rahdar.kernel.security.ScopeHierarchy;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -135,13 +137,12 @@ public class AuditService {
      * cluster: the latest non-preview event per name is a creation, where only a successful
      * deletion counts. The routing view's ownership (ADR-0065 D2).
      */
-    public java.util.Set<String> ownedTargetNames(
-            UUID clusterId, String targetType, String createdAction, String deletedAction) {
-        return java.util.Set.copyOf(events.findOwnedTargetNames(clusterId, targetType, createdAction, deletedAction));
+    public Set<String> ownedTargetNames(UUID clusterId, String targetType, String createdAction, String deletedAction) {
+        return Set.copyOf(events.findOwnedTargetNames(clusterId, targetType, createdAction, deletedAction));
     }
 
     /** An event by id, to record the outcome of work that outlived the thread which began it (ADR-0093). */
-    public java.util.Optional<AuditEvent> byId(Long id) {
+    public Optional<AuditEvent> byId(Long id) {
         return events.findById(id).map(AuditEvent.class::cast);
     }
 

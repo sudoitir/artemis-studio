@@ -20,6 +20,7 @@ import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.util.UUID;
 import org.assertj.core.api.Assertions;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.context.WebApplicationContext;
 import tools.jackson.databind.json.JsonMapper;
@@ -135,9 +137,8 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
                 """.formatted(active, acceptors, brokerName, journalType, active ? "7" : "0", addressNames);
     }
 
-    private static org.springframework.test.web.servlet.ResultMatcher nodeIs(String name, String field, Object value) {
-        return jsonPath("$.nodes[?(@.nodeName == '" + name + "')]." + field)
-                .value(org.hamcrest.Matchers.hasItem(value));
+    private static ResultMatcher nodeIs(String name, String field, Object value) {
+        return jsonPath("$.nodes[?(@.nodeName == '" + name + "')]." + field).value(Matchers.hasItem(value));
     }
 
     private static String broker(String path) {
@@ -158,22 +159,20 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.comparable").value(true))
                 .andExpect(jsonPath("$.nodes.length()").value(3))
-                .andExpect(
-                        jsonPath(broker("/JournalType") + ".majority").value(org.hamcrest.Matchers.hasItem("ASYNCIO")))
+                .andExpect(jsonPath(broker("/JournalType") + ".majority").value(Matchers.hasItem("ASYNCIO")))
                 .andExpect(jsonPath(broker("/JournalType") + ".outliers[0].nodeName")
-                        .value(org.hamcrest.Matchers.hasItem("node-c")))
-                .andExpect(jsonPath(broker("/JournalType") + ".outliers[0].value")
-                        .value(org.hamcrest.Matchers.hasItem("NIO")))
-                .andExpect(jsonPath(broker("/JournalType") + ".drift").value(org.hamcrest.Matchers.hasItem(true)))
-                // Name differs by design, and a runtime counter is not configuration.
+                        .value(Matchers.hasItem("node-c")))
                 .andExpect(
-                        jsonPath(broker("/Name") + ".classification").value(org.hamcrest.Matchers.hasItem("EXPECTED")))
+                        jsonPath(broker("/JournalType") + ".outliers[0].value").value(Matchers.hasItem("NIO")))
+                .andExpect(jsonPath(broker("/JournalType") + ".drift").value(Matchers.hasItem(true)))
+                // Name differs by design, and a runtime counter is not configuration.
+                .andExpect(jsonPath(broker("/Name") + ".classification").value(Matchers.hasItem("EXPECTED")))
                 .andExpect(jsonPath(broker("/TotalMessageCount") + ".classification")
-                        .value(org.hamcrest.Matchers.hasItem("UNCLASSIFIED")))
+                        .value(Matchers.hasItem("UNCLASSIFIED")))
                 // The acceptor host is expected too, so JournalType is the only drift, on one node.
                 .andExpect(jsonPath("$.summary.driftKeys").value(1))
                 .andExpect(jsonPath("$.summary.driftNodes").value(1))
-                .andExpect(jsonPath("$.summary.expectedKeys").value(org.hamcrest.Matchers.greaterThan(0)));
+                .andExpect(jsonPath("$.summary.expectedKeys").value(Matchers.greaterThan(0)));
     }
 
     @Test
@@ -182,8 +181,7 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/api/v1/clusters/{c}/config-diff", clusterId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath(broker("/JournalType") + ".stateWord")
-                        .value(org.hamcrest.Matchers.hasItem("different")));
+                .andExpect(jsonPath(broker("/JournalType") + ".stateWord").value(Matchers.hasItem("different")));
     }
 
     @Test
@@ -198,11 +196,10 @@ class ConfigDiffControllerTest extends PostgresIntegrationTest {
                 .andExpect(nodeIs("node-c", "available", false))
                 .andExpect(nodeIs("node-c", "unavailableKind", "CREDENTIALS_REJECTED"))
                 .andExpect(jsonPath("$.nodes[?(@.nodeName == 'node-c')].unavailableReason")
-                        .value(org.hamcrest.Matchers.hasItem(
-                                org.hamcrest.Matchers.not(org.hamcrest.Matchers.emptyString()))))
+                        .value(Matchers.hasItem(Matchers.not(Matchers.emptyString()))))
                 // Two answering nodes with two values have no majority; the dead node is no tiebreaker.
                 .andExpect(jsonPath(broker("/JournalType") + ".valueGroups.length()")
-                        .value(org.hamcrest.Matchers.hasItem(2)));
+                        .value(Matchers.hasItem(2)));
     }
 
     @Test

@@ -14,6 +14,7 @@ import io.github.sudoitir.rahdar.platform.governance.web.GovernanceRuleViews.Rul
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -138,11 +139,11 @@ public class GovernanceRuleService {
     }
 
     private static boolean sameFacts(GovernanceRuleEntity e, RuleRequest r) {
-        return java.util.Objects.equals(e.getAddressPattern(), blankToNull(r.addressPattern()))
+        return Objects.equals(e.getAddressPattern(), blankToNull(r.addressPattern()))
                 && e.getTarget().equals(r.target())
                 && e.getSelector().equals(r.selector().trim())
                 && e.getDataClass().equals(r.dataClass())
-                && java.util.Objects.equals(e.getAction(), r.action());
+                && Objects.equals(e.getAction(), r.action());
     }
 
     private static Map<String, Object> describe(RuleRequest r) {

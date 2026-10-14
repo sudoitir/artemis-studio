@@ -119,7 +119,7 @@ public final class MessageViews {
      */
     public record PartialView(
             @Schema(requiredMode = REQUIRED) long affectedCount,
-            @Schema(requiredMode = REQUIRED) java.util.List<Long> notDone,
+            @Schema(requiredMode = REQUIRED) List<Long> notDone,
             @Schema(requiredMode = REQUIRED) String error,
             @Schema(requiredMode = REQUIRED) boolean partial,
             @Schema(requiredMode = REQUIRED) UUID node) {}

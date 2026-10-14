@@ -4,6 +4,7 @@ import io.github.sudoitir.rahdar.platform.broker.BrokerCapabilities.CapabilityAs
 import io.github.sudoitir.rahdar.platform.broker.BrokerXmlSnippets;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterEntity;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterRepository;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +50,7 @@ public class CapabilityLedger {
      */
     @Transactional(readOnly = true)
     public Optional<CapabilityAssessment> managementWrite(UUID clusterId) {
-        return clusters.findById(clusterId).map(CapabilityLedger::toAssessment).filter(java.util.Objects::nonNull);
+        return clusters.findById(clusterId).map(CapabilityLedger::toAssessment).filter(Objects::nonNull);
     }
 
     /**

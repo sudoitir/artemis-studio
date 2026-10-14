@@ -13,6 +13,7 @@ import io.github.sudoitir.rahdar.feature.alerting.internal.persistence.AlertRule
 import io.github.sudoitir.rahdar.feature.alerting.internal.persistence.AlertStateRepository;
 import io.github.sudoitir.rahdar.feature.alerting.web.AlertViews.AlertRuleRequest;
 import io.github.sudoitir.rahdar.feature.alerting.web.AlertViews.AlertRuleView;
+import io.github.sudoitir.rahdar.kernel.core.ResourceQuery;
 import io.github.sudoitir.rahdar.kernel.lifecycle.LifecycleService;
 import io.github.sudoitir.rahdar.kernel.lifecycle.LifecycleService.StoreState;
 import io.github.sudoitir.rahdar.kernel.lifecycle.ManagedStore;
@@ -27,6 +28,7 @@ import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.util.List;
 import java.util.UUID;
+import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -174,8 +176,7 @@ class InstallationAlertsIntegrationTest extends PostgresIntegrationTest {
         assertThat(firingsOf(rule))
                 .extracting(AlertFiringEntity::getSubjectKey, AlertFiringEntity::getValue)
                 .containsExactlyInAnyOrder(
-                        org.assertj.core.groups.Tuple.tuple("public.audit_event", 35.0),
-                        org.assertj.core.groups.Tuple.tuple("public.message_index", 1.0));
+                        Tuple.tuple("public.audit_event", 35.0), Tuple.tuple("public.message_index", 1.0));
     }
 
     @Test
@@ -208,7 +209,7 @@ class InstallationAlertsIntegrationTest extends PostgresIntegrationTest {
                 assertThat(f.ruleName()).isEqualTo(quota.getName());
             });
             assertThat(alertService
-                            .history(clusterId, io.github.sudoitir.rahdar.kernel.core.ResourceQuery.ofPage(1, 50), null)
+                            .history(clusterId, ResourceQuery.ofPage(1, 50), null)
                             .data())
                     .hasSize(1);
 

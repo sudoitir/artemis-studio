@@ -1,5 +1,11 @@
 package io.github.sudoitir.rahdar.platform.broker;
 
+import java.io.StringWriter;
+import java.util.List;
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
+
 /**
  * The {@code broker.xml} fragments an operator must add for live notifications
  * (Phase 4). Both were proven necessary against the dev broker pair in Phase 0
@@ -61,10 +67,9 @@ public final class BrokerXmlSnippets {
             String filter,
             String routingType) {
         // Written through StAX so a name, address or filter carrying <, & or a quote stays well-formed.
-        java.io.StringWriter out = new java.io.StringWriter();
+        StringWriter out = new StringWriter();
         try {
-            javax.xml.stream.XMLStreamWriter w =
-                    javax.xml.stream.XMLOutputFactory.newInstance().createXMLStreamWriter(out);
+            XMLStreamWriter w = XMLOutputFactory.newInstance().createXMLStreamWriter(out);
             w.writeStartElement("diverts");
             w.writeCharacters("\n  ");
             w.writeStartElement("divert");
@@ -87,7 +92,7 @@ public final class BrokerXmlSnippets {
             w.writeEndElement();
             w.writeCharacters("\n");
             w.close();
-        } catch (javax.xml.stream.XMLStreamException e) {
+        } catch (XMLStreamException e) {
             throw new IllegalStateException("Could not write the divert's broker.xml", e);
         }
         return out.toString();
@@ -107,14 +112,13 @@ public final class BrokerXmlSnippets {
             String queueName,
             String forwardingAddress,
             String filter,
-            java.util.List<String> staticConnectors,
+            List<String> staticConnectors,
             String discoveryGroupName,
             String credentialRef) {
         // Written through StAX so a name, address or filter carrying <, & or a quote stays well-formed.
-        java.io.StringWriter out = new java.io.StringWriter();
+        StringWriter out = new StringWriter();
         try {
-            javax.xml.stream.XMLStreamWriter w =
-                    javax.xml.stream.XMLOutputFactory.newInstance().createXMLStreamWriter(out);
+            XMLStreamWriter w = XMLOutputFactory.newInstance().createXMLStreamWriter(out);
             w.writeStartElement("bridges");
             w.writeCharacters("\n  ");
             w.writeStartElement("bridge");
@@ -155,14 +159,13 @@ public final class BrokerXmlSnippets {
             w.writeEndElement();
             w.writeCharacters("\n");
             w.close();
-        } catch (javax.xml.stream.XMLStreamException e) {
+        } catch (XMLStreamException e) {
             throw new IllegalStateException("Could not write the bridge's broker.xml", e);
         }
         return out.toString();
     }
 
-    private static void element(javax.xml.stream.XMLStreamWriter w, String tag, String text)
-            throws javax.xml.stream.XMLStreamException {
+    private static void element(XMLStreamWriter w, String tag, String text) throws XMLStreamException {
         w.writeCharacters(INDENT);
         w.writeStartElement(tag);
         w.writeCharacters(text);

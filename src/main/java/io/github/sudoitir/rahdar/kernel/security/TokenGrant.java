@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.kernel.security;
 
 import io.github.sudoitir.rahdar.kernel.plugin.ResourceKind;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,6 +35,6 @@ public record TokenGrant(
 
     /** Whether the permission asked about is this grant's, or one its wildcard covers. */
     boolean covers(String permission) {
-        return Grant.covers(java.util.Set.of(action), permission);
+        return Grant.covers(Set.of(action), permission);
     }
 }

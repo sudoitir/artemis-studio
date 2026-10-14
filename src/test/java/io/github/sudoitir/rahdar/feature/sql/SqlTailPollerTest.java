@@ -17,6 +17,7 @@ import io.github.sudoitir.rahdar.platform.broker.MessageBrowser.BrowsedMessage;
 import io.github.sudoitir.rahdar.platform.broker.MessageTransport;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity;
+import io.github.sudoitir.rahdar.platform.scrape.QueueLocator;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshots;
 import java.lang.reflect.Field;
@@ -26,14 +27,19 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 /**
  * The tail is a sample, and the two things that make it a usable one are that it
@@ -130,7 +136,7 @@ class SqlTailPollerTest {
         await(() -> !listener.statuses.isEmpty());
 
         assertThat(transport.filters).as("no broker read").isEmpty();
-        org.mockito.Mockito.verify(indexExecutor).execute(eq(CLUSTER), eq(plan), any(), any(Instant.class));
+        Mockito.verify(indexExecutor).execute(eq(CLUSTER), eq(plan), any(), any(Instant.class));
     }
 
     /**
@@ -173,7 +179,7 @@ class SqlTailPollerTest {
     private static QueryResult indexPage(List<Row> index, BrokerQueryExecutor.Sink sink, Instant since, int limit) {
         List<Row> matched = index.stream()
                 .filter(row -> !row.observedAt().isBefore(since))
-                .sorted(java.util.Comparator.comparing(Row::observedAt))
+                .sorted(Comparator.comparing(Row::observedAt))
                 .toList();
         List<QueryResult.Bound> bounds = List.of();
         if (matched.size() > limit) {
@@ -306,7 +312,7 @@ class SqlTailPollerTest {
 
     /** A queue deeper than any tick may read: every page is full, and every message is distinct. */
     private static final class DeepTransport implements MessageTransport {
-        final java.util.concurrent.atomic.AtomicInteger pagesRead = new java.util.concurrent.atomic.AtomicInteger();
+        final AtomicInteger pagesRead = new AtomicInteger();
 
         @Override
         public Channel channel() {
@@ -341,7 +347,7 @@ class SqlTailPollerTest {
                 Duration.ofSeconds(1));
         QueryPlanner planner = new QueryPlanner(
                 snapshots,
-                org.mockito.Mockito.mock(io.github.sudoitir.rahdar.platform.scrape.QueueLocator.class),
+                Mockito.mock(QueueLocator.class),
                 nodes,
                 splitter,
                 renderer,
@@ -368,7 +374,7 @@ class SqlTailPollerTest {
                 Duration.ofSeconds(1));
         QueryPlanner planner = new QueryPlanner(
                 snapshots,
-                org.mockito.Mockito.mock(io.github.sudoitir.rahdar.platform.scrape.QueueLocator.class),
+                Mockito.mock(QueueLocator.class),
                 nodes,
                 splitter,
                 renderer,
@@ -380,8 +386,8 @@ class SqlTailPollerTest {
     }
 
     /** A poll runs on its own thread, so the assertions wait for it rather than assume it. */
-    private static void await(java.util.function.BooleanSupplier condition) {
-        org.awaitility.Awaitility.await()
+    private static void await(BooleanSupplier condition) {
+        Awaitility.await()
                 .atMost(Duration.ofSeconds(5))
                 .pollInterval(Duration.ofMillis(10))
                 .until(condition::getAsBoolean);

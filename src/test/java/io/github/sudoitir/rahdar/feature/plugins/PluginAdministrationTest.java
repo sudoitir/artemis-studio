@@ -26,10 +26,12 @@ import io.github.sudoitir.rahdar.kernel.security.SessionAuthentication;
 import io.github.sudoitir.rahdar.kernel.security.UserAccounts;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import tools.jackson.databind.json.JsonMapper;
 
 /** The checks in front of plugin administration that need no database (ADR-0103). */
@@ -51,7 +53,7 @@ class PluginAdministrationTest {
                 mock(UserAccounts.class),
                 audit,
                 actors,
-                new PluginAuditTrail(audit, mock(org.springframework.beans.factory.ObjectProvider.class)),
+                new PluginAuditTrail(audit, mock(ObjectProvider.class)),
                 mock(UploadRateLimit.class),
                 new UpdateChecker(JsonMapper.builder().build()),
                 mock(RahdarRestart.class),
@@ -79,7 +81,7 @@ class PluginAdministrationTest {
     void aLicenseUploadByANonInstallerIsRefusedAndAuditedWithoutItsContent() {
         when(installers.isInstaller(userId)).thenReturn(false);
         when(actors.resolve()).thenReturn(new Actor("ops", null, null, userId));
-        byte[] secret = "sk-license-content".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] secret = "sk-license-content".getBytes(StandardCharsets.UTF_8);
 
         var administration = administration(true);
 

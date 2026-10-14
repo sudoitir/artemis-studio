@@ -23,6 +23,7 @@ import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterNode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -172,7 +173,7 @@ public class RoutingService {
     // ---- merging ---------------------------------------------------------
 
     private static List<String> divertKey(DivertRow row) {
-        return java.util.Arrays.asList(
+        return Arrays.asList(
                 row.uniqueName(),
                 row.address(),
                 row.forwardingAddress(),

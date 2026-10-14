@@ -8,6 +8,7 @@ import io.github.sudoitir.rahdar.platform.broker.OutboundMessages.Provenance;
 import io.github.sudoitir.rahdar.support.ArtemisIntegrationTest;
 import jakarta.jms.BytesMessage;
 import jakarta.jms.Connection;
+import jakarta.jms.Message;
 import jakarta.jms.MessageConsumer;
 import jakarta.jms.MessageProducer;
 import jakarta.jms.Session;
@@ -25,6 +26,7 @@ import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.boot.ssl.SslBundles;
 
 /**
@@ -51,7 +53,7 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
         relay = new CoreRelay(
                 new CoreConnectionFactory(
                         new BrokerProperties(Duration.ofSeconds(5), Duration.ofSeconds(10), 2_000),
-                        org.mockito.Mockito.mock(SslBundles.class),
+                        Mockito.mock(SslBundles.class),
                         BrokerCallGuard.OFF),
                 CoreObservations.none());
         suffix = Long.toString(System.nanoTime());
@@ -199,7 +201,7 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
             from.commit();
         }
 
-        List<jakarta.jms.Message> arrived = drain(target);
+        List<Message> arrived = drain(target);
         assertThat(arrived).hasSize(2);
         assertThat(((TextMessage) arrived.get(0)).getText()).isEqualTo("hello");
         assertThat(arrived.get(0).getStringProperty("app")).isEqualTo("kept");
@@ -285,14 +287,14 @@ class TransferPrimitivesTest extends ArtemisIntegrationTest {
         }
     }
 
-    private static List<jakarta.jms.Message> drain(String queue) {
-        List<jakarta.jms.Message> received = new ArrayList<>();
+    private static List<Message> drain(String queue) {
+        List<Message> received = new ArrayList<>();
         try (var factory = jms();
                 Connection connection = factory.createConnection()) {
             connection.start();
             Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
             MessageConsumer consumer = session.createConsumer(session.createQueue(queue));
-            for (jakarta.jms.Message m; (m = consumer.receive(1_000)) != null; ) {
+            for (Message m; (m = consumer.receive(1_000)) != null; ) {
                 if (m instanceof BytesMessage bytes) {
                     bytes.getBodyLength(); // read the large body while the session is open
                     byte[] all = new byte[(int) bytes.getBodyLength()];

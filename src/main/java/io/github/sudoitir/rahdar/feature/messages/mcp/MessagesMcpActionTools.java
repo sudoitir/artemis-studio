@@ -6,6 +6,7 @@ import io.github.sudoitir.rahdar.feature.messages.MessageService.Outcome;
 import io.github.sudoitir.rahdar.feature.messages.web.MessageRequests.MessageActionRequest;
 import io.github.sudoitir.rahdar.feature.messages.web.MessageRequests.SendMessageRequest;
 import io.github.sudoitir.rahdar.platform.broker.Attempt;
+import io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.rahdar.platform.broker.MessageKind;
 import io.github.sudoitir.rahdar.platform.mcp.McpArgs;
 import io.github.sudoitir.rahdar.platform.mcp.McpErrors;
@@ -151,8 +152,7 @@ public class MessagesMcpActionTools {
     /** A broker that could not be reached is a failed operation, not a failed call. */
     private static McpViews.MutationOutcome outcome(String action, String subject, Attempt<Outcome> attempt) {
         return switch (attempt) {
-            case Attempt.Failed<Outcome>(var kind, var detail) ->
-                throw new io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException(kind, detail);
+            case Attempt.Failed<Outcome>(var kind, var detail) -> throw new BrokerConnectionException(kind, detail);
             case Attempt.Ok<Outcome>(var value) ->
                 switch (value) {
                     case Outcome.DryRun(var count, var cap, var overCap, var node) ->

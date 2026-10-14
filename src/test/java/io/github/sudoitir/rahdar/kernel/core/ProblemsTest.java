@@ -2,6 +2,7 @@ package io.github.sudoitir.rahdar.kernel.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -38,8 +39,8 @@ class ProblemsTest {
 
     @Test
     void aHeavyReadStoppedAtItsTimeBoundNamesTheBound() {
-        ProblemDetail problem = Problems.heavyTimeout(
-                new HeavyTimeoutException("audit history reads", java.time.Duration.ofSeconds(30)));
+        ProblemDetail problem =
+                Problems.heavyTimeout(new HeavyTimeoutException("audit history reads", Duration.ofSeconds(30)));
 
         assertThat(problem.getStatus()).isEqualTo(503);
         assertThat(problem.getDetail()).contains("30 seconds").startsWith("Audit history reads");

@@ -2,11 +2,13 @@ package io.github.sudoitir.rahdar.feature.transfer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.sudoitir.rahdar.feature.transfer.internal.persistence.TransferLedger;
 import io.github.sudoitir.rahdar.feature.transfer.web.TransferViews.TransferRunView;
 import io.github.sudoitir.rahdar.platform.broker.StagingQueues;
 import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * 5.6: the target stops answering mid-move. The run fails with nothing lost: what it had taken and
@@ -14,8 +16,8 @@ import org.junit.jupiter.api.Test;
  * returns what staging holds to the source.
  */
 class TransferTargetDownTest extends TransferTestSupport {
-    @org.springframework.beans.factory.annotation.Autowired
-    io.github.sudoitir.rahdar.feature.transfer.internal.persistence.TransferLedger ledger;
+    @Autowired
+    TransferLedger ledger;
 
     private static final int COUNT = 200;
 

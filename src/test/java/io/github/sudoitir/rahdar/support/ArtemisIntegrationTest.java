@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.support;
 
 import io.github.sudoitir.rahdar.platform.broker.BrokerClientFactory;
+import io.github.sudoitir.rahdar.platform.broker.BrokerVersion;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
 import java.time.Duration;
 import org.springframework.web.client.RestClient;
@@ -31,8 +32,8 @@ import tools.jackson.databind.json.JsonMapper;
 public abstract class ArtemisIntegrationTest {
 
     /** The broker under test; CI sets {@code artemis.image} once per supported-range end. */
-    public static final String IMAGE = System.getProperty(
-            "artemis.image", "apache/artemis:" + io.github.sudoitir.rahdar.platform.broker.BrokerVersion.LATEST_TESTED);
+    public static final String IMAGE =
+            System.getProperty("artemis.image", "apache/artemis:" + BrokerVersion.LATEST_TESTED);
 
     public static final String BROKER_USER = "artemis";
     public static final String BROKER_PASSWORD = "artemis";

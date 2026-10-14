@@ -2,6 +2,7 @@ package io.github.sudoitir.rahdar.kernel.inbox;
 
 import io.github.sudoitir.rahdar.kernel.plugin.PluginApi;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -49,7 +50,7 @@ public record Notice(
 
         /** The value stored and sent on the wire. */
         public String wire() {
-            return name().toLowerCase(java.util.Locale.ROOT);
+            return name().toLowerCase(Locale.ROOT);
         }
     }
 

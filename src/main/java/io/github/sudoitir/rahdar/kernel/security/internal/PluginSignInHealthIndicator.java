@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.kernel.security.internal;
 
 import io.github.sudoitir.rahdar.kernel.core.RahdarHealth;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.health.contributor.AbstractHealthIndicator;
@@ -22,7 +23,7 @@ public class PluginSignInHealthIndicator extends AbstractHealthIndicator {
     @Override
     protected void doHealthCheck(Health.Builder builder) {
         List<String> failing = signIn.failures().stream()
-                .sorted(java.util.Comparator.comparing(PluginSignIn.Failure::providerId))
+                .sorted(Comparator.comparing(PluginSignIn.Failure::providerId))
                 .map(f -> f.providerId() + ": " + f.reason())
                 .toList();
         builder.status(failing.isEmpty() ? Status.UP : RahdarHealth.DEGRADED).withDetail("failing", failing);

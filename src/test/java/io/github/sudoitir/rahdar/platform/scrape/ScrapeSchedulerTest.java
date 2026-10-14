@@ -18,14 +18,17 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import io.github.sudoitir.rahdar.kernel.settings.SettingsService;
 import io.github.sudoitir.rahdar.kernel.stream.SseHub;
 import io.github.sudoitir.rahdar.platform.broker.BrokerAccount;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnectionException;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
+import io.github.sudoitir.rahdar.platform.broker.CoreSubscriptionManager;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDirectory;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDutyAcquired;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterDutyReleased;
+import io.github.sudoitir.rahdar.platform.clusters.ClusterOwnership;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterService;
 import io.github.sudoitir.rahdar.platform.clusters.NodeStateRecorder;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.BrokerNodeEntity;
@@ -34,15 +37,18 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -79,16 +85,16 @@ class ScrapeSchedulerTest {
     MetricSampleWriter metrics;
 
     @Mock
-    io.github.sudoitir.rahdar.platform.broker.CoreSubscriptionManager coreSubscriptions;
+    CoreSubscriptionManager coreSubscriptions;
 
     @Mock
-    io.github.sudoitir.rahdar.kernel.settings.SettingsService settings;
+    SettingsService settings;
 
     @Mock
-    org.springframework.context.ApplicationEventPublisher eventPublisher;
+    ApplicationEventPublisher eventPublisher;
 
     @Mock
-    io.github.sudoitir.rahdar.platform.clusters.ClusterOwnership ownership;
+    ClusterOwnership ownership;
 
     ScrapeCycle scrapeCycle;
     ScrapeScheduler scheduler;
@@ -111,7 +117,7 @@ class ScrapeSchedulerTest {
                 persist,
                 upsert,
                 metrics,
-                new StreamSignals(org.mockito.Mockito.mock(SseHub.class)),
+                new StreamSignals(Mockito.mock(SseHub.class)),
                 coreSubscriptions,
                 eventPublisher);
     }
@@ -228,7 +234,7 @@ class ScrapeSchedulerTest {
         ClusterEntity cluster = cluster("c");
         BrokerNodeEntity stalled = node(clusterId, "stalled", STALLED);
         BrokerNodeEntity healthy = node(clusterId, "healthy", GOOD);
-        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
         when(clusters.owned()).thenReturn(List.of(cluster));
         when(clusters.nodes(cluster.getId())).thenReturn(List.of(stalled, healthy));
         when(connections.forCluster(cluster.getId(), STALLED)).thenAnswer(call -> {
@@ -418,7 +424,7 @@ class ScrapeSchedulerTest {
         ClusterEntity cluster = cluster("c");
         BrokerNodeEntity slow = node(clusterId, "slow", STALLED);
         BrokerNodeEntity healthy = node(clusterId, "healthy", GOOD);
-        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
         when(clusters.owned()).thenReturn(List.of(cluster));
         when(clusters.nodes(cluster.getId())).thenReturn(List.of(slow, healthy));
         when(connections.forCluster(cluster.getId(), STALLED)).thenAnswer(call -> {

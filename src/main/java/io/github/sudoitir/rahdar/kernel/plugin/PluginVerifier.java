@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.boot.info.BuildProperties;
 
@@ -131,8 +132,7 @@ public final class PluginVerifier {
     }
 
     /** {@code META-INF/build-info.properties} of the Rahdar jar on the classpath, when there is one. */
-    private static org.springframework.beans.factory.ObjectProvider<BuildProperties> buildProperties()
-            throws IOException {
+    private static ObjectProvider<BuildProperties> buildProperties() throws IOException {
         StaticListableBeanFactory beans = new StaticListableBeanFactory();
         try (InputStream in = PluginVerifier.class.getResourceAsStream("/META-INF/build-info.properties")) {
             if (in != null) {

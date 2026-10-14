@@ -7,7 +7,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.github.sudoitir.rahdar.kernel.security.AccessChanges;
 import io.github.sudoitir.rahdar.kernel.security.Grant;
+import io.github.sudoitir.rahdar.kernel.security.RahdarPrincipal;
 import io.github.sudoitir.rahdar.kernel.security.ScopeIds;
+import io.github.sudoitir.rahdar.kernel.security.SessionAuthentication;
+import io.github.sudoitir.rahdar.kernel.security.SessionFacts;
 import io.github.sudoitir.rahdar.kernel.security.TokenGrant;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserEntity;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserRepository;
@@ -22,7 +25,13 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -107,7 +116,7 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
         mvc().perform(get("/api/v1/environments").header("Authorization", "Bearer " + minted.plaintext()))
                 .andExpect(status().isForbidden());
 
-        mvc().perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/environments")
+        mvc().perform(MockMvcRequestBuilders.post("/api/v1/environments")
                         .contentType("application/json")
                         .content("{\"name\":\"x\",\"colour\":\"#000000\",\"sortOrder\":0}")
                         .header("Authorization", "Bearer " + minted.plaintext()))
@@ -218,30 +227,23 @@ class ApiTokenAuthenticationFilterTest extends PostgresIntegrationTest {
     void aJunkAuthorizationHeaderNextToASessionIsRefusedNotAllowedPastCsrf() throws Exception {
         AppUserEntity user = newUser("csrf-junk-header");
         grantViewer(user);
-        var principal = new io.github.sudoitir.rahdar.kernel.security.RahdarPrincipal(
+        var principal = new RahdarPrincipal(
                 user.getId(),
                 user.getUsername(),
                 Set.of(new Grant(Grant.ScopeType.GLOBAL, ScopeIds.GLOBAL, Set.of("cluster:read"))),
                 false);
-        var context = org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+        var context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(
-                org.springframework.security.authentication.UsernamePasswordAuthenticationToken.authenticated(
-                        principal, null, principal.getAuthorities()));
-        var session = new org.springframework.mock.web.MockHttpSession();
-        session.setAttribute(
-                org.springframework.security.web.context.HttpSessionSecurityContextRepository
-                        .SPRING_SECURITY_CONTEXT_KEY,
-                context);
+                UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
+        var session = new MockHttpSession();
+        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
         // A real sign-in records these facts; a session without them counts as signed out.
         session.setAttribute(
-                io.github.sudoitir.rahdar.kernel.security.SessionAuthentication.FACTS_ATTRIBUTE,
-                io.github.sudoitir.rahdar.kernel.security.SessionFacts.signedIn(
-                        new org.springframework.mock.web.MockHttpServletRequest()));
+                SessionAuthentication.FACTS_ATTRIBUTE, SessionFacts.signedIn(new MockHttpServletRequest()));
 
         mvc().perform(get("/api/v1/clusters").session(session)).andExpect(status().isOk());
         for (String header : List.of("Basic eDp4", "Bearer not-a-real-token", "x")) {
-            mvc().perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
-                                    "/api/v1/environments")
+            mvc().perform(MockMvcRequestBuilders.post("/api/v1/environments")
                             .session(session)
                             .header("Authorization", header)
                             .contentType("application/json")

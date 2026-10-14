@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -96,7 +97,7 @@ public class JdbcConfigPropertySourceLocator implements PropertySourceLocator {
 
     private static void load(
             Connection connection, Map<String, Object> into, String application, String profile, String label)
-            throws java.sql.SQLException {
+            throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(SELECT)) {
             statement.setString(1, application);
             statement.setString(2, profile);

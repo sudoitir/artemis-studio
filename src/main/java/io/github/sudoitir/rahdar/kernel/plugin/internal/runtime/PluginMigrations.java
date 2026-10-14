@@ -1,15 +1,23 @@
 package io.github.sudoitir.rahdar.kernel.plugin.internal.runtime;
 
 import io.github.sudoitir.rahdar.kernel.plugin.internal.validation.ChangesetInfo;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarFile;
+import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import liquibase.Scope;
 import liquibase.changelog.ChangeLogParameters;
@@ -28,6 +36,7 @@ import liquibase.database.jvm.JdbcConnection;
 import liquibase.parser.ChangeLogParserFactory;
 import liquibase.resource.ZipResourceAccessor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
 
 /**
  * Applies a plugin's own {@code db/changelog/plugin/<id>/changelog.xml} into its own schema
@@ -52,7 +61,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * provided, and requires the {@code url} argument unless the {@code DATABASE_ARG} slot is also set
  * directly (the spike found this).
  */
-@org.springframework.stereotype.Component
+@Component
 @lombok.extern.slf4j.Slf4j
 public class PluginMigrations {
 
@@ -185,13 +194,13 @@ public class PluginMigrations {
         try (Connection connection = pluginPool.getConnection()) {
             Database database = openDatabase(connection, schema);
             return withResourceAccessor(jarPath, accessor -> {
-                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
                 CommandScope updateSql = new CommandScope(UpdateSqlCommandStep.COMMAND_NAME);
                 updateSql.addArgumentValue(UpdateSqlCommandStep.CHANGELOG_FILE_ARG, changelogPath(pluginId));
                 provideDatabase(updateSql, database);
                 updateSql.setOutput(out);
                 updateSql.execute();
-                return withoutBookkeeping(out.toString(java.nio.charset.StandardCharsets.UTF_8));
+                return withoutBookkeeping(out.toString(StandardCharsets.UTF_8));
             });
         }
     }
@@ -202,12 +211,11 @@ public class PluginMigrations {
      * The output is blocks separated by blank lines, each led by a comment naming it.
      */
     static String withoutBookkeeping(String sql) {
-        return java.util.Arrays.stream(sql.split("\\R\\s*\\R"))
-                        .filter(block ->
-                                !block.toLowerCase(java.util.Locale.ROOT).contains("databasechangelog"))
+        return Arrays.stream(sql.split("\\R\\s*\\R"))
+                        .filter(block -> !block.toLowerCase(Locale.ROOT).contains("databasechangelog"))
                         .filter(block -> block.lines().anyMatch(line -> !line.isBlank() && !line.startsWith("--")))
                         .map(String::strip)
-                        .collect(java.util.stream.Collectors.joining("\n\n"))
+                        .collect(Collectors.joining("\n\n"))
                 + "\n";
     }
 
@@ -219,8 +227,8 @@ public class PluginMigrations {
     // ---- internals ---------------------------------------------------------------------------
 
     /** A changelog is optional: a plugin that keeps no data of its own has none, and no schema. */
-    public boolean hasChangelog(Path jarPath, String pluginId) throws java.io.IOException {
-        try (java.util.jar.JarFile jar = new java.util.jar.JarFile(jarPath.toFile())) {
+    public boolean hasChangelog(Path jarPath, String pluginId) throws IOException {
+        try (JarFile jar = new JarFile(jarPath.toFile())) {
             return jar.getJarEntry(changelogPath(pluginId)) != null;
         }
     }
@@ -280,7 +288,7 @@ public class PluginMigrations {
         command.addArgumentValue(DbUrlConnectionArgumentsCommandStep.DATABASE_ARG, database);
     }
 
-    private void acquireAdvisoryLock(Connection connection, String pluginId) throws java.sql.SQLException {
+    private void acquireAdvisoryLock(Connection connection, String pluginId) throws SQLException {
         try (var ps = connection.prepareStatement("SELECT pg_advisory_lock(hashtext(?))")) {
             ps.setString(1, "plugin:" + pluginId);
             ps.execute();
@@ -292,7 +300,7 @@ public class PluginMigrations {
         try (var ps = connection.prepareStatement("SELECT pg_advisory_unlock(hashtext(?))")) {
             ps.setString(1, "plugin:" + pluginId);
             ps.execute();
-        } catch (java.sql.SQLException e) {
+        } catch (SQLException e) {
             log.warn(
                     "Could not release the activation lock of plugin '{}', the connection is gone: {}",
                     pluginId,
@@ -300,13 +308,13 @@ public class PluginMigrations {
         }
     }
 
-    private void executeUpdate(Connection connection, String sql) throws java.sql.SQLException {
+    private void executeUpdate(Connection connection, String sql) throws SQLException {
         try (Statement st = connection.createStatement()) {
             st.execute(sql);
         }
     }
 
-    private Set<String> coreRelations(Connection connection, String coreSchema) throws java.sql.SQLException {
+    private Set<String> coreRelations(Connection connection, String coreSchema) throws SQLException {
         Set<String> relations = new HashSet<>();
         try (var ps = connection.prepareStatement("""
                 SELECT c.relname FROM pg_class c
@@ -326,7 +334,7 @@ public class PluginMigrations {
     }
 
     private List<String> foreignKeysFromSchemaIntoCore(Connection connection, String schema, String coreSchema)
-            throws java.sql.SQLException {
+            throws SQLException {
         List<String> violations = new ArrayList<>();
         try (var ps = connection.prepareStatement("""
                 SELECT con.conname, cl.relname

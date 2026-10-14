@@ -10,6 +10,7 @@ import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.Browser;
 import java.net.http.HttpResponse;
 import java.security.MessageDigest;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
@@ -138,7 +139,7 @@ class TrustedDeviceIntegrationTest extends AccountIntegrationTest {
         signInTrusting(browser, "td-skip", enrolled, true);
         Instant before = jdbc.sql("SELECT last_used_at FROM local_trusted_device WHERE user_id ="
                         + " (SELECT id FROM app_user WHERE username = 'td-skip')")
-                .query(java.sql.Timestamp.class)
+                .query(Timestamp.class)
                 .single()
                 .toInstant();
         browser.post("/api/v1/auth/logout", null);
@@ -162,7 +163,7 @@ class TrustedDeviceIntegrationTest extends AccountIntegrationTest {
                 .isEqualTo("SECOND_FACTOR_REQUIRED");
         assertThat(jdbc.sql("SELECT last_used_at FROM local_trusted_device WHERE user_id ="
                                 + " (SELECT id FROM app_user WHERE username = 'td-skip')")
-                        .query(java.sql.Timestamp.class)
+                        .query(Timestamp.class)
                         .single()
                         .toInstant())
                 .isAfter(before);

@@ -1,5 +1,7 @@
 package io.github.sudoitir.rahdar.platform.governance;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -58,7 +60,7 @@ final class Detectors {
 
     /** Every detected span, scanning detector by detector; later detectors skip spans already claimed. */
     static List<Hit> scan(String text) {
-        java.util.ArrayList<Hit> hits = new java.util.ArrayList<>();
+        ArrayList<Hit> hits = new ArrayList<>();
         for (Detector detector : ALL) {
             Matcher m = detector.pattern().matcher(text);
             while (m.find()) {
@@ -70,7 +72,7 @@ final class Detectors {
                 }
             }
         }
-        hits.sort(java.util.Comparator.comparingInt(Hit::start));
+        hits.sort(Comparator.comparingInt(Hit::start));
         return hits;
     }
 

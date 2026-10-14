@@ -22,6 +22,7 @@ import io.github.sudoitir.rahdar.platform.scrape.MetricSamples.NodeBucket;
 import io.github.sudoitir.rahdar.platform.scrape.PluginMetrics;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -156,7 +157,7 @@ class MetricQueryServiceTest {
 
     @Test
     void splitByNodeWidensTheStepSoEveryNodeTogetherStaysWithinTheBound() {
-        List<ClusterNode> many = new java.util.ArrayList<>();
+        List<ClusterNode> many = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             many.add(node(UUID.randomUUID(), "node-" + i, true));
         }

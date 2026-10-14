@@ -7,7 +7,7 @@ import java.util.Map;
 
 /**
  * design.md §5/§6/§8: what an activation would do, computed before anything is touched —
- * {@link io.github.sudoitir.rahdar.kernel.plugin.internal.host.PluginHost#plan(String)}
+ * {@link PluginHost#plan(String)}
  * returns this for the review screen, and {@code activate} returns the same shape once it has
  * also refused what {@code plan} only reports (missing {@code requires}, the connection budget).
  *

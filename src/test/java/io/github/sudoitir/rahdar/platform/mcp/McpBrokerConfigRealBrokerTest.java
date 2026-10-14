@@ -12,6 +12,8 @@ import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserRep
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.RolePermissionRepository;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.RoleRepository;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleRepository;
+import io.github.sudoitir.rahdar.platform.broker.Attempt;
+import io.github.sudoitir.rahdar.platform.clusters.ClusterService;
 import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterRepository;
 import io.github.sudoitir.rahdar.platform.clusters.web.ClusterRequests.RegisterClusterRequest;
 import io.github.sudoitir.rahdar.platform.clusters.web.ClusterViews.ClusterDetail;
@@ -82,7 +84,7 @@ class McpBrokerConfigRealBrokerTest extends PostgresIntegrationTest {
     ApiTokenService tokens;
 
     @Autowired
-    io.github.sudoitir.rahdar.platform.clusters.ClusterService clusterService;
+    ClusterService clusterService;
 
     private MockMvc mvc;
     private UUID clusterId;
@@ -110,7 +112,7 @@ class McpBrokerConfigRealBrokerTest extends PostgresIntegrationTest {
                 null,
                 null,
                 false));
-        if (!(attempt instanceof io.github.sudoitir.rahdar.platform.broker.Attempt.Ok<ClusterDetail> ok)) {
+        if (!(attempt instanceof Attempt.Ok<ClusterDetail> ok)) {
             throw new IllegalStateException("could not register the container broker: " + attempt);
         }
         clusterId = ok.value().id();

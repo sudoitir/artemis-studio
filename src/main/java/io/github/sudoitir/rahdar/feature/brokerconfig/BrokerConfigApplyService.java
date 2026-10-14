@@ -42,10 +42,12 @@ import io.github.sudoitir.rahdar.platform.clusters.ClusterNode;
 import io.github.sudoitir.rahdar.platform.clusters.ClusterSecrets;
 import io.github.sudoitir.rahdar.platform.clusters.SplitBrainStatus;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -763,7 +765,7 @@ public class BrokerConfigApplyService {
                     .filter(d -> d.match().equals(s.key()))
                     .findFirst()
                     .orElseThrow();
-            Map<PermissionType, Set<String>> roles = new java.util.EnumMap<>(PermissionType.class);
+            Map<PermissionType, Set<String>> roles = new EnumMap<>(PermissionType.class);
             roles.putAll(decl.permissions());
             ops.addSecuritySettings(client, broker, s.key(), roles);
         }
@@ -798,7 +800,7 @@ public class BrokerConfigApplyService {
         String ref = doc.bridges().stream()
                 .filter(b -> b.name().equals(s.key()))
                 .map(BrokerConfigDocument.BridgeDecl::credentialRef)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .orElse(null);
         if (ref == null) {

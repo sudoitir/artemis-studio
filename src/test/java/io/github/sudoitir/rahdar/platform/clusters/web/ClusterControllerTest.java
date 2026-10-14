@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -273,7 +274,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(PRIMARY + ".core").value("ACCEPTED"))
                 .andExpect(jsonPath(BACKUP + ".management").value("REJECTED"))
-                .andExpect(jsonPath(BACKUP + ".managementUrl").value(org.hamcrest.Matchers.contains((String) null)))
+                .andExpect(jsonPath(BACKUP + ".managementUrl").value(Matchers.contains((String) null)))
                 .andExpect(jsonPath(BACKUP + ".urlProblem").value("CREDENTIALS_REJECTED"));
     }
 
@@ -320,7 +321,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registerBody()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.adoption").value(org.hamcrest.Matchers.nullValue()));
+                .andExpect(jsonPath("$.adoption").value(Matchers.nullValue()));
     }
 
     private String registerBody(boolean adopt) {
@@ -407,9 +408,8 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                         .content(registerBody()))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.brokerErrorKind").value("UNSUPPORTED_VERSION"))
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("2.31.2")))
-                .andExpect(jsonPath("$.detail")
-                        .value(org.hamcrest.Matchers.containsString(BrokerVersion.MINIMUM + " and later")));
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("2.31.2")))
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString(BrokerVersion.MINIMUM + " and later")));
 
         assertThat(clusters.count()).isZero();
         assertThat(audits.findAll()).singleElement().satisfies(e -> {
@@ -428,8 +428,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.brokerErrorKind").value("CREDENTIALS_REJECTED"))
                 .andExpect(jsonPath("$.account").value("MANAGEMENT"))
-                .andExpect(
-                        jsonPath("$.type").value(org.hamcrest.Matchers.containsString("broker-credentials-rejected")));
+                .andExpect(jsonPath("$.type").value(Matchers.containsString("broker-credentials-rejected")));
 
         assertThat(clusters.count()).isZero();
         assertThat(audits.findAll()).singleElement().satisfies(e -> {
@@ -529,14 +528,13 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                                   "credentials": { "username": "artemis", "password": "artemis" } }
                                 """.formatted(alias)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.type")
-                        .value(org.hamcrest.Matchers.endsWith("/problems/cluster-already-registered")))
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("/problems/cluster-already-registered")))
                 .andExpect(jsonPath("$.title").value("These brokers are already registered"))
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("\"prod-emea\"")))
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("\"prod-emea\"")))
                 .andExpect(jsonPath("$.existingClusterId").value(existing.toString()))
                 .andExpect(jsonPath("$.existingClusterName").value("prod-emea"))
                 .andExpect(jsonPath("$.overlappingNodes")
-                        .value(org.hamcrest.Matchers.contains("artemis-backup:61616", "artemis-primary:61616")));
+                        .value(Matchers.contains("artemis-backup:61616", "artemis-primary:61616")));
 
         assertThat(clusters.findAll()).extracting(c -> c.getId()).containsExactly(existing);
         assertThat(audits.findAll()).singleElement().satisfies(e -> {
@@ -570,8 +568,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
                         .content(registerBody()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("These brokers are already registered"))
-                .andExpect(jsonPath("$.detail")
-                        .value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("prod-emea"))))
+                .andExpect(jsonPath("$.detail").value(Matchers.not(Matchers.containsString("prod-emea"))))
                 .andExpect(jsonPath("$.existingClusterId").doesNotExist())
                 .andExpect(jsonPath("$.overlappingNodes").doesNotExist());
         assertThat(clusters.count()).isEqualTo(1);
@@ -587,7 +584,7 @@ class ClusterControllerTest extends PostgresIntegrationTest {
 
     @Test
     void unknownClusterIs404() throws Exception {
-        mvc.perform(get("/api/v1/clusters/{c}/topology", java.util.UUID.randomUUID()))
+        mvc.perform(get("/api/v1/clusters/{c}/topology", UUID.randomUUID()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.title").value("Resource not found"));
     }

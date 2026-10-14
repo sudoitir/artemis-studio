@@ -15,16 +15,18 @@ import io.github.sudoitir.rahdar.platform.clusters.internal.persistence.ClusterR
 import io.github.sudoitir.rahdar.support.AdminAuthenticationExtension;
 import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.context.WebApplicationContext;
 
 /** Rule CRUD + audit trail (alerting spec, audit-log spec). */
-@org.junit.jupiter.api.extension.ExtendWith(AdminAuthenticationExtension.class)
+@ExtendWith(AdminAuthenticationExtension.class)
 class AlertsControllerTest extends PostgresIntegrationTest {
 
     MockMvc mvc;
@@ -71,7 +73,7 @@ class AlertsControllerTest extends PostgresIntegrationTest {
 
         mvc.perform(get("/api/v1/clusters/{id}/alerts/rules", clusterId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[*].name", org.hamcrest.Matchers.hasItem("Deep queue")));
+                .andExpect(jsonPath("$.data[*].name", Matchers.hasItem("Deep queue")));
 
         String updateBody = """
                 {"name":"Deep queue v2","kind":"METRIC_THRESHOLD","metric":"messageCount","comparator":"GT",

@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.Test;
@@ -87,7 +88,7 @@ class BodyDecoderTest {
     @Test
     void corruptGzipIsBinary() throws IOException {
         byte[] whole = gzip(utf8(JSON.repeat(50)));
-        byte[] cut = java.util.Arrays.copyOf(whole, whole.length / 2);
+        byte[] cut = Arrays.copyOf(whole, whole.length / 2);
         assertThat(BodyDecoder.decode(cut).isBinary()).isTrue();
         assertThat(BodyDecoder.decode(new byte[] {0x1f, (byte) 0x8b, 9, 9, 9}).isBinary())
                 .isTrue();
@@ -99,7 +100,7 @@ class BodyDecoderTest {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (OutputStream gz = new GZIPOutputStream(out)) {
             byte[] block = new byte[1 << 20];
-            java.util.Arrays.fill(block, (byte) ' ');
+            Arrays.fill(block, (byte) ' ');
             for (int i = 0; i <= BodyDecoder.MAX_DECOMPRESSED_BYTES >> 20; i++) {
                 gz.write(block);
             }

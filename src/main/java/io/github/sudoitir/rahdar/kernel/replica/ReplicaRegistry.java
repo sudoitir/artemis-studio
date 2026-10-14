@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.kernel.replica;
 
 import io.github.sudoitir.rahdar.kernel.core.ShutdownPhases;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -269,7 +270,7 @@ public class ReplicaRegistry implements SmartLifecycle {
     private static String hostName() {
         try {
             return InetAddress.getLocalHost().getHostName();
-        } catch (java.io.IOException _) {
+        } catch (IOException _) {
             return "unknown";
         }
     }

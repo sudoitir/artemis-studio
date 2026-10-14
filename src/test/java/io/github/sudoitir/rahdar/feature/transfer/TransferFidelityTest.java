@@ -6,6 +6,7 @@ import io.github.sudoitir.rahdar.feature.transfer.web.TransferViews.TransferRunV
 import jakarta.jms.BytesMessage;
 import jakarta.jms.Connection;
 import jakarta.jms.DeliveryMode;
+import jakarta.jms.JMSException;
 import jakarta.jms.MapMessage;
 import jakarta.jms.Message;
 import jakarta.jms.MessageProducer;
@@ -140,7 +141,7 @@ class TransferFidelityTest extends TransferTestSupport {
     private static int seq(Message m) {
         try {
             return m.getIntProperty("seq");
-        } catch (jakarta.jms.JMSException e) {
+        } catch (JMSException e) {
             throw new IllegalStateException(e);
         }
     }

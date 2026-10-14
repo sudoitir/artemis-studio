@@ -16,9 +16,13 @@ import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,7 +58,7 @@ class PluginLicenseStoreIntegrationTest extends PostgresIntegrationTest {
     @Autowired
     ConfigurableApplicationContext context;
 
-    private final java.util.List<String> ids = new java.util.ArrayList<>();
+    private final List<String> ids = new ArrayList<>();
 
     @AfterEach
     void cleanUp() {
@@ -118,8 +122,7 @@ class PluginLicenseStoreIntegrationTest extends PostgresIntegrationTest {
         assertThat(summary.state()).isEqualTo(State.VALID);
         assertThat(summary.licensee()).isEqualTo("Acme Ltd");
         assertThat(summary.detail()).isEqualTo("all good");
-        assertThat(summary.expiresAt())
-                .isCloseTo(expiry, org.assertj.core.api.Assertions.within(1, java.time.temporal.ChronoUnit.MILLIS));
+        assertThat(summary.expiresAt()).isCloseTo(expiry, Assertions.within(1, ChronoUnit.MILLIS));
         assertThat(summary.reportedAt()).isNotNull();
 
         pluginsView(id).report(sha, new Verdict(Status.OVER_LIMIT, null, "Acme Ltd", "7 of 5"));
@@ -214,7 +217,7 @@ class PluginLicenseStoreIntegrationTest extends PostgresIntegrationTest {
     void anEmptyOrOversizedFileIsRefusedWithoutItsContentInTheMessage() {
         String id = plugin(true);
         byte[] oversized = new byte[PluginLicenseStore.MAX_BYTES + 1];
-        java.util.Arrays.fill(oversized, (byte) 'x');
+        Arrays.fill(oversized, (byte) 'x');
 
         assertThatThrownBy(() -> store.put(id, new byte[0], "ops"))
                 .isInstanceOf(PluginRefusedException.class)

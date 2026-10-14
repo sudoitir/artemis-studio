@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -169,8 +170,7 @@ public class CaptureTap {
         }
     }
 
-    private final java.util.concurrent.atomic.AtomicBoolean warnedDefaultRole =
-            new java.util.concurrent.atomic.AtomicBoolean();
+    private final AtomicBoolean warnedDefaultRole = new AtomicBoolean();
 
     /**
      * The divert's routing name, which must not collide with any existing binding.

@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
 import org.springframework.http.server.PathContainer;
@@ -275,7 +276,7 @@ public class FeatureRegistry implements PluginBridge {
      * one source for every reader (role editor, API-key picker, manifest), so they cannot drift.
      */
     public List<CatalogueEntry> catalogue() {
-        return java.util.stream.Stream.concat(enabled().stream(), plugins.values().stream())
+        return Stream.concat(enabled().stream(), plugins.values().stream())
                 .flatMap(d -> d.permissions().stream().map(p -> CatalogueEntry.of(d, p)))
                 .toList();
     }

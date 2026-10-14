@@ -50,11 +50,13 @@ import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshot;
 import io.github.sudoitir.rahdar.platform.scrape.QueueSnapshots;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -141,7 +143,7 @@ class BrokerConfigServiceTest {
     private static BrokerConfigDocument document(String... addresses) {
         return new BrokerConfigDocument(
                 1,
-                java.util.Arrays.stream(addresses)
+                Arrays.stream(addresses)
                         .map(a -> new AddressDecl(a, Set.of("ANYCAST"), List.of()))
                         .toList(),
                 List.of(),
@@ -201,8 +203,8 @@ class BrokerConfigServiceTest {
                         BrokerConfigService.NodeState::live,
                         BrokerConfigService.NodeState::state)
                 .containsExactly(
-                        org.assertj.core.api.Assertions.tuple("node-a", true, State.NOT_EVALUATED),
-                        org.assertj.core.api.Assertions.tuple("node-b", false, State.NOT_EVALUATED));
+                        Assertions.tuple("node-a", true, State.NOT_EVALUATED),
+                        Assertions.tuple("node-b", false, State.NOT_EVALUATED));
     }
 
     @Test
@@ -263,9 +265,7 @@ class BrokerConfigServiceTest {
 
         assertThat(service.revisions(CLUSTER))
                 .extracting(BrokerConfigService.Revision::revision, BrokerConfigService.Revision::source)
-                .containsExactly(
-                        org.assertj.core.api.Assertions.tuple(2, Source.EDIT),
-                        org.assertj.core.api.Assertions.tuple(1, Source.IMPORT_XML));
+                .containsExactly(Assertions.tuple(2, Source.EDIT), Assertions.tuple(1, Source.IMPORT_XML));
         assertThat(service.revision(CLUSTER, 1).document().addresses()).hasSize(1);
         assertThatThrownBy(() -> service.revision(CLUSTER, 9)).isInstanceOf(NotFoundException.class);
     }

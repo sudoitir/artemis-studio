@@ -6,6 +6,7 @@ import com.tngtech.archunit.core.domain.JavaAccess;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
+import com.tngtech.archunit.core.domain.JavaCodeUnitAccess;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -31,7 +32,9 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.springframework.stereotype.Service;
 
 /**
  * An operation that takes the name of a queue or an address decides, somewhere on its way, whether the caller
@@ -240,10 +243,8 @@ class ResourceCheckCoverageTest {
         assertThat(subjects)
                 .extracting(Subject::id, Subject::checked)
                 .contains(
-                        org.assertj.core.api.Assertions.tuple(
-                                "architecture.ResourceCheckCoverageTest$Unguarded.purge", false),
-                        org.assertj.core.api.Assertions.tuple(
-                                "architecture.ResourceCheckCoverageTest$Guarded.purge", true));
+                        Assertions.tuple("architecture.ResourceCheckCoverageTest$Unguarded.purge", false),
+                        Assertions.tuple("architecture.ResourceCheckCoverageTest$Guarded.purge", true));
         assertThat(subjects)
                 .filteredOn(s -> s.id().endsWith("Guarded.copy"))
                 .singleElement()
@@ -253,14 +254,14 @@ class ResourceCheckCoverageTest {
                 });
     }
 
-    @org.springframework.stereotype.Service
+    @Service
     static class Unguarded {
         public void purge(String queueName) {
             // Deliberately checks nothing: the scan must report this entry point as unguarded.
         }
     }
 
-    @org.springframework.stereotype.Service
+    @Service
     static class Guarded {
         private ClusterAccessGuard guard;
 
@@ -386,7 +387,7 @@ class ResourceCheckCoverageTest {
         // The resolver's can(cluster, permission) asks about the cluster; only the overloads on a resource count.
         return !access.getTargetOwner().getName().equals(PermissionResolver.class.getName())
                 || !access.getName().equals("can")
-                || ((com.tngtech.archunit.core.domain.JavaCodeUnitAccess<?>) access)
+                || ((JavaCodeUnitAccess<?>) access)
                         .getTarget().getRawParameterTypes().stream()
                                 .anyMatch(t -> t.getName().equals(ResourceRef.class.getName()));
     }

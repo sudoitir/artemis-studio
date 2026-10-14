@@ -5,7 +5,7 @@ import java.util.UUID;
 /**
  * Everything {@link CoreConnectionFactory} needs to open a Core connection for a
  * cluster: the (already decrypted) credentials and the optional TLS bundle name.
- * Like {@link io.github.sudoitir.rahdar.platform.broker.BrokerConnectionSettings}
+ * Like {@link BrokerConnectionSettings}
  * this is per cluster — {@code broker_credential} is keyed {@code (cluster_id,
  * kind)} — so one of these serves every node.
  *

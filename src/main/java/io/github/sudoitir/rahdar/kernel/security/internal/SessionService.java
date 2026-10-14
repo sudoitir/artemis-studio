@@ -18,6 +18,7 @@ import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -100,7 +101,7 @@ public class SessionService {
                     Session stored = store.findById(id);
                     return stored == null ? null : view(id, stored, id.equals(currentId), request);
                 })
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(AccountSessionView::current)
                         .reversed()
                         .thenComparing(AccountSessionView::lastActivityAt, Comparator.reverseOrder()))

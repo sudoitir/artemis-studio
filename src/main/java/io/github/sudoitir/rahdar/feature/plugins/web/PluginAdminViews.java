@@ -4,6 +4,8 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
 import io.github.sudoitir.rahdar.kernel.plugin.PluginLicenseStore;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -248,11 +250,11 @@ public final class PluginAdminViews {
 
     /** Exactly one of {@code upload} (a pending upload's sha256, whose signer is trusted) and {@code pem}. */
     public record AddKeyRequest(
-            @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 100) String name,
+            @NotBlank @Size(max = 100) String name,
 
-            @Schema(nullable = true) @jakarta.validation.constraints.Size(max = 64) String upload,
+            @Schema(nullable = true) @Size(max = 64) String upload,
 
-            @Schema(nullable = true) @jakarta.validation.constraints.Size(max = 8192) String pem) {}
+            @Schema(nullable = true) @Size(max = 8192) String pem) {}
 
     public record TrustPolicyRequest(
             @Schema(requiredMode = REQUIRED) boolean allowUnverified) {}
@@ -315,6 +317,5 @@ public final class PluginAdminViews {
             @Schema(requiredMode = REQUIRED) Instant grantedAt,
             @Schema(nullable = true) String grantedBy) {}
 
-    public record GrantInstallerRequest(
-            @jakarta.validation.constraints.NotBlank String username) {}
+    public record GrantInstallerRequest(@NotBlank String username) {}
 }

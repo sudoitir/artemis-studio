@@ -31,6 +31,7 @@ import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleEn
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.UserRoleRepository;
 import io.github.sudoitir.rahdar.platform.broker.Attempt;
 import io.github.sudoitir.rahdar.platform.broker.BrokerConnections;
+import io.github.sudoitir.rahdar.platform.broker.BrokerMBeans;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaBrokerClient;
 import io.github.sudoitir.rahdar.platform.broker.JolokiaRequest;
 import io.github.sudoitir.rahdar.platform.broker.QueueRow;
@@ -811,9 +812,8 @@ class PluginMessagingRealBrokerTest extends PostgresIntegrationTest {
     }
 
     private long queueAttribute(String queue, String attribute) {
-        JsonNode value = client.single(JolokiaRequest.read(
-                        io.github.sudoitir.rahdar.platform.broker.BrokerMBeans.queue(broker, queue, queue, "anycast"),
-                        attribute))
+        JsonNode value = client.single(
+                        JolokiaRequest.read(BrokerMBeans.queue(broker, queue, queue, "anycast"), attribute))
                 .attribute(attribute);
         return value == null ? -1 : value.asLong();
     }

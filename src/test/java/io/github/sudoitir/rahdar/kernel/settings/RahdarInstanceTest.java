@@ -9,6 +9,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -31,9 +32,8 @@ class RahdarInstanceTest extends PostgresIntegrationTest {
             return instance.id();
         };
         try (var pool = Executors.newFixedThreadPool(8)) {
-            List<Future<String>> ids = java.util.stream.IntStream.range(0, 8)
-                    .mapToObj(i -> pool.submit(boot))
-                    .toList();
+            List<Future<String>> ids =
+                    IntStream.range(0, 8).mapToObj(i -> pool.submit(boot)).toList();
             start.countDown();
             assertThat(ids.stream().map(f -> {
                         try {

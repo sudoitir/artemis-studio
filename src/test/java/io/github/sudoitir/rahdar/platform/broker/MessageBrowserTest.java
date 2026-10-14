@@ -9,6 +9,8 @@ import io.github.sudoitir.rahdar.platform.broker.MessageBrowser.BrowsePage;
 import io.github.sudoitir.rahdar.platform.broker.MessageBrowser.BrowsedMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Base64;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
@@ -99,7 +101,7 @@ class MessageBrowserTest {
                     .append("{\"messageID\":")
                     .append(i + 1)
                     .append(",\"type\":4,\"durable\":true,\"BodyPreview\":")
-                    .append(java.util.Arrays.toString(previews[i]))
+                    .append(Arrays.toString(previews[i]))
                     .append('}');
         }
         String settings = sizeLimit == null
@@ -139,13 +141,13 @@ class MessageBrowserTest {
         BrowsedMessage m = browseBytes(-1, new int[] {1, 0, -1}).messages().get(0);
 
         assertThat(m.bodyEncoding()).isEqualTo(MessageBrowser.BodyEncoding.BASE64);
-        assertThat(java.util.Base64.getDecoder().decode(m.body())).containsExactly(1, 0, -1);
+        assertThat(Base64.getDecoder().decode(m.body())).containsExactly(1, 0, -1);
     }
 
     @Test
     void aPreviewAtTheLimitIsTruncatedAndASplitCharacterIsDropped() {
         // "ab\u00e9" is 4 bytes; a limit of 3 cuts the two-byte character in half.
-        byte[] cut = java.util.Arrays.copyOf("ab\u00e9".getBytes(StandardCharsets.UTF_8), 3);
+        byte[] cut = Arrays.copyOf("ab\u00e9".getBytes(StandardCharsets.UTF_8), 3);
         BrowsedMessage m = browseBytes(3, ints(cut)).messages().get(0);
 
         assertThat(m.body()).isEqualTo("ab");

@@ -13,12 +13,14 @@ import io.github.sudoitir.rahdar.kernel.plugin.internal.persistence.PluginInstal
 import io.github.sudoitir.rahdar.kernel.plugin.web.ManifestController;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 /**
  * The manifest lists every built-in module with its enabled flag and attributes the permission
@@ -146,9 +148,8 @@ class ManifestControllerTest {
                         new StaticListableBeanFactory().getBeanProvider(IdentityProviderListing.class)))
                 // What ApiVersioningConfig adds in the application.
                 .setCustomHandlerMapping(() -> {
-                    var mapping =
-                            new org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping();
-                    mapping.setPathPrefixes(java.util.Map.of("/api/v1", type -> true));
+                    var mapping = new RequestMappingHandlerMapping();
+                    mapping.setPathPrefixes(Map.of("/api/v1", type -> true));
                     return mapping;
                 })
                 .build();

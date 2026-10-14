@@ -2,12 +2,19 @@ package io.github.sudoitir.rahdar.kernel.plugin.internal.runtime;
 
 import java.beans.Introspector;
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.util.JacksonUtils;
 import org.springframework.beans.CachedIntrospectionResults;
 import org.springframework.core.BridgeMethodResolver;
 import org.springframework.core.GenericTypeResolver;
+import org.springframework.core.MethodClassKey;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.ReflectionUtils;
@@ -84,7 +91,7 @@ final class PluginClassloaderCaches {
         evictSecurityAnnotationScanners(loader);
         // Spring AI's static default mapper serializes MCP tool results; its type and serializer
         // caches keep every plugin type it ever saw (found in a heap dump of an unloaded plugin).
-        org.springframework.ai.util.JacksonUtils.getDefaultJsonMapper().clearCaches();
+        JacksonUtils.getDefaultJsonMapper().clearCaches();
         // The MCP annotation support caches each tool's input and output schema by Method and by
         // Type, statically and softly: reclaimable under memory pressure, but not promptly.
         // @Bean method metadata, cached per Method (soft) for every configuration class ever enhanced.
@@ -172,23 +179,23 @@ final class PluginClassloaderCaches {
         if (key instanceof Class<?> type) {
             return type.getClassLoader() == loader;
         }
-        if (key instanceof java.lang.reflect.ParameterizedType generic) {
+        if (key instanceof ParameterizedType generic) {
             return belongsTo(generic.getRawType(), loader)
-                    || java.util.Arrays.stream(generic.getActualTypeArguments()).anyMatch(t -> belongsTo(t, loader));
+                    || Arrays.stream(generic.getActualTypeArguments()).anyMatch(t -> belongsTo(t, loader));
         }
-        if (key instanceof java.lang.reflect.GenericArrayType array) {
+        if (key instanceof GenericArrayType array) {
             return belongsTo(array.getGenericComponentType(), loader);
         }
-        if (key instanceof java.lang.reflect.Parameter parameter) {
+        if (key instanceof Parameter parameter) {
             return parameter.getDeclaringExecutable().getDeclaringClass().getClassLoader() == loader;
         }
-        if (key instanceof java.lang.reflect.Method method) {
+        if (key instanceof Method method) {
             return method.getDeclaringClass().getClassLoader() == loader;
         }
-        if (key instanceof org.springframework.core.MethodClassKey methodClassKey) {
+        if (key instanceof MethodClassKey methodClassKey) {
             try {
-                Field method = org.springframework.core.MethodClassKey.class.getDeclaredField("method");
-                Field target = org.springframework.core.MethodClassKey.class.getDeclaredField("targetClass");
+                Field method = MethodClassKey.class.getDeclaredField("method");
+                Field target = MethodClassKey.class.getDeclaredField("targetClass");
                 method.setAccessible(true);
                 target.setAccessible(true);
                 return belongsTo(method.get(methodClassKey), loader)

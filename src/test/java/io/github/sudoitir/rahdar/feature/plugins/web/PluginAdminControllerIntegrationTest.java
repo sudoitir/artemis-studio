@@ -20,6 +20,7 @@ import io.github.sudoitir.rahdar.kernel.plugin.support.TrustedTestKey;
 import io.github.sudoitir.rahdar.kernel.security.GrantLoader;
 import io.github.sudoitir.rahdar.kernel.security.Permissions;
 import io.github.sudoitir.rahdar.kernel.security.RahdarPrincipal;
+import io.github.sudoitir.rahdar.kernel.security.ScopeIds;
 import io.github.sudoitir.rahdar.kernel.security.SessionAuthentication;
 import io.github.sudoitir.rahdar.kernel.security.SessionFacts;
 import io.github.sudoitir.rahdar.kernel.security.internal.persistence.AppUserEntity;
@@ -34,7 +35,12 @@ import io.github.sudoitir.rahdar.support.PostgresIntegrationTest;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -92,8 +98,8 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
     @Autowired
     JsonMapper json;
 
-    private final java.util.List<String> pluginIds = new java.util.ArrayList<>();
-    private final java.util.List<UUID> installerIds = new java.util.ArrayList<>();
+    private final List<String> pluginIds = new ArrayList<>();
+    private final List<UUID> installerIds = new ArrayList<>();
 
     @BeforeEach
     void trustThePublisher() {
@@ -136,8 +142,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
         users.save(user);
         RoleEntity role = roles.save(new RoleEntity("role-" + UUID.randomUUID(), false));
         rolePermissions.save(new RolePermissionEntity(role.getId(), Permissions.WILDCARD));
-        userRoles.save(new UserRoleEntity(
-                user.getId(), role.getId(), "GLOBAL", io.github.sudoitir.rahdar.kernel.security.ScopeIds.GLOBAL));
+        userRoles.save(new UserRoleEntity(user.getId(), role.getId(), "GLOBAL", ScopeIds.GLOBAL));
         return user.getId();
     }
 
@@ -177,7 +182,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_OCTET_STREAM)
                         .content(jar(unique("acme-x"))))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("plugin-installer-required")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("plugin-installer-required")));
     }
 
     @Test
@@ -212,7 +217,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .session(session)
                         .with(csrf()))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("reauthentication-required")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("reauthentication-required")));
 
         mvc.perform(post("/api/v1/auth/reauthenticate")
                         .session(session)
@@ -220,7 +225,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"password\":\"wrong\"}"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("reauthentication-failed")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("reauthentication-failed")));
         String before = session.getId();
         var stepUp = mvc.perform(post("/api/v1/auth/reauthenticate")
                         .session(session)
@@ -249,7 +254,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .session(session)
                         .with(csrf()))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("plugin-installer-required")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("plugin-installer-required")));
         jdbc.update("DELETE FROM plugin_installer WHERE user_id = ?", other);
     }
 
@@ -267,7 +272,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_OCTET_STREAM)
                         .content(jar(unique("acme-token"))))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("plugin-install-interactive-only")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("plugin-install-interactive-only")));
     }
 
     @Test
@@ -369,7 +374,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
         return json.readTree(body).get("sha256").asString();
     }
 
-    private java.util.Map<String, Object> lastAudit(String action, UUID userId) {
+    private Map<String, Object> lastAudit(String action, UUID userId) {
         return jdbc.queryForMap(
                 "SELECT outcome, error, params::text AS params, target_name FROM audit_event"
                         + " WHERE action = ? AND user_id = ? ORDER BY id DESC LIMIT 1",
@@ -390,7 +395,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Acme\",\"pem\":\"x\"}"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("plugin-installer-required")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("plugin-installer-required")));
         mvc.perform(get("/api/v1/admin/plugins/keys").session(session)).andExpect(status().isForbidden());
         mvc.perform(put("/api/v1/admin/plugins/trust-policy")
                         .session(session)
@@ -423,7 +428,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Acme\",\"pem\":\"x\"}"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("reauthentication-required")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("reauthentication-required")));
         mvc.perform(delete("/api/v1/admin/plugins/keys/{fp}", TestSigningKeys.PUBLISHER.fingerprint())
                         .session(session)
                         .with(csrf()))
@@ -434,7 +439,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"allowUnverified\":true}"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("reauthentication-required")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("reauthentication-required")));
 
         assertThat(lastAudit("PLUGIN_KEY_ADD", userId[0])).containsEntry("outcome", "FAILURE");
         assertThat(lastAudit("PLUGIN_KEY_REMOVE", userId[0])).containsEntry("outcome", "FAILURE");
@@ -460,7 +465,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .build()));
         String other = TestSigningKeys.OTHER.fingerprint();
         String publisherPem = "-----BEGIN PUBLIC KEY-----\n"
-                + java.util.Base64.getMimeEncoder(64, "\n".getBytes())
+                + Base64.getMimeEncoder(64, "\n".getBytes())
                         .encodeToString(TestSigningKeys.PUBLISHER
                                 .certificate()
                                 .getPublicKey()
@@ -478,20 +483,19 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .session(session)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(
-                                java.util.Map.of("name", "Acme", "upload", sha, "pem", publisherPem))))
+                        .content(json.writeValueAsString(Map.of("name", "Acme", "upload", sha, "pem", publisherPem))))
                 .andExpect(status().isBadRequest());
         mvc.perform(post("/api/v1/admin/plugins/keys")
                         .session(session)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(java.util.Map.of("name", "Acme"))))
+                        .content(json.writeValueAsString(Map.of("name", "Acme"))))
                 .andExpect(status().isBadRequest());
         mvc.perform(post("/api/v1/admin/plugins/keys")
                         .session(session)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(java.util.Map.of("name", "  ", "upload", sha))))
+                        .content(json.writeValueAsString(Map.of("name", "  ", "upload", sha))))
                 .andExpect(status().isBadRequest());
         assertThat(jdbc.queryForObject("SELECT count(*) FROM plugin_trusted_key", Integer.class))
                 .isEqualTo(1);
@@ -500,7 +504,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .session(session)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(java.util.Map.of("name", " Other Publisher ", "upload", sha))))
+                        .content(json.writeValueAsString(Map.of("name", " Other Publisher ", "upload", sha))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.fingerprint").value(other))
                 .andExpect(jsonPath("$.name").value("Other Publisher"));
@@ -514,7 +518,7 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .session(session)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(java.util.Map.of("name", "Again", "upload", sha))))
+                        .content(json.writeValueAsString(Map.of("name", "Again", "upload", sha))))
                 .andExpect(status().isConflict());
         mvc.perform(get("/api/v1/admin/plugins/uploads/{sha}", sha).session(session))
                 .andExpect(jsonPath("$.trust.status").value("TRUSTED"))
@@ -555,24 +559,23 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .session(session)
                         .with(csrf()))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.type").value(org.hamcrest.Matchers.endsWith("/configured-key")))
-                .andExpect(
-                        jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("rahdar.plugins.trusted-keys")))
-                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("restart")));
+                .andExpect(jsonPath("$.type").value(Matchers.endsWith("/configured-key")))
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("rahdar.plugins.trusted-keys")))
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("restart")));
         assertThat(jdbc.queryForObject(
                         "SELECT count(*) FROM plugin_trusted_key WHERE fingerprint = ?", Integer.class, other))
                 .isEqualTo(1);
         assertThat(lastAudit("PLUGIN_KEY_REMOVE", userId[0])).containsEntry("outcome", "FAILURE");
 
         String pem = "-----BEGIN CERTIFICATE-----\n"
-                + java.util.Base64.getMimeEncoder(64, "\n".getBytes())
+                + Base64.getMimeEncoder(64, "\n".getBytes())
                         .encodeToString(TestSigningKeys.OTHER.certificate().getEncoded())
                 + "\n-----END CERTIFICATE-----";
         mvc.perform(post("/api/v1/admin/plugins/keys")
                         .session(session)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(java.util.Map.of("name", "Again", "pem", pem))))
+                        .content(json.writeValueAsString(Map.of("name", "Again", "pem", pem))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.violations[0].code").value("key-exists"));
     }
@@ -593,25 +596,25 @@ class PluginAdminControllerIntegrationTest extends PostgresIntegrationTest {
                         .session(session)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(java.util.Map.of("name", "Acme", "upload", sha))))
+                        .content(json.writeValueAsString(Map.of("name", "Acme", "upload", sha))))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.violations[0].code").value("plugin-unsigned"));
         mvc.perform(post("/api/v1/admin/plugins/keys")
                         .session(session)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(java.util.Map.of("name", "Acme", "pem", "garbage"))))
+                        .content(json.writeValueAsString(Map.of("name", "Acme", "pem", "garbage"))))
                 .andExpect(status().isBadRequest());
 
         String pem = "-----BEGIN CERTIFICATE-----\n"
-                + java.util.Base64.getMimeEncoder(64, "\n".getBytes())
+                + Base64.getMimeEncoder(64, "\n".getBytes())
                         .encodeToString(TestSigningKeys.OTHER.certificate().getEncoded())
                 + "\n-----END CERTIFICATE-----";
         mvc.perform(post("/api/v1/admin/plugins/keys")
                         .session(session)
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(java.util.Map.of("name", "Acme", "pem", pem))))
+                        .content(json.writeValueAsString(Map.of("name", "Acme", "pem", pem))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.fingerprint").value(TestSigningKeys.OTHER.fingerprint()));
     }

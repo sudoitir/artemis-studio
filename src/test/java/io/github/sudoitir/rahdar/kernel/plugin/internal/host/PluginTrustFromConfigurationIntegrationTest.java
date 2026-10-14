@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -193,7 +194,7 @@ class PluginTrustFromConfigurationIntegrationTest extends PostgresIntegrationTes
 
     @Test
     void anInvalidEntryFailsStartupNamingItsIndex() {
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> started = restart(
+        Assertions.assertThatThrownBy(() -> started = restart(
                         "rahdar.plugins.trusted-keys[0].name=Example Publisher",
                         "rahdar.plugins.trusted-keys[0].pem=not a key"))
                 .hasStackTraceContaining("rahdar.plugins.trusted-keys[0]")

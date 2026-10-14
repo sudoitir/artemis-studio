@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
@@ -87,10 +88,7 @@ class ApprovalNotices {
                 SOURCE,
                 new Notice(
                         "approval."
-                                + row.state()
-                                        .name()
-                                        .toLowerCase(java.util.Locale.ROOT)
-                                        .replace('_', '-'),
+                                + row.state().name().toLowerCase(Locale.ROOT).replace('_', '-'),
                         severity,
                         title(prefix, row.summary()),
                         body == null ? null : truncate(body, Notice.MAX_BODY),

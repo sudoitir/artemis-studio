@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -81,7 +82,7 @@ class PermissionStreamAccessTest {
         when(topics.definition("health")).thenReturn(TopicDef.signal("health"));
         @SuppressWarnings("unchecked")
         ObjectProvider<StreamGate> gates = mock(ObjectProvider.class);
-        when(gates.orderedStream()).thenAnswer(i -> java.util.stream.Stream.<StreamGate>empty());
+        when(gates.orderedStream()).thenAnswer(i -> Stream.<StreamGate>empty());
         streamAccess = new PermissionStreamAccess(
                 resolver, topics, JsonMapper.builder().build(), gates);
         ownedRows.add(new TeamPatternEntity(orders, clusterId, "QUEUE", "orders.#"));

@@ -3,6 +3,7 @@ package io.github.sudoitir.rahdar.kernel.plugin.internal.trust;
 import io.github.sudoitir.rahdar.kernel.plugin.internal.validation.Signer;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -61,7 +62,7 @@ public final class PublisherKeys {
             try {
                 KeyFactory.getInstance(algorithm).generatePublic(new X509EncodedKeySpec(der));
                 return new Signer(Signer.fingerprint(der), "", der);
-            } catch (java.security.GeneralSecurityException _) {
+            } catch (GeneralSecurityException _) {
                 // try the next algorithm
             }
         }

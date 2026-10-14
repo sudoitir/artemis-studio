@@ -8,6 +8,7 @@ import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class NodeCallLimiterTest {
@@ -23,7 +24,7 @@ class NodeCallLimiterTest {
 
     @Test
     void replicasShareTheConfiguredRate() {
-        var ready = new java.util.concurrent.atomic.AtomicInteger(3);
+        var ready = new AtomicInteger(3);
         NodeCallLimiter limiter = new NodeCallLimiter(new RateLimitProperties(10), meters, ready::get);
 
         limiter.refill();

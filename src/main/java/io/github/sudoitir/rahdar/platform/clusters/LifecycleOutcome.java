@@ -1,6 +1,7 @@
 package io.github.sudoitir.rahdar.platform.clusters;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -71,7 +72,7 @@ public record LifecycleOutcome(boolean dryRun, long cap, boolean overCap, List<N
     public long totalAffected() {
         return nodes.stream()
                 .map(NodeOutcome::affected)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .mapToLong(Long::longValue)
                 .sum();
     }
